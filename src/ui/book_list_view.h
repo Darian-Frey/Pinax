@@ -43,6 +43,9 @@ signals:
     // 1-9 rate, 0 rates 10, Backspace or - clears (sent as 0) (F-007).
     void ratingRequested(const QList<qint64>& ids, int rating);
 
+    // Delete with books selected (F-001). Asks; deletes nothing itself.
+    void deleteRequested(const QList<qint64>& ids);
+
 protected:
     void keyPressEvent(QKeyEvent* event) override;
 

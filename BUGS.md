@@ -20,7 +20,30 @@ detection becomes an entry here.
 
 ## Open
 
-*None.*
+### BUG-003 Editors imported as authors named "ed. …"
+
+**Status:** open
+**Found:** 2026-10-05 (finishing Phase 1, reviewing the list against the real catalogue)
+**Location:** the seed data — `seed/library.csv`, made by `seed/convert_catalogue.py`, both git-ignored; three books in the owner's `pinax.db`
+**Severity:** low
+**Description.** The source spreadsheet marks an anthology's editor by
+prefixing "ed." to the name. The converter passed those cells through as
+written, so the importer created two authors named `ed. Mike Ashley` and
+`ed. Jonathan Strahan`, filed as `Ashley, ed. Mike` and `Strahan, ed.
+Jonathan`, credited with the role `author`. Three books are affected: *The
+Mammoth Book of Mindblowing SF*, *Lost Mars* and *Engineering Infinity*.
+They sort under the wrong names, count as authored rather than edited, and
+would not merge with the same people credited correctly elsewhere (AV-008's
+failure, by a different route).
+**Reproduction.** Import the seed, then `SELECT name, sort_name FROM author
+WHERE name LIKE 'ed.%';` — two rows.
+**Notes.** Not fixed, per Maintenance Rule 8. Two routes, either sufficient:
+(a) teach the converter that a leading `ed. ` means `Name (editor)` and
+re-import — the credits are replaced, but the two `ed. …` author rows stay
+behind with no books (see IMP-003); or (b) correct the three books in the
+edit form, which F-002 now allows, with the same leftover rows. The
+converter should learn the rule either way, in case the spreadsheet is ever
+converted again.
 
 ## Fixed
 

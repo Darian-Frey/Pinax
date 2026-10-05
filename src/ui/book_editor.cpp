@@ -1,5 +1,6 @@
 #include "ui/book_editor.h"
 
+#include "domain/credit_text.h"
 #include "domain/isbn.h"
 #include "ui/style.h"
 
@@ -86,12 +87,13 @@ BookEditor::BookEditor(QWidget* parent)
     layout->setSpacing(10);
 
     auto* heading = new QHBoxLayout;
-    auto* label = new QLabel(tr("Editing"), this);
-    QFont headingFont = label->font();
+    heading_ = new QLabel(tr("Editing"), this);
+    heading_->setObjectName(QStringLiteral("edit.heading"));
+    QFont headingFont = heading_->font();
     headingFont.setPointSizeF(headingFont.pointSizeF() * 1.3);
     headingFont.setBold(true);
-    label->setFont(headingFont);
-    heading->addWidget(label);
+    heading_->setFont(headingFont);
+    heading->addWidget(heading_);
     heading->addStretch();
     layout->addLayout(heading);
 
@@ -104,10 +106,10 @@ BookEditor::BookEditor(QWidget* parent)
     subtitle_ = makeLine(QStringLiteral("edit.subtitle"), this);
     form->addRow(tr("Subtitle"), subtitle_);
 
-    authors_ = new QLabel(this);
-    authors_->setObjectName(QStringLiteral("edit.authors"));
-    authors_->setWordWrap(true);
-    authors_->setToolTip(tr("Authors and series are not editable here yet"));
+    authors_ = makeLine(QStringLiteral("edit.authors"), this);
+    authors_->setPlaceholderText(tr("Larry Niven & Jerry Pournelle"));
+    authors_->setToolTip(tr("In cover order, joined by \" & \". Put a role after a name in "
+                            "brackets: (editor), (translator), (illustrator)."));
     form->addRow(tr("Authors"), authors_);
 
     readState_ = new QComboBox(this);
@@ -197,10 +199,11 @@ void BookEditor::editBook(const domain::BookDetail& detail)
 {
     original_ = detail.book;
     const Book& book = detail.book;
+    heading_->setText(book.id == 0 ? tr("Adding a book") : tr("Editing"));
 
     title_->setText(QString::fromStdString(book.title));
     subtitle_->setText(text(book.subtitle));
-    authors_->setText(detail.authors ? QString::fromStdString(*detail.authors) : tr("None recorded"));
+    authors_->setText(QString::fromStdString(domain::formatCredits(detail.credits)));
 
     const auto state = std::find(readStates.begin(), readStates.end(), book.readStatus);
     readState_->setCurrentIndex(static_cast<int>(state - readStates.begin()));
@@ -299,12 +302,19 @@ void BookEditor::save()
     }
     book.notes = optionalText(notes_->toPlainText());
 
+    std::vector<domain::NamedCredit> credits;
+    try {
+        credits = domain::parseCredits(authors_->text().toStdString());
+    } catch (const domain::CreditTextError& error) {
+        errors << tr("Authors: %1.").arg(QString::fromUtf8(error.what()));
+    }
+
     if (!errors.isEmpty()) {
         showError(errors.join(QLatin1Char('\n')));
         return;
     }
     error_->hide();
-    emit saveRequested(book);
+    emit saveRequested({book, credits});
 }
 
 } // namespace pinax::ui

@@ -45,6 +45,29 @@ have meant to abandon, and turns a validation failure into a puzzle.
 **Notes.** The bulk editor (multi-selection) will meet the same question;
 settle it once for both.
 
+### IMP-003 Authors left with no books stay in the author table
+
+**Status:** suggested
+**Found:** 2026-10-05 (finishing Phase 1, while making credits editable)
+**Location:** `src/app/catalogue.cpp`, `Catalogue::save(const BookEdit&)` and `Catalogue::remove`
+**Effort:** small
+**Description.** Editing a credit to a different name, or deleting a book,
+can leave an author row that no book credits any more — a misspelling
+corrected, an "ed. …" name fixed (BUG-003), the last book by someone
+deleted. Nothing is wrong in the data, but the author filter in the rail
+(F-017) would list people with no books, and a later import of the old
+spelling would quietly reattach to the stale row.
+**Proposal.** After a credit change or a deletion, in the same transaction,
+delete authors that have no `book_author` rows and no `notes`. One
+`AuthorRepository::removeUncredited()` and a test that edits a credit away
+and finds the author gone.
+**Trade-offs.** An author kept deliberately — say, one whose books are lent
+out and deleted for now — vanishes with their sort name; the `notes`
+exception protects only those with notes. The alternative is to leave rows
+and have the rail hide authors with a count of nought, which keeps history
+but leaves the stale-spelling trap.
+**Notes.** Settle before F-017's author filter is built.
+
 ## Applied
 
 ### IMP-001 Order an author's books by series before title

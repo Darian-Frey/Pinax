@@ -87,6 +87,9 @@ int compareBooks(int column, const BookSummary& a, const BookSummary& b, bool de
     case BookListModel::YearColumn:
         order = compareOptional(a.publishedYear, b.publishedYear, descending);
         break;
+    case BookListModel::TimesReadColumn:
+        order = compareValue(a.timesRead, b.timesRead);
+        break;
     case BookListModel::TitleColumn:
         break;
     }

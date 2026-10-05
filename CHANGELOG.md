@@ -12,6 +12,13 @@ change can be traced to the capability or decision that motivated it.
 ## [Unreleased]
 
 ### Added
+- Adding and deleting books (F-001): Add a book (Ctrl+N) opens an empty form
+  in the panel; Delete in the list or the panel asks in the panel, Keep being
+  the default, and deletes in one transaction. A book created as read starts
+  at one read (AV-005).
+- Credits are editable in the form, in the import notation (F-002); the
+  parser moved from `io` to `domain::parseCredits` so import and edit share it.
+- A sortable Reads column in the list (F-006).
 - Read toggle (F-005, Phase 1 step 6): R in the list marks the selected books
   read, or unread if all of them are read already, saved at once with the
   selection kept. Unmarking takes back the read it counted (D-017).
@@ -122,6 +129,8 @@ change can be traced to the capability or decision that motivated it.
   after the habit of silent fixing has set in.
 
 ### Notes
+- BUG-003 logged: three editors in the seed were imported as authors named
+  "ed. …". IMP-003 suggested: remove authors left with no books.
 - IMP-002 suggested: keep an edit in progress when the list selection moves.
 - IMP-001 suggested and applied: within an author, books sort by series and
   position, standalones last, instead of interleaving by title.

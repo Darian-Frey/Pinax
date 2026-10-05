@@ -1,12 +1,17 @@
 #include "app/catalogue.h"
 #include "db/db_error.h"
+#include "domain/credit_text.h"
 #include "app/main_window.h"
 #include "io/csv_importer.h"
+#include "ui/book_editor.h"
+#include "ui/book_list_model.h"
 #include "ui/book_list_view.h"
 #include "ui/book_view.h"
 #include "ui/detail_panel.h"
 
 #include <QLabel>
+#include <QLineEdit>
+#include <QPushButton>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -59,6 +64,15 @@ private slots:
     // Through the window
     void pressingRInTheListTogglesAndRefreshes();
     void clickingASquareInThePanelRates();
+
+    // F-001, F-002
+    void addingABookWritesItAndItsCredits();
+    void editingCreditsReplacesThem();
+    void removingLeavesTheSeriesGap();
+    void ctrlNAddsABookThroughTheWindow();
+    void deleteKeyAsksThenDeletes();
+    // F-006
+    void readsColumnShowsAndSortsTheCount();
 };
 
 void TestCatalogue::detailCarriesSeriesCompleteness()
@@ -152,9 +166,10 @@ void TestCatalogue::savingFromThePanelUpdatesTheList()
     const std::int64_t id = idOf(catalogue, "Tau Zero");
     window.bookList()->selectBook(id);
 
-    auto book = catalogue.detail(id)->book;
+    const auto detail = catalogue.detail(id);
+    auto book = detail->book;
     book.rating = 7;
-    emit window.detailPanel()->saveRequested(book);
+    emit window.detailPanel()->saveRequested({book, detail->credits});
 
     QVERIFY(window.detailPanel()->state() == DetailPanel::State::Viewing);
     QCOMPARE(window.detailPanel()->view()->findChild<QLabel*>(QStringLiteral("ratingText"))->text(),
@@ -313,6 +328,149 @@ void TestCatalogue::clickingASquareInThePanelRates()
     // The same square again clears it.
     QTest::mouseClick(bar, Qt::LeftButton, Qt::NoModifier, QPoint(5 * 11 + 4, 5));
     QVERIFY(!catalogue.detail(id)->book.rating);
+}
+
+void TestCatalogue::addingABookWritesItAndItsCredits()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+
+    pinax::domain::BookEdit edit;
+    edit.book.title = "The Mote in God's Eye";
+    edit.book.readStatus = ReadStatus::Read;
+    edit.credits = {{"Larry Niven", pinax::domain::CreditRole::Author},
+        {"Jerry Pournelle", pinax::domain::CreditRole::Author}};
+    const auto result = catalogue.save(edit);
+    QVERIFY(!result.problem);
+    QVERIFY(result.id > 0);
+
+    const auto detail = catalogue.detail(result.id);
+    QCOMPARE(detail->book.sortTitle, std::string("Mote in God's Eye, The"));
+    // AV-005: created straight into read, so the count is set, not triggered.
+    QCOMPARE(detail->book.timesRead, 1);
+    QCOMPARE(detail->authors, std::optional<std::string>("Larry Niven & Jerry Pournelle"));
+    QCOMPARE(catalogue.count(), 4);
+}
+
+void TestCatalogue::editingCreditsReplacesThem()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+    const std::int64_t id = idOf(catalogue, "Excession");
+
+    auto detail = catalogue.detail(id);
+    pinax::domain::BookEdit edit {detail->book,
+        pinax::domain::parseCredits("Iain M. Banks & Ken MacLeod (editor)")};
+    QVERIFY(!catalogue.save(edit).problem);
+
+    detail = catalogue.detail(id);
+    QCOMPARE(detail->credits.size(), std::size_t(2));
+    QCOMPARE(pinax::domain::formatCredits(detail->credits),
+        std::string("Iain M. Banks & Ken MacLeod (editor)"));
+    // Banks is reused, not duplicated; editors are not listed as authors.
+    QCOMPARE(detail->authors, std::optional<std::string>("Iain M. Banks"));
+    QCOMPARE(catalogue.detail(idOf(catalogue, "Surface Detail"))->credits.front().name,
+        std::string("Iain M. Banks"));
+}
+
+void TestCatalogue::removingLeavesTheSeriesGap()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+    const std::int64_t id = idOf(catalogue, "Excession");
+
+    QVERIFY(!catalogue.remove({id}));
+    QVERIFY(!catalogue.detail(id));
+    QCOMPARE(catalogue.count(), 2);
+
+    // The Culture now knows a volume 5 it does not hold (F-001, D-006).
+    const auto culture = catalogue.detail(idOf(catalogue, "Surface Detail"))->series.front();
+    QCOMPARE(culture.held, 1);
+    QCOMPARE(culture.known, 2);
+    QCOMPARE(culture.missing.front().position, std::optional<std::string>("5"));
+}
+
+void TestCatalogue::ctrlNAddsABookThroughTheWindow()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    window.bookList()->selectBook(idOf(catalogue, "Tau Zero"));
+
+    QTest::keyClick(&window, Qt::Key_N, Qt::ControlModifier);
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::Editing);
+    QVERIFY(window.bookList()->selectedBooks().isEmpty());
+
+    auto* editor = window.detailPanel()->editor();
+    editor->findChild<QLineEdit*>(QStringLiteral("edit.title"))->setText(QStringLiteral("Ringworld"));
+    editor->findChild<QLineEdit*>(QStringLiteral("edit.authors"))->setText(QStringLiteral("Larry Niven"));
+    editor->save();
+
+    const std::int64_t id = idOf(catalogue, "Ringworld");
+    QVERIFY(id > 0);
+    QCOMPARE(window.bookList()->selectedBooks(), QList<qint64>({id}));
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::Viewing);
+    QCOMPARE(window.bookList()->model()->rowCount(), 4);
+}
+
+void TestCatalogue::deleteKeyAsksThenDeletes()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    // Shown, so the confirmation's buttons have a size to click.
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    const std::int64_t id = idOf(catalogue, "Excession");
+    window.bookList()->selectBook(id);
+
+    QTest::keyClick(window.bookList(), Qt::Key_Delete);
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::ConfirmingDelete);
+    const QString question
+        = window.detailPanel()->findChild<QLabel*>(QStringLiteral("confirm.question"))->text();
+    QVERIFY2(question.contains(QStringLiteral("The Culture stays, as a missing volume")), qPrintable(question));
+    QCOMPARE(catalogue.count(), 3); // nothing yet
+
+    QTest::mouseClick(window.detailPanel()->findChild<QPushButton*>(QStringLiteral("confirm.delete")),
+        Qt::LeftButton);
+    QCOMPARE(catalogue.count(), 2);
+    QVERIFY(!catalogue.detail(id));
+    QCOMPARE(window.bookList()->model()->rowCount(), 2);
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::Empty);
+}
+
+void TestCatalogue::readsColumnShowsAndSortsTheCount()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue); // Excession read once, the others not at all
+    const std::int64_t twice = idOf(catalogue, "Surface Detail");
+    auto book = catalogue.detail(twice)->book;
+    book.readStatus = ReadStatus::Read;
+    catalogue.save(book);
+    book = catalogue.detail(twice)->book;
+    book.readStatus = ReadStatus::Reading;
+    catalogue.save(book);
+    book = catalogue.detail(twice)->book;
+    book.readStatus = ReadStatus::Read;
+    catalogue.save(book);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    auto* view = window.bookList();
+    view->sortByColumn(pinax::ui::BookListModel::TimesReadColumn, Qt::DescendingOrder);
+
+    const auto* model = view->model();
+    auto cell = [&](int row, int column) { return model->index(row, column).data().toString(); };
+    QCOMPARE(cell(0, pinax::ui::BookListModel::TitleColumn), QStringLiteral("Surface Detail"));
+    QCOMPARE(cell(0, pinax::ui::BookListModel::TimesReadColumn), QStringLiteral("2"));
+    QCOMPARE(cell(1, pinax::ui::BookListModel::TimesReadColumn), QStringLiteral("1"));
+    QCOMPARE(cell(2, pinax::ui::BookListModel::TimesReadColumn), QString()); // never read
 }
 
 QTEST_MAIN(TestCatalogue)

@@ -1,3 +1,4 @@
+#include "domain/credit_text.h"
 #include "domain/enums.h"
 #include "domain/isbn.h"
 #include "domain/sort_name.h"
@@ -18,6 +19,7 @@ private slots:
     void sortNamePutsSurnameFirst_data();
     void sortNamePutsSurnameFirst();
     void isbnCheckDigits();
+    void creditTextRoundTrips();
 };
 
 void TestDomain::sortTitleMovesLeadingArticle_data()
@@ -98,6 +100,21 @@ void TestDomain::isbnCheckDigits()
     QVERIFY(isValidIsbn10("080442957X"));
     QVERIFY(!isValidIsbn10("0306406153"));
     QVERIFY(!isValidIsbn10("X306406152"));
+}
+
+void TestDomain::creditTextRoundTrips()
+{
+    const auto credits = parseCredits(" Larry Niven &  Jerry Pournelle & Mike Ashley ( editor ) ");
+    QCOMPARE(credits.size(), std::size_t(3));
+    QCOMPARE(credits[1].name, std::string("Jerry Pournelle"));
+    QVERIFY(credits[2].role == CreditRole::Editor);
+    QCOMPARE(formatCredits(credits),
+        std::string("Larry Niven & Jerry Pournelle & Mike Ashley (editor)"));
+
+    QVERIFY(parseCredits("").empty());
+    QVERIFY(parseCredits("   ").empty());
+    QVERIFY_THROWS_EXCEPTION(CreditTextError, parseCredits("Larry Niven & "));
+    QVERIFY_THROWS_EXCEPTION(CreditTextError, parseCredits("Somebody (publisher)"));
 }
 
 QTEST_APPLESS_MAIN(TestDomain)

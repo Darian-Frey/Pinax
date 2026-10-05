@@ -34,6 +34,7 @@ BookDetail excession()
     detail.book.publishedYear = 1996;
     detail.book.binding = Binding::Paperback;
     detail.authors = "Iain M. Banks";
+    detail.credits = {{"Iain M. Banks", pinax::domain::CreditRole::Author}};
 
     SeriesMembership culture;
     culture.seriesId = 1;
@@ -77,6 +78,9 @@ private slots:
     void escapeCancelsBackToView();
     void editedSynopsisIsMarkedManual();
     void ratingSquaresChooseAndClear();
+    void authorsAreEditedAsText();
+    void aNewBookStartsEmptyAndCancelsToNothing();
+    void deletionIsConfirmedInThePanel();
 };
 
 void TestDetailPanel::startsEmptyAndShowsSeveral()
@@ -143,7 +147,8 @@ void TestDetailPanel::editEmitsTheChangedBook()
     QVERIFY(panel.state() == DetailPanel::State::Editing);
 
     std::optional<Book> saved;
-    connect(&panel, &DetailPanel::saveRequested, this, [&](const Book& book) { saved = book; });
+    connect(&panel, &DetailPanel::saveRequested, this,
+        [&](const pinax::domain::BookEdit& edit) { saved = edit.book; });
 
     const QWidget& editor = *panel.editor();
     child<QLineEdit>(editor, QStringLiteral("edit.title"))->setText(QStringLiteral("  Excession  "));
@@ -214,7 +219,8 @@ void TestDetailPanel::editedSynopsisIsMarkedManual()
     panel.beginEdit();
 
     std::optional<Book> saved;
-    connect(&panel, &DetailPanel::saveRequested, this, [&](const Book& book) { saved = book; });
+    connect(&panel, &DetailPanel::saveRequested, this,
+        [&](const pinax::domain::BookEdit& edit) { saved = edit.book; });
     child<QPlainTextEdit>(*panel.editor(), QStringLiteral("edit.synopsis"))
         ->setPlainText(QStringLiteral("My own words."));
     panel.editor()->save();
@@ -240,6 +246,87 @@ void TestDetailPanel::ratingSquaresChooseAndClear()
     QCOMPARE(requested.count(), 1);
     QCOMPARE(requested.at(0).at(0).toLongLong(), qint64(5));
     QCOMPARE(requested.at(0).at(1).toInt(), 3);
+}
+
+void TestDetailPanel::authorsAreEditedAsText()
+{
+    // F-002: the import notation, in cover order, roles in brackets.
+    DetailPanel panel;
+    panel.showBook(excession());
+    panel.beginEdit();
+
+    auto* authors = child<QLineEdit>(*panel.editor(), QStringLiteral("edit.authors"));
+    QCOMPARE(authors->text(), QStringLiteral("Iain M. Banks"));
+
+    std::optional<pinax::domain::BookEdit> saved;
+    connect(&panel, &DetailPanel::saveRequested, this,
+        [&](const pinax::domain::BookEdit& edit) { saved = edit; });
+
+    authors->setText(QStringLiteral("Larry Niven & Jerry Pournelle & Mike Ashley (editor)"));
+    panel.editor()->save();
+    QVERIFY(saved);
+    QCOMPARE(saved->credits.size(), std::size_t(3));
+    QCOMPARE(saved->credits[0].name, std::string("Larry Niven"));
+    QVERIFY(saved->credits[2].role == pinax::domain::CreditRole::Editor);
+
+    saved.reset();
+    authors->setText(QStringLiteral("Somebody (publisher)"));
+    panel.editor()->save();
+    QVERIFY(!saved);
+    QVERIFY(labelText(*panel.editor(), QStringLiteral("edit.error")).contains(QStringLiteral("publisher")));
+}
+
+void TestDetailPanel::aNewBookStartsEmptyAndCancelsToNothing()
+{
+    DetailPanel panel;
+    panel.beginNew();
+    QVERIFY(panel.state() == DetailPanel::State::Editing);
+    QCOMPARE(labelText(*panel.editor(), QStringLiteral("edit.heading")), QStringLiteral("Adding a book"));
+    QCOMPARE(child<QLineEdit>(*panel.editor(), QStringLiteral("edit.title"))->text(), QString());
+
+    std::optional<pinax::domain::BookEdit> saved;
+    connect(&panel, &DetailPanel::saveRequested, this,
+        [&](const pinax::domain::BookEdit& edit) { saved = edit; });
+    panel.editor()->save(); // no title
+    QVERIFY(!saved);
+
+    child<QLineEdit>(*panel.editor(), QStringLiteral("edit.title"))->setText(QStringLiteral("Ringworld"));
+    panel.editor()->save();
+    QVERIFY(saved);
+    QCOMPARE(saved->book.id, std::int64_t(0));
+    QCOMPARE(saved->book.title, std::string("Ringworld"));
+
+    QTest::mouseClick(child<QPushButton>(*panel.editor(), QStringLiteral("edit.cancel")), Qt::LeftButton);
+    QVERIFY(panel.state() == DetailPanel::State::Empty);
+}
+
+void TestDetailPanel::deletionIsConfirmedInThePanel()
+{
+    DetailPanel panel;
+    panel.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&panel));
+    panel.showBook(excession());
+
+    QSignalSpy requested(&panel, &DetailPanel::deleteRequested);
+    QTest::mouseClick(child<QPushButton>(*panel.view(), QStringLiteral("delete")), Qt::LeftButton);
+    QCOMPARE(requested.count(), 1);
+    QCOMPARE(requested.at(0).at(0).value<QList<qint64>>(), QList<qint64>({5}));
+
+    QSignalSpy confirmed(&panel, &DetailPanel::deleteConfirmed);
+    QSignalSpy cancelled(&panel, &DetailPanel::deleteCancelled);
+
+    panel.askToDelete({5}, QStringLiteral("Delete “Excession”?"));
+    QVERIFY(panel.state() == DetailPanel::State::ConfirmingDelete);
+    auto* keep = child<QPushButton>(panel, QStringLiteral("confirm.keep"));
+    QTRY_VERIFY(keep->hasFocus()); // Enter keeps
+    QTest::keyClick(keep, Qt::Key_Escape);
+    QCOMPARE(cancelled.count(), 1);
+    QCOMPARE(confirmed.count(), 0);
+
+    panel.askToDelete({5, 6}, QStringLiteral("Delete 2 books?"));
+    QTest::mouseClick(child<QPushButton>(panel, QStringLiteral("confirm.delete")), Qt::LeftButton);
+    QCOMPARE(confirmed.count(), 1);
+    QCOMPARE(confirmed.at(0).at(0).value<QList<qint64>>(), QList<qint64>({5, 6}));
 }
 
 QTEST_MAIN(TestDetailPanel)

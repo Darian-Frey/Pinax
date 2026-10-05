@@ -1,5 +1,6 @@
 #include "app/catalogue.h"
 
+#include "db/author_repository.h"
 #include "db/book_repository.h"
 #include "db/db_error.h"
 #include "db/migrations.h"
@@ -44,6 +45,11 @@ std::optional<domain::BookDetail> Catalogue::detail(std::int64_t id)
     detail.book = std::move(*book);
     if (const auto summary = books.summary(id))
         detail.authors = summary->authors;
+    db::AuthorRepository authors(connection_);
+    for (const domain::Credit& credit : books.credits(id)) {
+        if (const auto author = authors.find(credit.authorId))
+            detail.credits.push_back({author->name, credit.role});
+    }
     detail.series = db::SeriesRepository(connection_).membershipsForBook(id);
 
     // Covers live beside the database (SPEC.md §4); a missing file shows the
@@ -105,16 +111,74 @@ void Catalogue::setRating(const std::vector<std::int64_t>& ids, std::optional<in
     transaction.commit();
 }
 
+namespace {
+
+std::string describe(const db::DbError& error, const domain::Book& book)
+{
+    const std::string what = error.what();
+    if (error.isConstraintViolation() && what.find("isbn13") != std::string::npos)
+        return "Another book already has ISBN-13 " + book.isbn13.value_or("") + ".";
+    return "The change was not saved: " + what;
+}
+
+} // namespace
+
+Catalogue::SaveResult Catalogue::save(const domain::BookEdit& edit)
+{
+    db::BookRepository books(connection_);
+    db::AuthorRepository authors(connection_);
+    domain::Book book = edit.book;
+
+    try {
+        db::Transaction transaction(connection_);
+        if (book.id == 0) {
+            // Inserted straight into read, the trigger never fires (AV-005).
+            if (book.readStatus == domain::ReadStatus::Read && book.timesRead == 0)
+                book.timesRead = 1;
+            book.id = books.create(book);
+        } else if (!books.update(book)) {
+            return {0, "This book is no longer in the catalogue."};
+        }
+
+        std::vector<domain::Credit> credits;
+        for (std::size_t i = 0; i < edit.credits.size(); ++i) {
+            domain::Credit credit;
+            credit.authorId = authors.findOrCreate(edit.credits[i].name);
+            credit.role = edit.credits[i].role;
+            credit.ordinal = static_cast<int>(i);
+            credits.push_back(credit);
+        }
+        if (credits != books.credits(book.id))
+            books.setCredits(book.id, credits);
+
+        transaction.commit();
+    } catch (const db::DbError& error) {
+        return {0, describe(error, book)};
+    }
+    return {book.id, std::nullopt};
+}
+
+std::optional<std::string> Catalogue::remove(const std::vector<std::int64_t>& ids)
+{
+    try {
+        db::BookRepository books(connection_);
+        db::Transaction transaction(connection_);
+        for (const std::int64_t id : ids)
+            books.remove(id);
+        transaction.commit();
+    } catch (const db::DbError& error) {
+        return std::string("Nothing was deleted: ") + error.what();
+    }
+    return std::nullopt;
+}
+
 std::optional<std::string> Catalogue::save(const domain::Book& book)
 {
     try {
         if (!db::BookRepository(connection_).update(book))
             return "This book is no longer in the catalogue.";
     } catch (const db::DbError& error) {
-        const std::string what = error.what();
-        if (error.isConstraintViolation() && what.find("isbn13") != std::string::npos)
-            return "Another book already has ISBN-13 " + book.isbn13.value_or("") + ".";
-        return "The change was not saved: " + what;
+        return describe(error, book);
     }
     return std::nullopt;
 }

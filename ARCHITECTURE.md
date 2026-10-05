@@ -105,12 +105,14 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
   `ui` does not link `db`. Sorting uses the view's sort keys, never the text
   on screen. Owns selection, sorting, and the single-key actions on the
   selection: R toggles read, 1–9 and 0 rate, Backspace or − clears the
-  rating. It emits requests; it changes nothing itself.
+  rating, Delete asks to delete. It emits requests; it changes nothing
+  itself.
 - **Detail** — `DetailPanel` describes the current selection, whichever kind
   it is: nothing, a book, a series, or a multi-selection (which renders as the
   bulk editor). Carries both the view state (`BookView`) and the edit state
-  (`BookEditor`) (D-011). Shown a `domain::BookDetail`; emits the edited
-  `domain::Book`. Series completeness on show comes from the views, not from
+  (`BookEditor`) (D-011), an empty form for a new book, and a confirmation
+  in place of a delete dialogue. Shown a `domain::BookDetail`; emits a
+  `domain::BookEdit` — the book's fields and its credits by name. Series completeness on show comes from the views, not from
   arithmetic in the panel (D-004).
 
 ### `app`
@@ -120,10 +122,11 @@ module permitted to know about all the others.
 
 - **Catalogue** — the open database: one `Connection`, migrated on open, and
   the reads and writes the window needs, assembled from `db`'s repositories
-  (`summaries`, `detail`, `save`, `toggleRead`, `setRating`, each write in
-  one transaction). `save` turns a constraint failure into a
+  (`summaries`, `detail`, `save`, `remove`, `toggleRead`, `setRating`, each
+  write in one transaction). `save(BookEdit)` creates when the id is 0 and
+  resolves credit names to authors. `save` turns a constraint failure into a
   sentence for the owner.
-- **MainWindow** — the splitter. List selection drives the detail panel
+- **MainWindow** — a toolbar (Add a book, Ctrl+N), the splitter. List selection drives the detail panel
   through the Catalogue; the panel's `saveRequested` is saved through it, and
   the saved row is refreshed in place.
 

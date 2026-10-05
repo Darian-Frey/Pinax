@@ -27,8 +27,10 @@ spreadsheet of titles and authors.
   rows. Its series entries stay, with no book attached, so each series it
   belonged to now shows that volume as missing (D-006).
 - Every record carries creation and modification timestamps without manual input.
-**Status:** In progress — repository layer done; books are edited in the detail panel.
-Creating and deleting a book from the application are not built yet.
+**Status:** Complete (2026-10-05). Add a book (Ctrl+N) opens an empty form in the
+panel; F2 edits; Delete asks in the panel and deletes in one transaction,
+credits and genre links going with the book and its series entries staying
+as missing volumes (BUG-001).
 **Notes:** `db/schema.sql`, table `book`.
 
 ### F-002 Multiple authors with roles
@@ -40,8 +42,10 @@ Creating and deleting a book from the application are not built yet.
 - A person contributing to several books appears exactly once in the author
   table, and counting books per author gives the same total whether that
   author worked alone or jointly.
-**Status:** In progress — credits with roles and cover order stored and imported
-(`book_author`, BUG-002 fixed); no editing UI yet.
+**Status:** Complete (2026-10-05). Credits are edited as text in the import notation
+(SPEC.md §1.1), parsed by one shared `domain::parseCredits`; names resolve to
+existing authors. See BUG-003 for three editors the seed recorded as
+authors, and IMP-003 for authors left with no books.
 **Notes:** Flattened author strings in the seed spreadsheet mis-count joint
 credits; this is the fix.
 
@@ -96,9 +100,9 @@ once; the selection stays. Unmarking takes back the read it counted (D-017).
 - The count is visible in the list view and sortable.
 - Importing an already-read book sets the count explicitly rather than
   relying on a state transition.
-**Status:** In progress — the trigger counts and dates each move into read, imports
-write the count explicitly, and the detail panel shows it ("read twice").
-Not yet a list column, so not yet sortable.
+**Status:** Complete (2026-10-05). The trigger counts and dates each move into read;
+imports and new books write the count explicitly (AV-005); the list shows it
+in a sortable Reads column and the panel as "read twice".
 **Notes:** See trigger `trg_book_finished`; re-reads run read → reading → read.
 
 ### F-007 Rating out of ten

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "domain/book.h"
+#include "domain/book_edit.h"
 
 #include <QList>
 #include <QMainWindow>
@@ -36,7 +36,10 @@ public:
 
 private:
     void showSelection(const QList<qint64>& ids);
-    void saveBook(const domain::Book& book);
+    void saveBook(const domain::BookEdit& edit);
+    void addBook();
+    void askToDelete(const QList<qint64>& ids);
+    void deleteBooks(const QList<qint64>& ids);
     void toggleRead(const QList<qint64>& ids);
     void rate(const QList<qint64>& ids, int rating);
 

@@ -7,6 +7,7 @@
 #include "db/savepoint.h"
 #include "db/series_repository.h"
 #include "db/transaction.h"
+#include "domain/credit_text.h"
 #include "domain/isbn.h"
 #include "io/csv_reader.h"
 #include "io/sort_position.h"
@@ -69,45 +70,16 @@ std::optional<Number> parseNumber(const std::string& cell, std::string_view colu
     return value;
 }
 
-struct ParsedCredit {
-    std::string name;
-    CreditRole role = CreditRole::Author;
-};
+using ParsedCredit = domain::NamedCredit;
 
-// SPEC.md §1.1: ' & ' between credits, an optional trailing '(role)'.
+// SPEC.md §1.1, through the parser the edit form shares.
 std::vector<ParsedCredit> parseCredits(const std::string& cell)
 {
-    std::vector<ParsedCredit> credits;
-    std::size_t start = 0;
-    while (start <= cell.size()) {
-        std::size_t end = cell.find(" & ", start);
-        if (end == std::string::npos)
-            end = cell.size();
-        std::string part = trim(std::string_view(cell).substr(start, end - start));
-        start = end + 3;
-
-        ParsedCredit credit;
-        if (part.ends_with(')')) {
-            const std::size_t open = part.rfind('(');
-            if (open != std::string::npos) {
-                const std::string role = trim(std::string_view(part).substr(open + 1,
-                    part.size() - open - 2));
-                const auto parsed = domain::creditRoleFromString(role);
-                if (!parsed)
-                    throw RowError { "unknown credit role '" + role + "'" };
-                credit.role = *parsed;
-                part = trim(std::string_view(part).substr(0, open));
-            }
-        }
-        if (part.empty())
-            throw RowError { "empty name in authors '" + cell + "'" };
-        credit.name = std::move(part);
-        credits.push_back(std::move(credit));
-
-        if (end == cell.size())
-            break;
+    try {
+        return domain::parseCredits(cell);
+    } catch (const domain::CreditTextError& error) {
+        throw RowError { error.what() };
     }
-    return credits;
 }
 
 // One data row, validated, with each column either absent from the file

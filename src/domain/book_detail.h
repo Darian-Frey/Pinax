@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/book.h"
+#include "domain/credit_text.h"
 #include "domain/series_membership.h"
 
 #include <optional>
@@ -13,6 +14,7 @@ namespace pinax::domain {
 struct BookDetail {
     Book book;
     std::optional<std::string> authors; // credited authors in cover order
+    std::vector<NamedCredit> credits;    // every credit, any role, in cover order
     std::vector<SeriesMembership> series;
     std::optional<std::string> coverFile; // absolute path, when the file exists
 

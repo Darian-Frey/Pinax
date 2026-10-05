@@ -41,6 +41,9 @@ A part may carry an explicit role as a trailing parenthesis:
 `Mike Ashley (editor)`. Recognised roles are `author`, `editor`, `translator`,
 `illustrator`.
 
+The same notation is how credits are typed in the detail panel's edit form;
+`domain::parseCredits` and `domain::formatCredits` implement it once for both.
+
 **Known limitation.** A single author whose name contains ` & ` would be split
 incorrectly. No such case exists in the seed data; if one appears, the row needs
 hand-correcting after import.

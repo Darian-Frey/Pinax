@@ -26,6 +26,7 @@ public:
 
 signals:
     void editRequested();
+    void deleteRequested();
     // From the rating squares: 1-10, or 0 to clear (F-007).
     void ratingChosen(int rating);
 

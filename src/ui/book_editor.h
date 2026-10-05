@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/book_detail.h"
+#include "domain/book_edit.h"
 
 #include <QWidget>
 
@@ -16,7 +17,9 @@ namespace pinax::ui {
 // caller's, so this issues no SQL (invariant 8).
 //
 // The read count is shown, not edited: it follows the read state through
-// the re-read trigger (F-006). Authors and series are not edited here yet.
+// the re-read trigger (F-006). Authors are edited as text in the import
+// notation (SPEC.md §1.1, F-002); series are not edited here yet. A detail
+// whose book has id 0 is a new book (F-001).
 // An edited synopsis is marked as entered by hand, so enrichment will never
 // overwrite it (AV-001).
 class BookEditor : public QWidget {
@@ -33,15 +36,17 @@ public:
     void save();
 
 signals:
-    void saveRequested(const domain::Book& book);
+    void saveRequested(const domain::BookEdit& edit);
     void cancelled();
 
 private:
     domain::Book original_;
 
+    QLabel* heading_;
+
     QLineEdit* title_;
     QLineEdit* subtitle_;
-    QLabel* authors_;
+    QLineEdit* authors_;
     QComboBox* readState_;
     QLabel* timesRead_;
     QComboBox* rating_;

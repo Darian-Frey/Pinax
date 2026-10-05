@@ -11,7 +11,7 @@ namespace pinax::ui {
 //   Author  first-billed author's filing name, so Banks files under B;
 //           within an author, by series and position, standalones last
 //   Series  series name, then sort_position — never the printed position
-//   Rating, Year, Read state  their values
+//   Rating, Year, Reads, Read state  their values
 //
 // A missing value (unrated, no series, no year) sorts after every present
 // one in both directions. Ties fall back to sort title.

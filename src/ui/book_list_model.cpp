@@ -106,11 +106,12 @@ QVariant BookListModel::data(const QModelIndex& index, int role) const
         case SeriesColumn: return text(row.seriesLabel);
         case RatingColumn: return row.rating ? QString::number(*row.rating) : QStringLiteral("–");
         case YearColumn: return row.publishedYear ? QString::number(*row.publishedYear) : QString();
+        case TimesReadColumn: return row.timesRead > 0 ? QString::number(row.timesRead) : QString();
         }
         break;
 
     case Qt::ToolTipRole:
-        if (index.column() == ReadColumn)
+        if (index.column() == ReadColumn || index.column() == TimesReadColumn)
             return readDescription(row);
         break;
 
@@ -123,7 +124,8 @@ QVariant BookListModel::data(const QModelIndex& index, int role) const
         switch (index.column()) {
         case ReadColumn: return int(Qt::AlignCenter);
         case RatingColumn:
-        case YearColumn: return int(Qt::AlignRight | Qt::AlignVCenter);
+        case YearColumn:
+        case TimesReadColumn: return int(Qt::AlignRight | Qt::AlignVCenter);
         }
         return int(Qt::AlignLeft | Qt::AlignVCenter);
     }
@@ -143,11 +145,15 @@ QVariant BookListModel::headerData(int section, Qt::Orientation orientation, int
         case SeriesColumn: return tr("Series");
         case RatingColumn: return tr("Rating");
         case YearColumn: return tr("Year");
+        case TimesReadColumn: return tr("Reads");
         }
     }
     if (role == Qt::ToolTipRole && section == ReadColumn)
         return tr("Read state");
-    if (role == Qt::TextAlignmentRole && (section == RatingColumn || section == YearColumn))
+    if (role == Qt::ToolTipRole && section == TimesReadColumn)
+        return tr("Times read");
+    if (role == Qt::TextAlignmentRole
+        && (section == RatingColumn || section == YearColumn || section == TimesReadColumn))
         return int(Qt::AlignRight | Qt::AlignVCenter);
     return {};
 }

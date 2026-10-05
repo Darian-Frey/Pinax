@@ -7,7 +7,10 @@ add_library(pinax_domain STATIC
     domain/book_detail.h
     domain/author.h
     domain/book_summary.h
+    domain/book_edit.h
     domain/credit.h
+    domain/credit_text.cpp
+    domain/credit_text.h
     domain/enums.cpp
     domain/enums.h
     domain/isbn.cpp

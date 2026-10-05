@@ -2,6 +2,7 @@
 
 #include "db/connection.h"
 #include "domain/book_detail.h"
+#include "domain/book_edit.h"
 #include "domain/book_summary.h"
 
 #include <cstdint>
@@ -42,6 +43,22 @@ public:
     // Writes the book's own fields. Returns nothing on success, or a message
     // in the owner's terms: a duplicate ISBN, a book deleted meanwhile.
     std::optional<std::string> save(const domain::Book& book);
+
+    struct SaveResult {
+        std::int64_t id = 0;                // the book written, 0 on failure
+        std::optional<std::string> problem; // set on failure
+    };
+
+    // Writes an edit from the panel in one transaction: the book's fields and
+    // its credits, resolving each name to an author (created if new, D-007).
+    // Creates the book when `book.id` is 0 (F-001); a new book marked read
+    // starts at one read (AV-005).
+    SaveResult save(const domain::BookEdit& edit);
+
+    // Deletes the books in one transaction (F-001). Credits and genre links
+    // go with them; series entries stay as missing volumes. Returns nothing
+    // on success, or a message.
+    std::optional<std::string> remove(const std::vector<std::int64_t>& ids);
 
 private:
     std::string path_;

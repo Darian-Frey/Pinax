@@ -233,6 +233,11 @@ void TestBookList::keysActOnTheSelection()
     QTest::keyClick(&view, Qt::Key_R);
     QCOMPARE(toggled.at(1).at(0).value<QList<qint64>>().size(), 3);
 
+    QSignalSpy deleting(&view, &BookListView::deleteRequested);
+    QTest::keyClick(&view, Qt::Key_Delete);
+    QCOMPARE(deleting.count(), 1);
+    QCOMPARE(deleting.at(0).at(0).value<QList<qint64>>().size(), 3);
+
     // With Ctrl held, R is not the toggle.
     QTest::keyClick(&view, Qt::Key_R, Qt::ControlModifier);
     QCOMPARE(toggled.count(), 2);

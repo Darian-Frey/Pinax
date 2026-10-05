@@ -226,8 +226,16 @@ BookView::BookView(QWidget* parent)
     edit->setObjectName(QStringLiteral("edit"));
     edit->setToolTip(tr("Edit this book (F2)"));
     connect(edit, &QPushButton::clicked, this, &BookView::editRequested);
+    auto* remove = new QPushButton(tr("Delete"), this);
+    remove->setObjectName(QStringLiteral("delete"));
+    remove->setToolTip(tr("Delete this book from the catalogue (Delete)"));
+    connect(remove, &QPushButton::clicked, this, &BookView::deleteRequested);
+    auto* actions = new QHBoxLayout;
+    actions->addWidget(edit);
+    actions->addWidget(remove);
+    actions->addStretch();
     facts->addSpacing(6);
-    facts->addWidget(edit, 0, Qt::AlignLeft);
+    facts->addLayout(actions);
     facts->addStretch();
     heading->addLayout(facts, 1);
     layout->addLayout(heading);

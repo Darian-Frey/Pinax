@@ -21,6 +21,7 @@ public:
         SeriesColumn,
         RatingColumn,
         YearColumn,
+        TimesReadColumn, // F-006
         ColumnCount
     };
 

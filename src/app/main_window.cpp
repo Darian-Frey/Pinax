@@ -5,9 +5,11 @@
 #include "db/db_error.h"
 #include "ui/detail_panel.h"
 
+#include <QAction>
 #include <QLabel>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QToolBar>
 
 namespace pinax::app {
 
@@ -45,6 +47,19 @@ MainWindow::MainWindow(QWidget* parent)
     connect(list_, &ui::BookListView::ratingRequested, this, &MainWindow::rate);
     connect(detail_, &ui::DetailPanel::ratingRequested, this,
         [this](qint64 id, int rating) { rate({id}, rating); });
+    connect(list_, &ui::BookListView::deleteRequested, this, &MainWindow::askToDelete);
+    connect(detail_, &ui::DetailPanel::deleteRequested, this, &MainWindow::askToDelete);
+    connect(detail_, &ui::DetailPanel::deleteConfirmed, this, &MainWindow::deleteBooks);
+    connect(detail_, &ui::DetailPanel::deleteCancelled, this,
+        [this] { showSelection(list_->selectedBooks()); });
+
+    auto* toolbar = addToolBar(tr("Catalogue"));
+    toolbar->setObjectName(QStringLiteral("toolbar"));
+    toolbar->setMovable(false);
+    auto* add = toolbar->addAction(tr("+ Add a book"), this, &MainWindow::addBook);
+    add->setObjectName(QStringLiteral("addBook"));
+    add->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_N));
+    add->setToolTip(tr("Add a book by hand (Ctrl+N)"));
 
     splitter_->setChildrenCollapsible(false);
     splitter_->setStretchFactor(0, 0);
@@ -54,7 +69,7 @@ MainWindow::MainWindow(QWidget* parent)
     setCentralWidget(splitter_);
 
     statusBar()->showMessage(tr("No catalogue open"));
-    auto* keys = new QLabel(tr("R toggles read · 1–9, 0 rate · F2 edits"), this);
+    auto* keys = new QLabel(tr("R toggles read · 1–9, 0 rate · F2 edits · Del deletes"), this);
     keys->setObjectName(QStringLiteral("keys"));
     keys->setEnabled(false);
     statusBar()->addPermanentWidget(keys);
@@ -84,20 +99,81 @@ void MainWindow::showSelection(const QList<qint64>& ids)
         detail_->showNothing();
 }
 
-void MainWindow::saveBook(const domain::Book& book)
+void MainWindow::saveBook(const domain::BookEdit& edit)
 {
     if (!catalogue_)
         return;
-    if (const auto problem = catalogue_->save(book)) {
-        detail_->showSaveError(QString::fromStdString(*problem));
+    const auto result = catalogue_->save(edit);
+    if (result.problem) {
+        detail_->showSaveError(QString::fromStdString(*result.problem));
         return;
     }
-    if (const auto summary = catalogue_->summary(book.id))
-        list_->updateBook(*summary);
-    if (const auto detail = catalogue_->detail(book.id))
-        detail_->showBook(*detail);
+
+    const QString title = QString::fromStdString(edit.book.title);
+    if (edit.book.id == 0) {
+        // A new row: reload, then select it, which shows it in the panel.
+        list_->setBooks(catalogue_->summaries());
+        list_->selectBook(result.id);
+        statusBar()->showMessage(tr("Added “%1”").arg(title), 4000);
+    } else {
+        if (const auto summary = catalogue_->summary(result.id))
+            list_->updateBook(*summary);
+        if (const auto detail = catalogue_->detail(result.id))
+            detail_->showBook(*detail);
+        statusBar()->showMessage(tr("Saved “%1”").arg(title), 4000);
+    }
     list_->setFocus();
-    statusBar()->showMessage(tr("Saved “%1”").arg(QString::fromStdString(book.title)), 4000);
+}
+
+void MainWindow::addBook()
+{
+    if (!catalogue_)
+        return;
+    list_->clearSelection();
+    detail_->beginNew();
+}
+
+void MainWindow::askToDelete(const QList<qint64>& ids)
+{
+    if (!catalogue_ || ids.isEmpty())
+        return;
+
+    QString question;
+    if (ids.size() == 1) {
+        const auto detail = catalogue_->detail(ids.first());
+        if (!detail)
+            return;
+        question = tr("Delete “%1”?").arg(QString::fromStdString(detail->book.title));
+        question += QStringLiteral("\n\n") + tr("It leaves the catalogue with its credits and notes.");
+        for (const auto& series : detail->series) {
+            question += QLatin1Char(' ')
+                + tr("Its place in %1 stays, as a missing volume.").arg(QString::fromStdString(series.name));
+        }
+    } else {
+        question = tr("Delete %1 books?").arg(ids.size());
+        question += QStringLiteral("\n\n")
+            + tr("They leave the catalogue with their credits and notes. Any series places they "
+                 "hold stay, as missing volumes.");
+    }
+    question += QStringLiteral("\n\n") + tr("This cannot be undone.");
+    detail_->askToDelete(ids, question);
+}
+
+void MainWindow::deleteBooks(const QList<qint64>& ids)
+{
+    if (!catalogue_ || ids.isEmpty())
+        return;
+    const QString subject = ids.size() == 1 ? tr("“%1”").arg(titleOf(ids.first()))
+                                            : tr("%1 books").arg(ids.size());
+    if (const auto problem = catalogue_->remove(std::vector<std::int64_t>(ids.begin(), ids.end()))) {
+        statusBar()->showMessage(QString::fromStdString(*problem));
+        showSelection(list_->selectedBooks());
+        return;
+    }
+    list_->setBooks(catalogue_->summaries());
+    detail_->showNothing();
+    list_->setFocus();
+    statusBar()->showMessage(tr("Deleted %1").arg(subject), 4000);
 }
 
 void MainWindow::toggleRead(const QList<qint64>& ids)

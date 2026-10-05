@@ -20,6 +20,7 @@ constexpr int defaultAuthorWidth = 130;
 constexpr int defaultSeriesWidth = 140;
 constexpr int defaultRatingWidth = 56;
 constexpr int defaultYearWidth = 48;
+constexpr int defaultReadsWidth = 52;
 
 } // namespace
 
@@ -52,6 +53,7 @@ BookListView::BookListView(QWidget* parent)
     header->resizeSection(BookListModel::SeriesColumn, defaultSeriesWidth);
     header->resizeSection(BookListModel::RatingColumn, defaultRatingWidth);
     header->resizeSection(BookListModel::YearColumn, defaultYearWidth);
+    header->resizeSection(BookListModel::TimesReadColumn, defaultReadsWidth);
 
     setSortingEnabled(true);
     sortByColumn(BookListModel::AuthorColumn, Qt::AscendingOrder);
@@ -106,6 +108,10 @@ void BookListView::keyPressEvent(QKeyEvent* event)
         }
         if (key == Qt::Key_Backspace || key == Qt::Key_Minus) {
             emit ratingRequested(ids, 0);
+            return;
+        }
+        if (key == Qt::Key_Delete) {
+            emit deleteRequested(ids);
             return;
         }
     }
