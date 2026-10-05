@@ -137,6 +137,25 @@ asserts two authors, the collaboration counted for both, and cover order in
 **Related decisions.** D-007.
 **History.** Observed in the seed data during cataloguing, 2026-08-30.
 
+### AV-013 Re-importing an old file after correcting credits in the app
+**Severity:** Major
+**Description.** Import matches a book without an ISBN on its title and
+first-billed author (SPEC.md §1.3). Correct a book's credits in the
+application — an editor recorded as an author, a misspelt name — and an
+older CSV still carrying the old credits no longer matches it: re-importing
+that file inserts the book a second time. The import is idempotent only
+against the file it came from.
+**Detection.** Partly implemented, 2026-10-05: the one case that has
+happened (BUG-003) was handled by correcting the converter and the database
+together and re-importing the corrected file on a copy first, which reported
+443 unchanged. No automatic guard exists; it would need either a match that
+falls back to title alone when exactly one book has that title, or an
+import that reports a likely duplicate rather than inserting it.
+**Related decisions.** D-016, D-007.
+**History.** Found while fixing BUG-003, 2026-10-05, before it could happen:
+re-importing the uncorrected seed after the fix would have created three
+duplicates.
+
 ---
 
 ## External dependencies

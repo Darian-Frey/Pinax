@@ -68,6 +68,28 @@ and have the rail hide authors with a count of nought, which keeps history
 but leaves the stale-spelling trap.
 **Notes.** Settle before F-017's author filter is built.
 
+### IMP-004 Show editors in the list when a book has no author
+
+**Status:** suggested
+**Found:** 2026-10-05 (fixing BUG-003)
+**Location:** `db/schema.sql`, view `v_book_display`, columns `authors` and `author_sort`
+**Effort:** small
+**Description.** The list's Author column and its sort key come from credits
+with the role `author` only. An anthology credited only to its editor — the
+three BUG-003 corrected — shows an empty Author cell and sorts after every
+authored book, though the spreadsheet showed the editor there and a reader
+looks for an anthology under its editor.
+**Proposal.** Schema version 3: when a book has no `author` credit, fall back
+to its editors for `authors` (shown as "Mike Ashley (ed.)") and `author_sort`
+("Ashley, Mike"). One migration file, the frozen-fixture test extended to
+version 2, and a test in `test_db`.
+**Trade-offs.** "Author" then means "author, or editor when there is none",
+which a per-author count (F-017's filter) must not inherit — counts should
+stay on the `author` role, or Mike Ashley would appear to have written two
+books. Translators and illustrators are not proposed as fallbacks.
+**Notes.** The detail panel already shows every credit via the edit form; only
+the list and its sort are affected.
+
 ## Applied
 
 ### IMP-001 Order an author's books by series before title

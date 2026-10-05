@@ -34,9 +34,9 @@ database and exports to SQL, CSV and Excel.
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
 | `DECISIONS.md` | Complete. D-001 to D-017, all Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
-| `ATTACK_VECTORS.md` | Complete. AV-001 to AV-012. Detection implemented for AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007; the rest `not implemented`. |
-| `BUGS.md` | BUG-003 open: three seed editors imported as authors named "ed. …" (owner's data). BUG-001 and BUG-002 fixed. |
-| `IMPROVEMENTS.md` | IMP-002 (keep an edit when the selection moves) and IMP-003 (remove authors left with no books) suggested; owner to decide. IMP-001 applied. |
+| `ATTACK_VECTORS.md` | Complete. AV-001 to AV-013. Detection implemented for AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007, AV-013; the rest `not implemented`. |
+| `BUGS.md` | No open bugs. BUG-001, BUG-002 and BUG-003 fixed. |
+| `IMPROVEMENTS.md` | IMP-002 (keep an edit when the selection moves), IMP-003 (remove authors left with no books), IMP-004 (show editors in the list when there is no author) suggested; owner to decide. IMP-001 applied. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
@@ -79,13 +79,16 @@ Suggested order:
    as owned" attaching a book (AV-007).
 5. Missing-volumes view from `v_missing_entries`, fewest-needed first.
 
-Open with the owner: BUG-003 (three editors imported as authors), IMP-002,
-IMP-003.
+Open with the owner: IMP-002, IMP-003, IMP-004.
 
 The seed: `seed/library.csv`, made by `seed/convert_catalogue.py` from the
 spreadsheet (both git-ignored). The converter fixes two credits the ` & `
 split would get wrong (`Arkady & Boris Strugatsky`, `Wong, Bukalov &
-Slavin`). Re-import is safe at any time:
+Slavin`) and turns a leading `ed. ` into an `(editor)` credit (BUG-003).
+Re-importing the current seed is safe; re-importing a file older than a credit
+correction made in the application is not (AV-013). The owner's catalogue is
+`~/.local/share/pinax/pinax.db`; back it up with `VACUUM INTO` before any
+change made outside the application, as was done for BUG-003:
 
 ```sh
 build/src/pinax --import seed/library.csv
@@ -170,11 +173,12 @@ added is worth a DECISIONS entry.
 
 ## 7. Known pitfalls
 
-`ATTACK_VECTORS.md` is the canonical list — AV-001 to AV-012 cover enrichment
+`ATTACK_VECTORS.md` is the canonical list — AV-001 to AV-013 cover enrichment
 overwriting manual fields, double import, unsafe WAL backup, unenforced foreign
 keys, the `times_read` trap, numeric position parsing, duplicate series
 entries, joint-credit counting, provider quota, wrong-edition matches, export
-drift and barcode misreads.
+drift, barcode misreads, and re-importing a file older than a credit
+correction (AV-013).
 
 Not vectors, but worth knowing:
 

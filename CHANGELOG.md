@@ -131,8 +131,12 @@ Phase 1 (catalogue core) closed 2026-10-05.
   after the habit of silent fixing has set in.
 
 ### Notes
-- BUG-003 logged: three editors in the seed were imported as authors named
-  "ed. …". IMP-003 suggested: remove authors left with no books.
+- BUG-003 found and fixed: three editors in the seed had been imported as
+  authors named "ed. …". The converter now reads "ed." as an editor credit;
+  the owner's catalogue was backed up and corrected through `Catalogue::save`.
+  Fixing it surfaced AV-013 (re-importing an outdated file after correcting
+  credits duplicates the book) and IMP-004 (show editors in the list when
+  there is no author). IMP-003 suggested: remove authors left with no books.
 - IMP-002 suggested: keep an edit in progress when the list selection moves.
 - IMP-001 suggested and applied: within an author, books sort by series and
   position, standalones last, instead of interleaving by title.

@@ -98,7 +98,7 @@ pinax/
 ├── ARCHITECTURE.md       modules, data flow, invariants
 ├── DECISIONS.md          D-001 … D-017, append-only
 ├── SPEC.md               CSV format, ISBN validation, provider contracts, exports
-├── ATTACK_VECTORS.md     AV-001 … AV-012, failure modes with detection
+├── ATTACK_VECTORS.md     AV-001 … AV-013, failure modes with detection
 ├── BUGS.md               empty; present so Rule 8 applies from commit one
 ├── IMPROVEMENTS.md       empty; same reason
 ├── CLAUDE.md             handoff: current state, invariants, pitfalls

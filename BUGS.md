@@ -20,9 +20,13 @@ detection becomes an entry here.
 
 ## Open
 
+*None.*
+
+## Fixed
+
 ### BUG-003 Editors imported as authors named "ed. …"
 
-**Status:** open
+**Status:** fixed (2026-10-05)
 **Found:** 2026-10-05 (finishing Phase 1, reviewing the list against the real catalogue)
 **Location:** the seed data — `seed/library.csv`, made by `seed/convert_catalogue.py`, both git-ignored; three books in the owner's `pinax.db`
 **Severity:** low
@@ -35,17 +39,23 @@ Mammoth Book of Mindblowing SF*, *Lost Mars* and *Engineering Infinity*.
 They sort under the wrong names, count as authored rather than edited, and
 would not merge with the same people credited correctly elsewhere (AV-008's
 failure, by a different route).
-**Reproduction.** Import the seed, then `SELECT name, sort_name FROM author
+**Reproduction (was).** Import the seed, then `SELECT name, sort_name FROM author
 WHERE name LIKE 'ed.%';` — two rows.
-**Notes.** Not fixed, per Maintenance Rule 8. Two routes, either sufficient:
-(a) teach the converter that a leading `ed. ` means `Name (editor)` and
-re-import — the credits are replaced, but the two `ed. …` author rows stay
-behind with no books (see IMP-003); or (b) correct the three books in the
-edit form, which F-002 now allows, with the same leftover rows. The
-converter should learn the rule either way, in case the spreadsheet is ever
-converted again.
-
-## Fixed
+**Fix.** Converter and catalogue corrected together, because either alone
+would have caused AV-013: re-importing a corrected CSV would no longer match
+the three books under their old credits and would have inserted them again.
+In order: the converter learned that a leading `ed. ` means `Name (editor)`
+and `seed/library.csv` was regenerated (three lines changed); the owner's
+database was backed up with `VACUUM INTO` beside itself
+(`pinax-2026-10-05-before-bug003.db`); the three books were re-credited
+through `Catalogue::save`, the edit form's own path; the two `ed. …` author
+rows, then credited by nothing, were deleted; and the corrected CSV,
+re-imported on a copy first, reported 443 unchanged. All of it ran on a copy
+before it ran on the real file.
+**Notes.** Re-importing the corrected file alone, the first route
+considered, would have duplicated the three books; that is AV-013. The list
+now shows these books with an empty Author column, since they have an
+editor and no author: IMP-004.
 
 ### BUG-002 `v_book_display` joins credits and series in arbitrary order
 

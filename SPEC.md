@@ -68,7 +68,10 @@ case-folded `title` plus the first-billed author's name (ASCII case folding,
 as SQLite's `lower()`). A title-and-author match is refused if the existing
 book carries a different ISBN-13, and the row then inserts. A match is
 updated only where the file differs from what is stored, so re-running the
-same file changes nothing — not even `updated_at`. A miss inserts.
+same file changes nothing — not even `updated_at`. A miss inserts. Matching is therefore only as stable as the credits: a book
+whose credits were corrected in the application no longer matches an older
+file that still carries the old ones, and re-importing that file inserts it
+again (AV-013). Regenerate the file before re-importing.
 
 Columns absent from the header leave their fields alone on an update; a
 column present with an empty cell clears the field. Authors and series are
