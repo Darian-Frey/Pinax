@@ -256,7 +256,8 @@ for misreads. Books printed before barcodes were common — roughly pre-1975,
 - Null values sort predictably and consistently in one direction.
 **Status:** In progress — the list view sorts by title, author, series
 position, rating, year and read state by column header, with missing values
-last in both directions. Date finished and times read are in
+last in both directions; within an author, by series then position
+(IMP-001). Date finished and times read are in
 `v_book_display` but have no column or sort control yet.
 
 ### F-017 Filter

@@ -100,7 +100,8 @@ change can be traced to the capability or decision that motivated it.
   after the habit of silent fixing has set in.
 
 ### Notes
-- IMP-001 suggested: order an author's books by series before title.
+- IMP-001 suggested and applied: within an author, books sort by series and
+  position, standalones last, instead of interleaving by title.
 - BUG-002 found and fixed: `v_book_display` joined credits and series in
   arbitrary order, so joint authors could display out of cover order (F-002).
   Fixed in the schema version 2 view with the owner's approval.

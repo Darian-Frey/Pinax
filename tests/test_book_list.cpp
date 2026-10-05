@@ -66,6 +66,7 @@ private slots:
     void opensSortedByAuthor();
     void titleSortIgnoresLeadingArticle();
     void authorSortsByFilingName();
+    void authorKeepsTheirSeriesTogether();
     void seriesSortsBySortPositionNotPrintedPosition();
     void missingValuesSortLastInBothDirections();
 };
@@ -136,6 +137,33 @@ void TestBookList::authorSortsByFilingName()
     view.sortByColumn(BookListModel::AuthorColumn, Qt::AscendingOrder);
     QCOMPARE(shownTitles(view),
         QStringList({"Mostly Harmless", "Gridlinked", "Excession", "Practical Algebra"}));
+}
+
+void TestBookList::authorKeepsTheirSeriesTogether()
+{
+    // IMP-001: one author's series stay together, in order, before their
+    // standalones — not interleaved by title.
+    auto adams = [](std::int64_t id, std::string title, std::optional<std::string> series,
+                     std::optional<double> position) {
+        BookSummary row = byAuthor(id, std::move(title), "Douglas Adams", "Adams, Douglas");
+        row.seriesSort = std::move(series);
+        row.seriesSortPosition = position;
+        return row;
+    };
+
+    BookListView view;
+    view.setBooks({
+        adams(1, "Life, the Universe and Everything", "Hitchhiker's Guide", 3),
+        adams(2, "The Long Dark Tea-Time of the Soul", "Dirk Gently", 2),
+        adams(3, "The Hitchhiker's Guide to the Galaxy", "Hitchhiker's Guide", 1),
+        adams(4, "The Meaning of Liff", std::nullopt, std::nullopt),
+        adams(5, "Dirk Gently's Holistic Detective Agency", "Dirk Gently", 1),
+    });
+    view.sortByColumn(BookListModel::AuthorColumn, Qt::AscendingOrder);
+    QCOMPARE(shownTitles(view),
+        QStringList({"Dirk Gently's Holistic Detective Agency",
+            "The Long Dark Tea-Time of the Soul", "The Hitchhiker's Guide to the Galaxy",
+            "Life, the Universe and Everything", "The Meaning of Liff"}));
 }
 
 void TestBookList::seriesSortsBySortPositionNotPrintedPosition()

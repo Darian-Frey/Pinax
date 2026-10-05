@@ -23,9 +23,13 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
+*None.*
+
+## Applied
+
 ### IMP-001 Order an author's books by series before title
 
-**Status:** suggested
+**Status:** applied (2026-10-05)
 **Found:** 2026-10-05 (Phase 1 step 4, viewing the imported seed catalogue)
 **Location:** `src/ui/book_sort_proxy.cpp`, `compareBooks`, `AuthorColumn`
 **Effort:** trivial
@@ -42,12 +46,11 @@ loses the alphabetical run; standalones move after series rather than among
 them. Search (F-019) makes the first less important once it exists. The mock-up
 shows no author with books in two series, so it does not settle which is
 intended.
+**Applied.** As proposed, by the owner's decision. `compareSeries` in
+`src/ui/book_sort_proxy.cpp` is shared by the author and series columns;
+`tests/test_book_list.cpp`, `authorKeepsTheirSeriesTogether`, covers it.
 **Notes.** Grouping by series (F-018) would make the question moot for the
 grouped view, but not for the flat list.
-
-## Applied
-
-*None.*
 
 ## Declined
 

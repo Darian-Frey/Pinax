@@ -8,7 +8,8 @@ namespace pinax::ui {
 // text on screen (F-016):
 //
 //   Title   sort_title, so a leading article is ignored
-//   Author  first-billed author's filing name, so Banks files under B
+//   Author  first-billed author's filing name, so Banks files under B;
+//           within an author, by series and position, standalones last
 //   Series  series name, then sort_position — never the printed position
 //   Rating, Year, Read state  their values
 //

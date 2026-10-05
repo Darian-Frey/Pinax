@@ -55,6 +55,15 @@ int readRank(ReadStatus status)
     return 0;
 }
 
+// Series name, then sort_position within it; missing either sorts last.
+int compareSeries(const BookSummary& a, const BookSummary& b, bool descending)
+{
+    const int order = compareOptional(a.seriesSort, b.seriesSort, descending, compareText);
+    if (order != 0)
+        return order;
+    return compareOptional(a.seriesSortPosition, b.seriesSortPosition, descending);
+}
+
 int compareBooks(int column, const BookSummary& a, const BookSummary& b, bool descending)
 {
     int order = 0;
@@ -63,12 +72,14 @@ int compareBooks(int column, const BookSummary& a, const BookSummary& b, bool de
         order = compareValue(readRank(a.readStatus), readRank(b.readStatus));
         break;
     case BookListModel::AuthorColumn:
+        // Within one author, their series stay together in order, and
+        // standalones follow (IMP-001).
         order = compareOptional(a.authorSort, b.authorSort, descending, compareText);
+        if (order == 0)
+            order = compareSeries(a, b, descending);
         break;
     case BookListModel::SeriesColumn:
-        order = compareOptional(a.seriesSort, b.seriesSort, descending, compareText);
-        if (order == 0)
-            order = compareOptional(a.seriesSortPosition, b.seriesSortPosition, descending);
+        order = compareSeries(a, b, descending);
         break;
     case BookListModel::RatingColumn:
         order = compareOptional(a.rating, b.rating, descending);
