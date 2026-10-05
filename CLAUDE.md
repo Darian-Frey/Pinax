@@ -33,7 +33,7 @@ database and exports to SQL, CSV and Excel.
 | `DECISIONS.md` | Complete. D-001 to D-015, all Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-012. AV-004 detection implemented, AV-005 partly; the rest `not implemented`. |
-| `BUGS.md` | BUG-001 open: F-001 says delete removes series entries, schema keeps them as unowned (SET NULL). Author to decide. |
+| `BUGS.md` | No open bugs. BUG-001 fixed: deleting a book keeps its series entries as missing volumes (SET NULL), and F-001 now says so. |
 | `IMPROVEMENTS.md` | Empty, by design. Same reason. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |

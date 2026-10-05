@@ -23,11 +23,11 @@ spreadsheet of titles and authors.
 **Priority:** Must
 **Acceptance:**
 - A book can be created, edited and deleted with at minimum a title.
-- Deleting a book removes its credits, series entries and genre links, and
-  leaves no orphan rows.
+- Deleting a book removes its credits and genre links, and leaves no orphan
+  rows. Its series entries stay, with no book attached, so each series it
+  belonged to now shows that volume as missing (D-006).
 - Every record carries creation and modification timestamps without manual input.
 **Status:** In progress — repository layer done (`BookRepository`); no UI yet.
-See BUG-001 on series entries at deletion.
 **Notes:** `db/schema.sql`, table `book`.
 
 ### F-002 Multiple authors with roles

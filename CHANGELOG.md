@@ -75,7 +75,9 @@ change can be traced to the capability or decision that motivated it.
 ### Notes
 - `PRAGMA` statements moved out of `db/schema.sql` into the connection, so the
   schema can be applied in a single transaction. Schema version unchanged.
-- BUG-001 logged: F-001 says deleting a book removes its series entries; the
-  schema keeps them as unowned volumes. Open, for the author to decide.
+- BUG-001 found and fixed: F-001 said deleting a book removes its series
+  entries, the schema keeps them as unowned volumes. Settled in favour of the
+  schema — a deleted book leaves a missing volume behind — by amending F-001
+  and the Phase 1 acceptance. No schema change.
 - `LICENSE` is deliberately absent; the omission is recorded as D-013 and the
   repository stays private until it is revisited.

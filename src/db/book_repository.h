@@ -29,8 +29,8 @@ public:
     // overriding the values passed (F-006). Returns false if no such book.
     bool update(const domain::Book& book);
 
-    // Deletes the book; credits and genre links cascade (F-001). Returns
-    // false if no such book.
+    // Deletes the book; credits and genre links cascade, and its series
+    // entries stay as missing volumes (F-001). Returns false if no such book.
     bool remove(std::int64_t id);
 
     std::int64_t count();

@@ -55,7 +55,7 @@ reading state and ratings.
 **Acceptance:** The 443-book seed imports in one pass; read state and ratings
 survive a restart; re-running the import changes no row count; a book imported
 as read reports `times_read >= 1`; deleting a book leaves no orphan credits or
-series entries.
+genre links, and leaves its series entries as missing volumes.
 
 ---
 

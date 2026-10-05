@@ -310,9 +310,8 @@ void TestDb::deletingABookLeavesNoOrphanLinks()
     QCOMPARE(books.count(), 0);
     QCOMPARE(scalar(connection, "SELECT COUNT(*) FROM book_author"), 0);
     QCOMPARE(scalar(connection, "SELECT COUNT(*) FROM book_genre"), 0);
-    // The schema keeps the series entry as a known-but-unowned volume
-    // (ON DELETE SET NULL, D-006). See BUGS.md BUG-001 on whether F-001
-    // intends that.
+    // The series entry stays as a known-but-unowned volume, so the series
+    // shows the gap (F-001, D-006; settled in BUG-001).
     QCOMPARE(scalar(connection, "SELECT COUNT(*) FROM series_entry WHERE book_id IS NULL"), 1);
 }
 

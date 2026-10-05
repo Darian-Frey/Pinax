@@ -20,9 +20,13 @@ detection becomes an entry here.
 
 ## Open
 
+*None.*
+
+## Fixed
+
 ### BUG-001 Deleting a book keeps its series entry; F-001 says it should go
 
-**Status:** open
+**Status:** fixed (2026-10-05)
 **Found:** 2026-10-05 (Phase 1 step 2, writing the deletion test for `BookRepository`)
 **Location:** `db/schema.sql` (`series_entry.book_id ... ON DELETE SET NULL`); FEATURES.md F-001; ROADMAP.md Phase 1 acceptance
 **Severity:** low
@@ -35,21 +39,23 @@ specified. The two behaviours are each defensible: if the book has left the
 shelf, the series still contains that volume and should now show it missing;
 if the record was a mistake, the leftover entry is a ghost gap. The documents
 and the schema disagree about which is meant.
-**Reproduction.** Create a book, attach it to a series through
+**Reproduction (was).** Create a book, attach it to a series through
 `series_entry`, delete the book with foreign keys on: the `series_entry` row
 survives with `book_id IS NULL` and the series reports Incomplete.
 `tests/test_db.cpp`, `deletingABookLeavesNoOrphanLinks`, asserts the current
 schema behaviour.
-**Notes.** Not fixed, per Maintenance Rule 8. Resolving it means choosing
-one: amend F-001 and the Phase 1 acceptance to say the entry is kept as
-unowned (no code change), or change the schema to `ON DELETE CASCADE` (a
-version 2 migration). A middle way — the UI asking whether the volume left the
-shelf or was entered in error — would need a DECISIONS entry, and would have
-to work without a modal dialogue (D-011).
-
-## Fixed
-
-*None.*
+**Fix.** Resolved in the documents, not the schema: the owner chose to keep the
+entry as a missing volume. Deleting a book means it has left the shelf, and
+the series should then show the gap. F-001's acceptance and the Phase 1
+acceptance now say so; `ON DELETE SET NULL` stays, and no migration was
+needed. A book entered in error leaves a gap that is removed from the series
+itself. `deletingABookLeavesNoOrphanLinks` asserts the agreed behaviour.
+**Notes.** The alternative was `ON DELETE CASCADE` through a version 2
+migration, so that deleting a book also deletes its series entries; rejected
+because selling or losing a volume would then silently shrink the series. A
+UI that asks whether the volume left the shelf or was entered in error remains
+possible later; it would need a DECISIONS entry and would have to work without
+a modal dialogue (D-011).
 
 ## Won't Fix
 
