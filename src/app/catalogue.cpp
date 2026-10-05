@@ -148,8 +148,10 @@ Catalogue::SaveResult Catalogue::save(const domain::BookEdit& edit)
             credit.ordinal = static_cast<int>(i);
             credits.push_back(credit);
         }
-        if (credits != books.credits(book.id))
+        if (credits != books.credits(book.id)) {
             books.setCredits(book.id, credits);
+            authors.removeUncredited();
+        }
 
         transaction.commit();
     } catch (const db::DbError& error) {
@@ -165,6 +167,7 @@ std::optional<std::string> Catalogue::remove(const std::vector<std::int64_t>& id
         db::Transaction transaction(connection_);
         for (const std::int64_t id : ids)
             books.remove(id);
+        db::AuthorRepository(connection_).removeUncredited();
         transaction.commit();
     } catch (const db::DbError& error) {
         return std::string("Nothing was deleted: ") + error.what();

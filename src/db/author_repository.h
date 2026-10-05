@@ -23,6 +23,11 @@ public:
     // name is never touched.
     std::int64_t findOrCreate(const std::string& name);
 
+    // Deletes authors that no book credits and that carry no notes
+    // (IMP-003). Returns how many went. Run inside the caller's transaction,
+    // after whatever changed the credits.
+    int removeUncredited();
+
     std::int64_t count();
 
 private:

@@ -1,5 +1,6 @@
 #include "app/catalogue.h"
 #include "db/db_error.h"
+#include "db/statement.h"
 #include "domain/credit_text.h"
 #include "app/main_window.h"
 #include "io/csv_importer.h"
@@ -9,6 +10,7 @@
 #include "ui/book_view.h"
 #include "ui/detail_panel.h"
 
+#include <QAction>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -73,6 +75,13 @@ private slots:
     void deleteKeyAsksThenDeletes();
     // F-006
     void readsColumnShowsAndSortsTheCount();
+    // IMP-003
+    void creditedAwayAuthorsAreRemoved();
+    void deletingAnAuthorsLastBookRemovesThem();
+    void correctedReimportLeavesNoStragglers();
+    // IMP-002
+    void listStandsStillWhileEditing();
+    void listStandsStillWhileConfirmingADelete();
 };
 
 void TestCatalogue::detailCarriesSeriesCompleteness()
@@ -471,6 +480,123 @@ void TestCatalogue::readsColumnShowsAndSortsTheCount()
     QCOMPARE(cell(0, pinax::ui::BookListModel::TimesReadColumn), QStringLiteral("2"));
     QCOMPARE(cell(1, pinax::ui::BookListModel::TimesReadColumn), QStringLiteral("1"));
     QCOMPARE(cell(2, pinax::ui::BookListModel::TimesReadColumn), QString()); // never read
+}
+
+namespace {
+
+std::int64_t authorCount(Catalogue& catalogue, const std::string& name)
+{
+    pinax::db::Statement count(catalogue.connection(), "SELECT COUNT(*) FROM author WHERE name = :name");
+    count.bind(":name", name);
+    count.step();
+    return count.columnInt(0);
+}
+
+} // namespace
+
+void TestCatalogue::creditedAwayAuthorsAreRemoved()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+    catalogue.connection().exec("INSERT INTO author (name, sort_name, notes) "
+                                "VALUES ('Kept On Purpose', 'Purpose, Kept On', 'a note')");
+
+    const std::int64_t id = idOf(catalogue, "Tau Zero");
+    const auto detail = catalogue.detail(id);
+    QVERIFY(!catalogue.save({detail->book, pinax::domain::parseCredits("Poul William Anderson")}).problem);
+
+    QCOMPARE(authorCount(catalogue, "Poul Anderson"), 0);       // credited by nothing now
+    QCOMPARE(authorCount(catalogue, "Poul William Anderson"), 1);
+    QCOMPARE(authorCount(catalogue, "Kept On Purpose"), 1);     // has notes
+    QCOMPARE(authorCount(catalogue, "Iain M. Banks"), 1);       // untouched
+}
+
+void TestCatalogue::deletingAnAuthorsLastBookRemovesThem()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+
+    QVERIFY(!catalogue.remove({idOf(catalogue, "Excession")}));
+    QCOMPARE(authorCount(catalogue, "Iain M. Banks"), 1); // Surface Detail still credits him
+
+    QVERIFY(!catalogue.remove({idOf(catalogue, "Surface Detail"), idOf(catalogue, "Tau Zero")}));
+    QCOMPARE(authorCount(catalogue, "Iain M. Banks"), 0);
+    QCOMPARE(authorCount(catalogue, "Poul Anderson"), 0);
+}
+
+void TestCatalogue::correctedReimportLeavesNoStragglers()
+{
+    Catalogue catalogue(":memory:");
+    pinax::io::CsvImporter importer(catalogue.connection());
+    importer.importText("title,authors\nLost Mars,ed. Mike Ashley\n");
+    // The same book with its credit corrected by hand, then a corrected file.
+    const std::int64_t id = idOf(catalogue, "Lost Mars");
+    QVERIFY(!catalogue.save({catalogue.detail(id)->book,
+        pinax::domain::parseCredits("Mike Ashley (editor)")}).problem);
+    const auto report = importer.importText("title,authors\nLost Mars,Mike Ashley (editor)\n");
+    QCOMPARE(report.unchanged, 1);
+    QCOMPARE(authorCount(catalogue, "ed. Mike Ashley"), 0);
+    QCOMPARE(authorCount(catalogue, "Mike Ashley"), 1);
+}
+
+void TestCatalogue::listStandsStillWhileEditing()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    auto* list = window.bookList();
+    auto* add = window.findChild<QAction*>(QStringLiteral("addBook"));
+    const std::int64_t id = idOf(catalogue, "Excession");
+    list->selectBook(id);
+    QVERIFY(list->isEnabled() && add->isEnabled());
+
+    QTest::keyClick(&window, Qt::Key_F2);
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::Editing);
+    QVERIFY(!list->isEnabled());
+    QVERIFY(!add->isEnabled());
+
+    // A click on another row, and the toggle key, reach nothing.
+    const QModelIndex other = list->model()->index(0, 1);
+    QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier,
+        list->visualRect(other).center());
+    QTest::keyClick(list, Qt::Key_R);
+    QCOMPARE(list->selectedBooks(), QList<qint64>({id}));
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::Editing);
+    QVERIFY(catalogue.detail(id)->book.readStatus == ReadStatus::Read);
+
+    auto* title = window.detailPanel()->editor()->findChild<QLineEdit*>(QStringLiteral("edit.title"));
+    QTest::keyClick(title, Qt::Key_Escape);
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::Viewing);
+    QVERIFY(list->isEnabled() && add->isEnabled());
+
+    // Saving releases it too.
+    QTest::keyClick(&window, Qt::Key_F2);
+    QVERIFY(!list->isEnabled());
+    window.detailPanel()->editor()->save();
+    QVERIFY(list->isEnabled());
+}
+
+void TestCatalogue::listStandsStillWhileConfirmingADelete()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    window.bookList()->selectBook(idOf(catalogue, "Tau Zero"));
+
+    QTest::keyClick(window.bookList(), Qt::Key_Delete);
+    QVERIFY(!window.bookList()->isEnabled());
+    QTest::mouseClick(window.detailPanel()->findChild<QPushButton*>(QStringLiteral("confirm.keep")),
+        Qt::LeftButton);
+    QVERIFY(window.bookList()->isEnabled());
+    QCOMPARE(catalogue.count(), 3);
 }
 
 QTEST_MAIN(TestCatalogue)

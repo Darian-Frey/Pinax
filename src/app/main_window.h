@@ -5,6 +5,7 @@
 #include <QList>
 #include <QMainWindow>
 
+class QAction;
 class QSplitter;
 class QWidget;
 
@@ -48,7 +49,12 @@ private:
     void refreshBooks(const QList<qint64>& ids);
     QString titleOf(qint64 id) const;
 
+    // IMP-002: while the panel holds an edit or a question, the list and Add
+    // stand still, so a stray click cannot throw the edit away.
+    void lockWhileBusy();
+
     Catalogue* catalogue_ = nullptr;
+    QAction* addBook_ = nullptr;
     QSplitter* splitter_;
     QWidget* rail_;
     ui::BookListView* list_;

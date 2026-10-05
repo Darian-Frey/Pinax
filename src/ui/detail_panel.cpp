@@ -179,8 +179,11 @@ void DetailPanel::showSaveError(const QString& message)
 
 void DetailPanel::setState(State state)
 {
+    const bool changed = state != state_;
     state_ = state;
     stack_->setCurrentIndex(static_cast<int>(state));
+    if (changed)
+        emit stateChanged(state);
 }
 
 } // namespace pinax::ui

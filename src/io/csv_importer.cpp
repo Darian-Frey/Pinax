@@ -452,6 +452,9 @@ ImportReport CsvImporter::importText(std::string_view csv)
                 report.failures.push_back({ record.line, error.what() });
             }
         }
+        // A corrected credit leaves its old spelling credited by nothing
+        // (IMP-003).
+        db::AuthorRepository(connection_).removeUncredited();
         transaction.commit();
     } catch (const db::DbError& error) {
         return abort(0, std::string("database error, nothing imported: ") + error.what());

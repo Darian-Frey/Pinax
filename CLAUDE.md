@@ -36,7 +36,7 @@ database and exports to SQL, CSV and Excel.
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-013. Detection implemented for AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007, AV-013; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001, BUG-002 and BUG-003 fixed. |
-| `IMPROVEMENTS.md` | IMP-002 (keep an edit when the selection moves), IMP-003 (remove authors left with no books), IMP-004 (show editors in the list when there is no author) suggested; owner to decide. IMP-001 applied. |
+| `IMPROVEMENTS.md` | IMP-004 suggested (show editors in the list when there is no author); owner to decide. IMP-001, IMP-002, IMP-003 applied. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
@@ -79,7 +79,7 @@ Suggested order:
    as owned" attaching a book (AV-007).
 5. Missing-volumes view from `v_missing_entries`, fewest-needed first.
 
-Open with the owner: IMP-002, IMP-003, IMP-004.
+Open with the owner: IMP-004.
 
 The seed: `seed/library.csv`, made by `seed/convert_catalogue.py` from the
 spreadsheet (both git-ignored). The converter fixes two credits the ` & `
@@ -190,6 +190,13 @@ Not vectors, but worth knowing:
 - **The edit form shows `times_read`; it does not set it.** The count moves
   only by read-state transitions through `trg_book_finished` (F-006). A form
   that wrote it would race the trigger.
+- **The list is disabled while the panel is busy** (editing, or confirming a
+  delete; IMP-002). Tests that drive the list must finish or cancel the edit
+  first, and anything new that changes the selection should respect
+  `DetailPanel::isBusy()`.
+- **Authors are removed when nothing credits them** (IMP-003), unless they
+  have notes. Anything that changes credits outside `Catalogue::save` or the
+  importer must call `AuthorRepository::removeUncredited()` too.
 - **An edited synopsis becomes `manual`.** `BookEditor` sets
   `synopsis_source = 'manual'` when the text changes, so enrichment must skip
   it (AV-001). Keep that link when touching either side.

@@ -52,12 +52,14 @@ public:
     // Writes an edit from the panel in one transaction: the book's fields and
     // its credits, resolving each name to an author (created if new, D-007).
     // Creates the book when `book.id` is 0 (F-001); a new book marked read
-    // starts at one read (AV-005).
+    // starts at one read (AV-005). Authors the change leaves uncredited, and
+    // without notes, are removed (IMP-003).
     SaveResult save(const domain::BookEdit& edit);
 
     // Deletes the books in one transaction (F-001). Credits and genre links
-    // go with them; series entries stay as missing volumes. Returns nothing
-    // on success, or a message.
+    // go with them; series entries stay as missing volumes; authors left
+    // uncredited, and without notes, go too (IMP-003). Returns nothing on
+    // success, or a message.
     std::optional<std::string> remove(const std::vector<std::int64_t>& ids);
 
 private:

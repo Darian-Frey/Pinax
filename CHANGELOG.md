@@ -14,6 +14,11 @@ change can be traced to the capability or decision that motivated it.
 Phase 1 (catalogue core) closed 2026-10-05.
 
 ### Added
+- IMP-002 applied: while the panel holds an edit or a delete question, the
+  list and Add a book stand still, and the status bar says why.
+- IMP-003 applied: authors no book credits any more, and without notes, are
+  removed after a credit change, a deletion or an import, in the same
+  transaction.
 - Adding and deleting books (F-001): Add a book (Ctrl+N) opens an empty form
   in the panel; Delete in the list or the panel asks in the panel, Keep being
   the default, and deletes in one transaction. A book created as read starts

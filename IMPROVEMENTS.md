@@ -23,51 +23,6 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
-### IMP-002 Keep unsaved edits when the selection moves
-
-**Status:** suggested
-**Found:** 2026-10-05 (Phase 1 step 5, building the detail panel's edit state)
-**Location:** `src/app/main_window.cpp`, `MainWindow::showSelection`; `src/ui/detail_panel.cpp`
-**Effort:** small
-**Description.** While the panel is in its edit state, selecting another row
-in the list — a stray click, an arrow key — shows the new selection and
-throws away whatever was typed into the form, without a word. Nothing reaches
-the database, so no data is corrupted, but an edit to a condition note or a
-synopsis can vanish.
-**Proposal.** While editing, ignore selection changes in the panel and mark
-the list as inactive (dimmed, with a status-bar line "Save or cancel the edit
-first"), restoring the selection to the edited book. Save or Esc ends the
-edit and the list responds again. No dialogue, so D-011 holds.
-**Trade-offs.** The list stops responding to clicks while a form is open,
-which may feel stuck to someone who did not notice they were editing. The
-alternative — saving automatically on leaving — writes changes the owner may
-have meant to abandon, and turns a validation failure into a puzzle.
-**Notes.** The bulk editor (multi-selection) will meet the same question;
-settle it once for both.
-
-### IMP-003 Authors left with no books stay in the author table
-
-**Status:** suggested
-**Found:** 2026-10-05 (finishing Phase 1, while making credits editable)
-**Location:** `src/app/catalogue.cpp`, `Catalogue::save(const BookEdit&)` and `Catalogue::remove`
-**Effort:** small
-**Description.** Editing a credit to a different name, or deleting a book,
-can leave an author row that no book credits any more — a misspelling
-corrected, an "ed. …" name fixed (BUG-003), the last book by someone
-deleted. Nothing is wrong in the data, but the author filter in the rail
-(F-017) would list people with no books, and a later import of the old
-spelling would quietly reattach to the stale row.
-**Proposal.** After a credit change or a deletion, in the same transaction,
-delete authors that have no `book_author` rows and no `notes`. One
-`AuthorRepository::removeUncredited()` and a test that edits a credit away
-and finds the author gone.
-**Trade-offs.** An author kept deliberately — say, one whose books are lent
-out and deleted for now — vanishes with their sort name; the `notes`
-exception protects only those with notes. The alternative is to leave rows
-and have the rail hide authors with a count of nought, which keeps history
-but leaves the stale-spelling trap.
-**Notes.** Settle before F-017's author filter is built.
-
 ### IMP-004 Show editors in the list when a book has no author
 
 **Status:** suggested
@@ -91,6 +46,64 @@ books. Translators and illustrators are not proposed as fallbacks.
 the list and its sort are affected.
 
 ## Applied
+
+### IMP-002 Keep unsaved edits when the selection moves
+
+**Status:** applied (2026-10-05)
+**Found:** 2026-10-05 (Phase 1 step 5, building the detail panel's edit state)
+**Location:** `src/app/main_window.cpp`, `MainWindow::showSelection`; `src/ui/detail_panel.cpp`
+**Effort:** small
+**Description.** While the panel is in its edit state, selecting another row
+in the list — a stray click, an arrow key — shows the new selection and
+throws away whatever was typed into the form, without a word. Nothing reaches
+the database, so no data is corrupted, but an edit to a condition note or a
+synopsis can vanish.
+**Proposal.** While editing, ignore selection changes in the panel and mark
+the list as inactive (dimmed, with a status-bar line "Save or cancel the edit
+first"), restoring the selection to the edited book. Save or Esc ends the
+edit and the list responds again. No dialogue, so D-011 holds.
+**Trade-offs.** The list stops responding to clicks while a form is open,
+which may feel stuck to someone who did not notice they were editing. The
+alternative — saving automatically on leaving — writes changes the owner may
+have meant to abandon, and turns a validation failure into a puzzle.
+**Applied.** As proposed, by the owner's decision. `DetailPanel::isBusy()`
+is true while editing or confirming a deletion; `MainWindow::lockWhileBusy`
+disables the list and Add a book and says why in the status bar, and
+restores both when the panel lets go. A disabled list takes neither clicks
+nor its single-key actions. Tests: `listStandsStillWhileEditing`,
+`listStandsStillWhileConfirmingADelete`.
+**Notes.** The bulk editor (multi-selection) will meet the same question;
+settle it once for both.
+
+### IMP-003 Authors left with no books stay in the author table
+
+**Status:** applied (2026-10-05)
+**Found:** 2026-10-05 (finishing Phase 1, while making credits editable)
+**Location:** `src/app/catalogue.cpp`, `Catalogue::save(const BookEdit&)` and `Catalogue::remove`
+**Effort:** small
+**Description.** Editing a credit to a different name, or deleting a book,
+can leave an author row that no book credits any more — a misspelling
+corrected, an "ed. …" name fixed (BUG-003), the last book by someone
+deleted. Nothing is wrong in the data, but the author filter in the rail
+(F-017) would list people with no books, and a later import of the old
+spelling would quietly reattach to the stale row.
+**Proposal.** After a credit change or a deletion, in the same transaction,
+delete authors that have no `book_author` rows and no `notes`. One
+`AuthorRepository::removeUncredited()` and a test that edits a credit away
+and finds the author gone.
+**Trade-offs.** An author kept deliberately — say, one whose books are lent
+out and deleted for now — vanishes with their sort name; the `notes`
+exception protects only those with notes. The alternative is to leave rows
+and have the rail hide authors with a count of nought, which keeps history
+but leaves the stale-spelling trap.
+**Applied.** As proposed, by the owner's decision, and extended to the
+importer: `AuthorRepository::removeUncredited()` runs in the same transaction
+after `Catalogue::save` changes credits, after `Catalogue::remove`, and at the
+end of an import run, so a corrected re-import leaves no stale spelling.
+Authors with notes are kept. The owner's catalogue had none to remove when
+this landed. Tests: `creditedAwayAuthorsAreRemoved`,
+`deletingAnAuthorsLastBookRemovesThem`, `correctedReimportLeavesNoStragglers`.
+**Notes.** Settle before F-017's author filter is built.
 
 ### IMP-001 Order an author's books by series before title
 

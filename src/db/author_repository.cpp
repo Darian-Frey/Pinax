@@ -59,6 +59,16 @@ std::int64_t AuthorRepository::findOrCreate(const std::string& name)
     return sqlite3_last_insert_rowid(connection_.handle());
 }
 
+int AuthorRepository::removeUncredited()
+{
+    Statement remove(connection_, R"(
+        DELETE FROM author
+         WHERE notes IS NULL
+           AND NOT EXISTS (SELECT 1 FROM book_author ba WHERE ba.author_id = author.id))");
+    remove.step();
+    return sqlite3_changes(connection_.handle());
+}
+
 std::int64_t AuthorRepository::count()
 {
     Statement select(connection_, "SELECT COUNT(*) FROM author");

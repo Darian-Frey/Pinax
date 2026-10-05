@@ -44,8 +44,8 @@ as missing volumes (BUG-001).
   author worked alone or jointly.
 **Status:** Complete (2026-10-05). Credits are edited as text in the import notation
 (SPEC.md §1.1), parsed by one shared `domain::parseCredits`; names resolve to
-existing authors. See BUG-003 for three editors the seed recorded as
-authors, and IMP-003 for authors left with no books.
+existing authors, and an author left credited by nothing is removed
+(IMP-003). BUG-003, three editors the seed recorded as authors, is fixed.
 **Notes:** Flattened author strings in the seed spreadsheet mis-count joint
 credits; this is the fix.
 

@@ -56,10 +56,11 @@ MainWindow::MainWindow(QWidget* parent)
     auto* toolbar = addToolBar(tr("Catalogue"));
     toolbar->setObjectName(QStringLiteral("toolbar"));
     toolbar->setMovable(false);
-    auto* add = toolbar->addAction(tr("+ Add a book"), this, &MainWindow::addBook);
-    add->setObjectName(QStringLiteral("addBook"));
-    add->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_N));
-    add->setToolTip(tr("Add a book by hand (Ctrl+N)"));
+    addBook_ = toolbar->addAction(tr("+ Add a book"), this, &MainWindow::addBook);
+    addBook_->setObjectName(QStringLiteral("addBook"));
+    addBook_->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_N));
+    addBook_->setToolTip(tr("Add a book by hand (Ctrl+N)"));
+    connect(detail_, &ui::DetailPanel::stateChanged, this, &MainWindow::lockWhileBusy);
 
     splitter_->setChildrenCollapsible(false);
     splitter_->setStretchFactor(0, 0);
@@ -75,6 +76,21 @@ MainWindow::MainWindow(QWidget* parent)
     statusBar()->addPermanentWidget(keys);
 
     resize(railWidth + listWidth + detailWidth, 700);
+}
+
+void MainWindow::lockWhileBusy()
+{
+    const bool busy = detail_->isBusy();
+    if (list_->isEnabled() == !busy)
+        return;
+    list_->setEnabled(!busy);
+    addBook_->setEnabled(!busy);
+    if (detail_->state() == ui::DetailPanel::State::Editing)
+        statusBar()->showMessage(tr("Editing — Ctrl+Enter saves, Esc cancels"));
+    else if (detail_->state() == ui::DetailPanel::State::ConfirmingDelete)
+        statusBar()->showMessage(tr("Delete or keep? Esc keeps"));
+    else
+        statusBar()->clearMessage();
 }
 
 void MainWindow::setCatalogue(Catalogue* catalogue)

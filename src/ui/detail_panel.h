@@ -26,6 +26,11 @@ class DetailPanel : public QWidget {
 
 public:
     enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete };
+    Q_ENUM(State)
+
+    // True while the panel holds something the owner must finish — an edit
+    // or a deletion to confirm — and the selection must not move (IMP-002).
+    bool isBusy() const { return state_ == State::Editing || state_ == State::ConfirmingDelete; }
 
     explicit DetailPanel(QWidget* parent = nullptr);
 
@@ -54,6 +59,7 @@ signals:
     void deleteRequested(const QList<qint64>& ids);
     void deleteConfirmed(const QList<qint64>& ids);
     void deleteCancelled();
+    void stateChanged(pinax::ui::DetailPanel::State state);
     // The shown book's rating squares were clicked: 1-10, or 0 to clear.
     void ratingRequested(qint64 bookId, int rating);
 

@@ -124,9 +124,13 @@ module permitted to know about all the others.
   the reads and writes the window needs, assembled from `db`'s repositories
   (`summaries`, `detail`, `save`, `remove`, `toggleRead`, `setRating`, each
   write in one transaction). `save(BookEdit)` creates when the id is 0 and
-  resolves credit names to authors. `save` turns a constraint failure into a
+  resolves credit names to authors. Credit changes and deletions remove
+  authors left uncredited and without notes (IMP-003). `save` turns a constraint failure into a
   sentence for the owner.
-- **MainWindow** — a toolbar (Add a book, Ctrl+N), the splitter. List selection drives the detail panel
+- **MainWindow** — a toolbar (Add a book, Ctrl+N), the splitter. While the
+  panel is busy — editing, or asking about a deletion — the list and Add a
+  book are disabled, so the selection cannot move under an unfinished edit
+  (IMP-002). List selection drives the detail panel
   through the Catalogue; the panel's `saveRequested` is saved through it, and
   the saved row is refreshed in place.
 

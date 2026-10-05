@@ -317,6 +317,7 @@ void TestDetailPanel::deletionIsConfirmedInThePanel()
 
     panel.askToDelete({5}, QStringLiteral("Delete “Excession”?"));
     QVERIFY(panel.state() == DetailPanel::State::ConfirmingDelete);
+    QVERIFY(panel.isBusy());
     auto* keep = child<QPushButton>(panel, QStringLiteral("confirm.keep"));
     QTRY_VERIFY(keep->hasFocus()); // Enter keeps
     QTest::keyClick(keep, Qt::Key_Escape);
