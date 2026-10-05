@@ -2,6 +2,7 @@
 
 #include "domain/book_summary.h"
 
+#include <QList>
 #include <QTableView>
 
 #include <vector>
@@ -21,8 +22,20 @@ public:
 
     void setBooks(std::vector<domain::BookSummary> books);
 
+    // Refreshes one row in place; selection and sort position follow it.
+    void updateBook(const domain::BookSummary& summary);
+
+    // Selects the book and scrolls to it, if it is listed.
+    void selectBook(std::int64_t id);
+
+    // Ids of the selected books, in display order.
+    QList<qint64> selectedBooks() const;
+
     BookListModel* bookModel() const { return model_; }
     BookSortProxy* sortProxy() const { return proxy_; }
+
+signals:
+    void selectionChangedTo(const QList<qint64>& ids);
 
 private:
     BookListModel* model_;

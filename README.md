@@ -29,8 +29,9 @@ build/src/pinax
 The application creates `~/.local/share/pinax/pinax.db` on first run (or opens
 the file given as its argument), upgrades an older file in place, and lists
 every book, sortable by any column. `--import file.csv` loads a catalogue in
-the format of SPEC.md §1 first, and is safe to repeat. The rail and detail panel are still
-empty. The database is also usable on its own:
+the format of SPEC.md §1 first, and is safe to repeat. Selecting a book shows
+it in the detail panel; F2 or Edit opens its fields for editing in place. The
+filter rail is still empty. The database is also usable on its own:
 
 ```sh
 # create the catalogue

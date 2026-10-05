@@ -48,7 +48,8 @@ reading state and ratings.
       genre repository arrives with enrichment
 - [x] Book list view over `v_book_display`, sortable — 2026-10-05; needed
       schema version 2 for the sort keys
-- [ ] Detail panel: view state, then edit state (D-011)
+- [x] Detail panel: view state, then edit state (D-011) — 2026-10-05; edits a
+      book's own fields; authors and series are not edited there yet
 - [x] CSV importer, idempotent (AV-002), writing `times_read` explicitly
       (AV-005), reporting per-row failures without aborting the run —
       2026-10-05, `pinax --import` (D-016)

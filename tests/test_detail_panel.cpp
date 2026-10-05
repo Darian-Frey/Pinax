@@ -1,0 +1,226 @@
+#include "ui/book_editor.h"
+#include "ui/book_view.h"
+#include "ui/detail_panel.h"
+#include "ui/rating_bar.h"
+
+#include <QComboBox>
+#include <QLabel>
+#include <QLineEdit>
+#include <QPlainTextEdit>
+#include <QPushButton>
+#include <QTest>
+
+using pinax::domain::Binding;
+using pinax::domain::Book;
+using pinax::domain::BookDetail;
+using pinax::domain::ReadStatus;
+using pinax::domain::SeriesMembership;
+using pinax::domain::Source;
+using pinax::ui::DetailPanel;
+
+namespace {
+
+BookDetail excession()
+{
+    BookDetail detail;
+    detail.book.id = 5;
+    detail.book.title = "Excession";
+    detail.book.sortTitle = "Excession";
+    detail.book.readStatus = ReadStatus::Read;
+    detail.book.timesRead = 2;
+    detail.book.rating = 9;
+    detail.book.publisher = "Orbit";
+    detail.book.publishedYear = 1996;
+    detail.book.binding = Binding::Paperback;
+    detail.authors = "Iain M. Banks";
+
+    SeriesMembership culture;
+    culture.seriesId = 1;
+    culture.name = "The Culture";
+    culture.position = "5";
+    culture.sortPosition = 5;
+    culture.held = 9;
+    culture.known = 10;
+    culture.status = "Incomplete";
+    culture.missing.push_back({std::string("1"), std::string("Consider Phlebas")});
+    detail.series.push_back(culture);
+    return detail;
+}
+
+QString labelText(const QWidget& root, const QString& name)
+{
+    const auto* label = root.findChild<QLabel*>(name);
+    return label ? label->text() : QStringLiteral("<no label %1>").arg(name);
+}
+
+template <typename T>
+T* child(const QWidget& root, const QString& name)
+{
+    T* found = root.findChild<T*>(name);
+    if (!found)
+        qFatal("no child named %s", qPrintable(name));
+    return found;
+}
+
+} // namespace
+
+class TestDetailPanel : public QObject {
+    Q_OBJECT
+
+private slots:
+    void startsEmptyAndShowsSeveral();
+    void viewShowsTheBookAsTheMockUpDoes();
+    void viewSaysWhatIsNotRecorded();
+    void editEmitsTheChangedBook();
+    void editRejectsABadIsbnWithoutEmitting();
+    void escapeCancelsBackToView();
+    void editedSynopsisIsMarkedManual();
+};
+
+void TestDetailPanel::startsEmptyAndShowsSeveral()
+{
+    DetailPanel panel;
+    QVERIFY(panel.state() == DetailPanel::State::Empty);
+
+    panel.showSelection(27);
+    QVERIFY(panel.state() == DetailPanel::State::Several);
+    QVERIFY(labelText(panel, QStringLiteral("detail.several")).startsWith(QStringLiteral("27 books selected")));
+
+    panel.beginEdit(); // nothing to edit
+    QVERIFY(panel.state() == DetailPanel::State::Several);
+}
+
+void TestDetailPanel::viewShowsTheBookAsTheMockUpDoes()
+{
+    DetailPanel panel;
+    panel.showBook(excession());
+    QVERIFY(panel.state() == DetailPanel::State::Viewing);
+
+    const QWidget& view = *panel.view();
+    QCOMPARE(labelText(view, QStringLiteral("title")), QStringLiteral("Excession"));
+    QCOMPARE(labelText(view, QStringLiteral("authors")), QStringLiteral("Iain M. Banks"));
+    QCOMPARE(labelText(view, QStringLiteral("readState")), QStringLiteral("Read"));
+    QCOMPARE(labelText(view, QStringLiteral("readCount")), QStringLiteral("read twice"));
+    QCOMPARE(labelText(view, QStringLiteral("ratingText")), QStringLiteral("9 / 10"));
+    QCOMPARE(child<pinax::ui::RatingBar>(view, QStringLiteral("ratingBar"))->rating(),
+        std::optional<int>(9));
+
+    QCOMPARE(labelText(view, QStringLiteral("series.name")), QStringLiteral("The Culture"));
+    QCOMPARE(labelText(view, QStringLiteral("series.place")), QStringLiteral("Book 5 of 10"));
+    QCOMPARE(labelText(view, QStringLiteral("series.held")), QStringLiteral("9 of 10 held"));
+    QCOMPARE(labelText(view, QStringLiteral("series.missing")),
+        QStringLiteral("Missing <b>Consider Phlebas</b> — one volume completes this series"));
+
+    QCOMPARE(labelText(view, QStringLiteral("edition.publisher")), QStringLiteral("Orbit"));
+    QCOMPARE(labelText(view, QStringLiteral("edition.published")), QStringLiteral("1996"));
+    QCOMPARE(labelText(view, QStringLiteral("edition.binding")), QStringLiteral("Paperback"));
+    QCOMPARE(labelText(view, QStringLiteral("synopsisSource")), QStringLiteral("not fetched"));
+}
+
+void TestDetailPanel::viewSaysWhatIsNotRecorded()
+{
+    BookDetail bare;
+    bare.book.id = 1;
+    bare.book.title = "Tau Zero";
+
+    DetailPanel panel;
+    panel.showBook(bare);
+    const QWidget& view = *panel.view();
+    QCOMPARE(labelText(view, QStringLiteral("readCount")), QStringLiteral("not read yet"));
+    QCOMPARE(labelText(view, QStringLiteral("ratingText")), QStringLiteral("unrated"));
+    QCOMPARE(labelText(view, QStringLiteral("edition.isbn")), QStringLiteral("not recorded"));
+    QCOMPARE(labelText(view, QStringLiteral("series.none")), QStringLiteral("Not part of a series"));
+    QCOMPARE(labelText(view, QStringLiteral("authors")), QStringLiteral("No author recorded"));
+}
+
+void TestDetailPanel::editEmitsTheChangedBook()
+{
+    DetailPanel panel;
+    panel.showBook(excession());
+    QTest::mouseClick(child<QPushButton>(*panel.view(), QStringLiteral("edit")), Qt::LeftButton);
+    QVERIFY(panel.state() == DetailPanel::State::Editing);
+
+    std::optional<Book> saved;
+    connect(&panel, &DetailPanel::saveRequested, this, [&](const Book& book) { saved = book; });
+
+    const QWidget& editor = *panel.editor();
+    child<QLineEdit>(editor, QStringLiteral("edit.title"))->setText(QStringLiteral("  Excession  "));
+    child<QComboBox>(editor, QStringLiteral("edit.rating"))->setCurrentIndex(10);
+    child<QLineEdit>(editor, QStringLiteral("edit.isbn13"))->setText(QStringLiteral("978-1-85723-457-2"));
+    child<QLineEdit>(editor, QStringLiteral("edit.conditionNote"))->setText(QStringLiteral("spine creased"));
+    QTest::mouseClick(child<QPushButton>(editor, QStringLiteral("edit.save")), Qt::LeftButton);
+
+    QVERIFY(saved);
+    QCOMPARE(saved->id, std::int64_t(5));
+    QCOMPARE(saved->title, std::string("Excession"));
+    QCOMPARE(saved->rating, std::optional<int>(10));
+    QCOMPARE(saved->isbn13, std::optional<std::string>("9781857234572"));
+    QCOMPARE(saved->conditionNote, std::optional<std::string>("spine creased"));
+    // Untouched fields come through as they were; the count is not the form's.
+    QCOMPARE(saved->timesRead, 2);
+    QCOMPARE(saved->publisher, std::optional<std::string>("Orbit"));
+    QVERIFY(!saved->synopsisSource);
+}
+
+void TestDetailPanel::editRejectsABadIsbnWithoutEmitting()
+{
+    DetailPanel panel;
+    panel.showBook(excession());
+    panel.beginEdit();
+
+    bool emitted = false;
+    connect(&panel, &DetailPanel::saveRequested, this, [&] { emitted = true; });
+
+    const QWidget& editor = *panel.editor();
+    child<QLineEdit>(editor, QStringLiteral("edit.isbn13"))->setText(QStringLiteral("9781857234576"));
+    child<QLineEdit>(editor, QStringLiteral("edit.published"))->setText(QStringLiteral("96"));
+    panel.editor()->save();
+
+    QVERIFY(!emitted);
+    QVERIFY(panel.state() == DetailPanel::State::Editing);
+    const QString error = labelText(editor, QStringLiteral("edit.error"));
+    QVERIFY2(error.contains(QStringLiteral("check digit")), qPrintable(error));
+    QVERIFY2(error.contains(QStringLiteral("First published")), qPrintable(error));
+}
+
+void TestDetailPanel::escapeCancelsBackToView()
+{
+    DetailPanel panel;
+    panel.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&panel));
+    panel.showBook(excession());
+    panel.beginEdit();
+
+    auto* title = child<QLineEdit>(*panel.editor(), QStringLiteral("edit.title"));
+    QTRY_VERIFY(title->hasFocus());
+    title->setText(QStringLiteral("Not Saved"));
+    QTest::keyClick(title, Qt::Key_Escape);
+
+    QVERIFY(panel.state() == DetailPanel::State::Viewing);
+    QCOMPARE(labelText(*panel.view(), QStringLiteral("title")), QStringLiteral("Excession"));
+}
+
+void TestDetailPanel::editedSynopsisIsMarkedManual()
+{
+    // AV-001: what the owner types is never enrichment's to replace.
+    BookDetail detail = excession();
+    detail.book.synopsis = "Fetched text.";
+    detail.book.synopsisSource = Source::GoogleBooks;
+
+    DetailPanel panel;
+    panel.showBook(detail);
+    panel.beginEdit();
+
+    std::optional<Book> saved;
+    connect(&panel, &DetailPanel::saveRequested, this, [&](const Book& book) { saved = book; });
+    child<QPlainTextEdit>(*panel.editor(), QStringLiteral("edit.synopsis"))
+        ->setPlainText(QStringLiteral("My own words."));
+    panel.editor()->save();
+
+    QVERIFY(saved);
+    QCOMPARE(saved->synopsis, std::optional<std::string>("My own words."));
+    QVERIFY(saved->synopsisSource == Source::Manual);
+}
+
+QTEST_MAIN(TestDetailPanel)
+#include "test_detail_panel.moc"

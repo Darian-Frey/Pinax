@@ -1,10 +1,12 @@
 #pragma once
 
 #include "domain/series_entry.h"
+#include "domain/series_membership.h"
 
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace pinax::db {
 
@@ -26,6 +28,10 @@ public:
     // position: a known volume waiting for its book (D-006, AV-007).
     std::optional<domain::SeriesEntry> unownedEntryAt(std::int64_t seriesId,
         const std::string& position);
+
+    // Every series the book belongs to, by series name, with completeness and
+    // missing volumes read from v_series_status and v_missing_entries.
+    std::vector<domain::SeriesMembership> membershipsForBook(std::int64_t bookId);
 
     std::int64_t addEntry(const domain::SeriesEntry& entry);
     bool updateEntry(const domain::SeriesEntry& entry);

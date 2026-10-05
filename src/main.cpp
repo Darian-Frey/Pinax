@@ -1,10 +1,7 @@
+#include "app/catalogue.h"
 #include "app/main_window.h"
-#include "db/book_repository.h"
-#include "db/connection.h"
 #include "db/db_error.h"
-#include "db/migrations.h"
 #include "io/csv_importer.h"
-#include "ui/book_list_view.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -81,35 +78,35 @@ int main(int argc, char* argv[])
         QStringLiteral("[database]"));
     parser.process(app);
 
-    pinax::app::MainWindow window;
-
     const QString path = databasePath(parser);
-    std::unique_ptr<pinax::db::Connection> connection;
+
+    // Declared before the window, which holds a pointer to it.
+    std::unique_ptr<pinax::app::Catalogue> catalogue;
+    QString status;
     try {
-        connection = std::make_unique<pinax::db::Connection>(path.toStdString());
-        pinax::db::migrate(*connection);
+        catalogue = std::make_unique<pinax::app::Catalogue>(path.toStdString());
+
         QString importSummary;
         if (parser.isSet(importOption)) {
             const QString csvPath = parser.value(importOption);
-            pinax::io::CsvImporter importer(*connection);
+            pinax::io::CsvImporter importer(catalogue->connection());
             importSummary = reportImport(csvPath, importer.importFile(csvPath.toStdString()));
         }
 
-        pinax::db::BookRepository books(*connection);
-        window.bookList()->setBooks(books.summaries());
-        const qlonglong count = books.count();
+        const qlonglong count = catalogue->count();
         const QString volumes = count == 1
             ? QObject::tr("1 volume")
             : QObject::tr("%1 volumes").arg(count);
-        window.statusBar()->showMessage(importSummary.isEmpty()
-                ? volumes + QStringLiteral(" · ") + path
-                : volumes + QStringLiteral(" · ") + importSummary);
+        status = volumes + QStringLiteral(" · ") + (importSummary.isEmpty() ? path : importSummary);
     } catch (const pinax::db::DbError& error) {
-        connection.reset();
+        catalogue.reset();
         qCritical("pinax.db: %s", error.what());
-        window.statusBar()->showMessage(
-            QObject::tr("Could not open %1: %2").arg(path, QString::fromUtf8(error.what())));
+        status = QObject::tr("Could not open %1: %2").arg(path, QString::fromUtf8(error.what()));
     }
+
+    pinax::app::MainWindow window;
+    window.setCatalogue(catalogue.get());
+    window.statusBar()->showMessage(status);
 
     window.show();
     return QApplication::exec();

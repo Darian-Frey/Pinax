@@ -5,6 +5,8 @@
 
 #include <sqlite3.h>
 
+#include <utility>
+
 namespace pinax::db {
 
 using domain::SeriesEntry;
@@ -81,6 +83,46 @@ std::optional<SeriesEntry> SeriesRepository::unownedEntryAt(std::int64_t seriesI
     if (!select.step())
         return std::nullopt;
     return readEntry(select);
+}
+
+std::vector<domain::SeriesMembership> SeriesRepository::membershipsForBook(std::int64_t bookId)
+{
+    Statement select(connection_, R"(
+        SELECT s.id, s.name, s.ongoing, se.position, se.sort_position,
+               vs.held, vs.known, vs.held_read, vs.status
+          FROM series_entry se
+          JOIN series s ON s.id = se.series_id
+          JOIN v_series_status vs ON vs.id = s.id
+         WHERE se.book_id = :book_id
+         ORDER BY s.name, se.id)");
+    select.bind(":book_id", bookId);
+
+    std::vector<domain::SeriesMembership> result;
+    while (select.step()) {
+        domain::SeriesMembership membership;
+        membership.seriesId = select.columnInt(0);
+        membership.name = select.columnText(1);
+        membership.ongoing = select.columnInt(2) != 0;
+        membership.position = select.columnOptionalText(3);
+        membership.sortPosition = select.columnOptionalDouble(4);
+        membership.held = static_cast<int>(select.columnInt(5));
+        membership.known = static_cast<int>(select.columnInt(6));
+        membership.heldRead = static_cast<int>(select.columnInt(7));
+        membership.status = select.columnText(8);
+        result.push_back(std::move(membership));
+    }
+
+    for (domain::SeriesMembership& membership : result) {
+        Statement missing(connection_, R"(
+            SELECT position, title
+              FROM v_missing_entries
+             WHERE series_id = :series_id
+             ORDER BY sort_position IS NULL, sort_position, position)");
+        missing.bind(":series_id", membership.seriesId);
+        while (missing.step())
+            membership.missing.push_back({missing.columnOptionalText(0), missing.columnOptionalText(1)});
+    }
+    return result;
 }
 
 std::int64_t SeriesRepository::addEntry(const SeriesEntry& entry)

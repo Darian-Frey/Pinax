@@ -27,7 +27,8 @@ spreadsheet of titles and authors.
   rows. Its series entries stay, with no book attached, so each series it
   belonged to now shows that volume as missing (D-006).
 - Every record carries creation and modification timestamps without manual input.
-**Status:** In progress — repository layer done (`BookRepository`); no UI yet.
+**Status:** In progress — repository layer done; books are edited in the detail panel.
+Creating and deleting a book from the application are not built yet.
 **Notes:** `db/schema.sql`, table `book`.
 
 ### F-002 Multiple authors with roles
@@ -70,7 +71,8 @@ splitting per D-007.
   recordable per book.
 - Free-text edition and condition notes are preserved verbatim and never
   overwritten by a metadata fetch.
-**Status:** Not started
+**Status:** In progress — every field is recordable and editable in the detail
+panel. "Never overwritten by a metadata fetch" waits for the fetch (AV-001).
 **Notes:** Carries facts a provider will not know — printing, jacket state,
 misprints, acquisition.
 
@@ -102,7 +104,9 @@ misprints, acquisition.
 - A book takes an integer rating from 1 to 10, or none.
 - Unrated is distinguishable from rated zero, and sorting separates the two.
 - A value outside the range is rejected rather than clamped.
-**Status:** Not started
+**Status:** In progress — shown as ten squares in the detail panel and set from
+its edit form, 1 to 10 or unrated; out-of-range values are rejected, not
+clamped. The one-keystroke rating control is Phase 1 step 6.
 
 ---
 

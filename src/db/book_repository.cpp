@@ -151,6 +151,38 @@ Book readBook(const Statement& row)
     return book;
 }
 
+// Column order shared by summary() and summaries().
+constexpr std::string_view summaryColumns = R"(
+    id, title, sort_title,
+    authors, author_sort,
+    series_label, series_sort, series_sort_position,
+    read_status, times_read, date_finished, rating, published_year,
+    cover_path, metadata_status)";
+
+domain::BookSummary readSummary(const Statement& select)
+{
+    int column = 0;
+    domain::BookSummary row;
+    row.id = select.columnInt(column++);
+    row.title = select.columnText(column++);
+    row.sortTitle = select.columnText(column++);
+    row.authors = select.columnOptionalText(column++);
+    row.authorSort = select.columnOptionalText(column++);
+    row.seriesLabel = select.columnOptionalText(column++);
+    row.seriesSort = select.columnOptionalText(column++);
+    row.seriesSortPosition = select.columnOptionalDouble(column++);
+    row.readStatus = parseRequired<domain::ReadStatus>(
+        select.columnText(column++), domain::readStatusFromString, "read_status");
+    row.timesRead = static_cast<int>(select.columnInt(column++));
+    row.dateFinished = select.columnOptionalText(column++);
+    row.rating = narrow(select.columnOptionalInt(column++));
+    row.publishedYear = narrow(select.columnOptionalInt(column++));
+    row.coverPath = select.columnOptionalText(column++);
+    row.metadataStatus = parseRequired<domain::MetadataStatus>(
+        select.columnText(column++), domain::metadataStatusFromString, "metadata_status");
+    return row;
+}
+
 } // namespace
 
 BookRepository::BookRepository(Connection& connection)
@@ -298,39 +330,24 @@ bool BookRepository::remove(std::int64_t id)
     return sqlite3_changes(connection_.handle()) == 1;
 }
 
+std::optional<domain::BookSummary> BookRepository::summary(std::int64_t id)
+{
+    Statement select(connection_,
+        "SELECT " + std::string(summaryColumns) + " FROM v_book_display WHERE id = :id");
+    select.bind(":id", id);
+    if (!select.step())
+        return std::nullopt;
+    return readSummary(select);
+}
+
 std::vector<domain::BookSummary> BookRepository::summaries()
 {
-    Statement select(connection_, R"(
-        SELECT id, title, sort_title,
-               authors, author_sort,
-               series_label, series_sort, series_sort_position,
-               read_status, times_read, date_finished, rating, published_year,
-               cover_path, metadata_status
-          FROM v_book_display)");
+    Statement select(connection_,
+        "SELECT " + std::string(summaryColumns) + " FROM v_book_display");
 
     std::vector<domain::BookSummary> result;
-    while (select.step()) {
-        int column = 0;
-        domain::BookSummary row;
-        row.id = select.columnInt(column++);
-        row.title = select.columnText(column++);
-        row.sortTitle = select.columnText(column++);
-        row.authors = select.columnOptionalText(column++);
-        row.authorSort = select.columnOptionalText(column++);
-        row.seriesLabel = select.columnOptionalText(column++);
-        row.seriesSort = select.columnOptionalText(column++);
-        row.seriesSortPosition = select.columnOptionalDouble(column++);
-        row.readStatus = parseRequired<domain::ReadStatus>(
-            select.columnText(column++), domain::readStatusFromString, "read_status");
-        row.timesRead = static_cast<int>(select.columnInt(column++));
-        row.dateFinished = select.columnOptionalText(column++);
-        row.rating = narrow(select.columnOptionalInt(column++));
-        row.publishedYear = narrow(select.columnOptionalInt(column++));
-        row.coverPath = select.columnOptionalText(column++);
-        row.metadataStatus = parseRequired<domain::MetadataStatus>(
-            select.columnText(column++), domain::metadataStatusFromString, "metadata_status");
-        result.push_back(std::move(row));
-    }
+    while (select.step())
+        result.push_back(readSummary(select));
     return result;
 }
 

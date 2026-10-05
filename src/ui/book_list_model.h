@@ -29,6 +29,12 @@ public:
     void setBooks(std::vector<domain::BookSummary> books);
     const domain::BookSummary& book(int row) const;
 
+    // Replaces the row with this summary's id, if there is one.
+    void updateBook(const domain::BookSummary& summary);
+
+    // The row holding this book, or -1.
+    int rowOf(std::int64_t id) const;
+
     int rowCount(const QModelIndex& parent = {}) const override;
     int columnCount(const QModelIndex& parent = {}) const override;
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;

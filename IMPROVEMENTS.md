@@ -23,7 +23,27 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
-*None.*
+### IMP-002 Keep unsaved edits when the selection moves
+
+**Status:** suggested
+**Found:** 2026-10-05 (Phase 1 step 5, building the detail panel's edit state)
+**Location:** `src/app/main_window.cpp`, `MainWindow::showSelection`; `src/ui/detail_panel.cpp`
+**Effort:** small
+**Description.** While the panel is in its edit state, selecting another row
+in the list — a stray click, an arrow key — shows the new selection and
+throws away whatever was typed into the form, without a word. Nothing reaches
+the database, so no data is corrupted, but an edit to a condition note or a
+synopsis can vanish.
+**Proposal.** While editing, ignore selection changes in the panel and mark
+the list as inactive (dimmed, with a status-bar line "Save or cancel the edit
+first"), restoring the selection to the edited book. Save or Esc ends the
+edit and the list responds again. No dialogue, so D-011 holds.
+**Trade-offs.** The list stops responding to clicks while a form is open,
+which may feel stuck to someone who did not notice they were editing. The
+alternative — saving automatically on leaving — writes changes the owner may
+have meant to abandon, and turns a validation failure into a puzzle.
+**Notes.** The bulk editor (multi-selection) will meet the same question;
+settle it once for both.
 
 ## Applied
 

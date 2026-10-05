@@ -4,6 +4,7 @@
 #include "ui/book_sort_proxy.h"
 
 #include <QHeaderView>
+#include <QItemSelectionModel>
 
 #include <utility>
 
@@ -53,11 +54,42 @@ BookListView::BookListView(QWidget* parent)
 
     setSortingEnabled(true);
     sortByColumn(BookListModel::AuthorColumn, Qt::AscendingOrder);
+
+    connect(selectionModel(), &QItemSelectionModel::selectionChanged, this,
+        [this] { emit selectionChangedTo(selectedBooks()); });
+    // A reset clears the selection without saying so.
+    connect(model_, &QAbstractItemModel::modelReset, this,
+        [this] { emit selectionChangedTo(selectedBooks()); });
 }
 
 void BookListView::setBooks(std::vector<domain::BookSummary> books)
 {
     model_->setBooks(std::move(books));
+}
+
+void BookListView::updateBook(const domain::BookSummary& summary)
+{
+    model_->updateBook(summary);
+}
+
+void BookListView::selectBook(std::int64_t id)
+{
+    const int row = model_->rowOf(id);
+    if (row < 0)
+        return;
+    const QModelIndex index = proxy_->mapFromSource(model_->index(row, BookListModel::TitleColumn));
+    selectionModel()->setCurrentIndex(index,
+        QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+    scrollTo(index);
+}
+
+QList<qint64> BookListView::selectedBooks() const
+{
+    QList<qint64> ids;
+    const QModelIndexList rows = selectionModel()->selectedRows();
+    for (const QModelIndex& index : rows)
+        ids << model_->book(proxy_->mapToSource(index).row()).id;
+    return ids;
 }
 
 } // namespace pinax::ui

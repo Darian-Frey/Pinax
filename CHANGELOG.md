@@ -12,6 +12,19 @@ change can be traced to the capability or decision that motivated it.
 ## [Unreleased]
 
 ### Added
+- Detail panel (Phase 1 step 5, D-010, D-011): the selected book in its view
+  state — cover placeholder, title, authors, read state and count, rating as
+  ten squares, each series with "Book 5 of 10", held against known and the
+  missing volumes, synopsis with its source, and the edition facts, with
+  "not recorded" where nothing is. Several selected books show a count until
+  the bulk editor exists.
+- Edit state on F2 or Edit: the book's own fields in a form, checked before
+  saving (ISBN check digits, years, ISO dates), problems shown inline, Esc to
+  cancel, Ctrl+Enter to save. The read count is shown, not edited (F-006); an
+  edited synopsis is marked manual (AV-001).
+- `app::Catalogue`, joining the repositories for the window, and the reads it
+  needs: `BookRepository::summary`, `SeriesRepository::membershipsForBook`
+  over `v_series_status` and `v_missing_entries`.
 - CSV import (F-003, Phase 1 step 4): `pinax --import file.csv` (D-016), in a
   new Qt-free `io` module. RFC 4180 reader; idempotent matching on ISBN-13 or
   title and first-billed author, updating only what differs (AV-002);
@@ -100,6 +113,7 @@ change can be traced to the capability or decision that motivated it.
   after the habit of silent fixing has set in.
 
 ### Notes
+- IMP-002 suggested: keep an edit in progress when the list selection moves.
 - IMP-001 suggested and applied: within an author, books sort by series and
   position, standalones last, instead of interleaving by title.
 - BUG-002 found and fixed: `v_book_display` joined credits and series in

@@ -63,6 +63,24 @@ const BookSummary& BookListModel::book(int row) const
     return books_.at(static_cast<std::size_t>(row));
 }
 
+void BookListModel::updateBook(const BookSummary& summary)
+{
+    const int row = rowOf(summary.id);
+    if (row < 0)
+        return;
+    books_[static_cast<std::size_t>(row)] = summary;
+    emit dataChanged(index(row, 0), index(row, ColumnCount - 1));
+}
+
+int BookListModel::rowOf(std::int64_t id) const
+{
+    for (std::size_t row = 0; row < books_.size(); ++row) {
+        if (books_[row].id == id)
+            return static_cast<int>(row);
+    }
+    return -1;
+}
+
 int BookListModel::rowCount(const QModelIndex& parent) const
 {
     return parent.isValid() ? 0 : static_cast<int>(books_.size());

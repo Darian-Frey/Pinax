@@ -17,7 +17,7 @@ database and exports to SQL, CSV and Excel.
 
 ## 2. Current state
 
-**Phase 1 steps 1–4 done: the application opens or creates its database, upgrades it, imports CSV (`--import`), and lists every book sortable by column. No detail panel or editing yet.**
+**Phase 1 steps 1–5 done: the application opens its database, imports CSV (`--import`), lists every book sortable by column, and shows the selected book in the detail panel, where its own fields can be edited (F2). Remaining in Phase 1: the read toggle and rating control (step 6).**
 
 | Path | State |
 |---|---|
@@ -25,9 +25,9 @@ database and exports to SQL, CSV and Excel.
 | `src/domain/` | `Book`, enums with schema strings, `makeSortTitle`. No Qt, no SQL. |
 | `src/db/` | SQLite C API, no Qt (D-015). `Connection` (FK on + verified, WAL), `Statement` (named binds), `Transaction` (RAII), `migrate()` with schema compiled in from `db/schema.sql`, `BookRepository`. Errors throw `DbError` with the extended result code. |
 | `src/io/` | Qt-free. `parseCsv` (RFC 4180), `CsvImporter` (SPEC.md §1; one transaction, savepoint per row, reports `line: message`), `deriveSortPosition` (the only code that parses `position`). |
-| `src/ui/` | `BookListModel` (table of `BookSummary`), `BookSortProxy` (sorts by view keys, missing values last both ways), `BookListView` (opens sorted by author). Links `domain`, not `db`. |
-| `src/app/`, `src/main.cpp` | `MainWindow`: `QSplitter` of three empty panels `rail`, `list`, `detail`. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], migrates, shows the count. |
-| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_import` (its seed test skips without `seed/library.csv`). Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
+| `src/ui/` | `BookListModel`, `BookSortProxy` (view keys; missing values last; author then series), `BookListView` (opens sorted by author; emits `selectionChangedTo`). `DetailPanel` stacks Empty / Viewing (`BookView`) / Editing (`BookEditor`) / Several. `RatingBar`, `style.h` (accent, muted, section headings). Links `domain`, not `db`. |
+| `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save`). `MainWindow`: splitter of `rail` (empty), `list`, `detail`; selection → panel, panel save → Catalogue → row refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import`, shows the count. |
+| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_import` (its seed test skips without `seed/library.csv`), `test_detail_panel`, `test_catalogue`. Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
 | `FEATURES.md` | Complete. F-001 to F-025. F-003 Complete; F-001, F-002, F-011, F-016 In progress; the rest Not started. |
 | `ROADMAP.md` | Complete. Phase 0 done; Phase 1 in progress; Phases 2–5 not started; Phase 5 (webcam scanning) waits on hardware. |
@@ -36,7 +36,7 @@ database and exports to SQL, CSV and Excel.
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-012. Detection implemented for AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001 fixed (delete keeps series entries as missing volumes). BUG-002 fixed (view joined credits out of cover order). |
-| `IMPROVEMENTS.md` | None suggested. IMP-001 applied: within an author, books sort by series then position, standalones last. |
+| `IMPROVEMENTS.md` | IMP-002 suggested: an edit in progress is discarded when the list selection moves. Owner to decide. IMP-001 applied. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
@@ -68,7 +68,10 @@ Suggested order:
 3. ~~List view over `v_book_display`, sortable.~~ Done 2026-10-05 (schema v2).
 4. ~~CSV importer per SPEC.md §1 — idempotent (AV-002), `times_read` written
    explicitly (AV-005).~~ Done 2026-10-05: `pinax --import` (D-016).
-5. Detail panel in its view state, then its edit state (D-011).
+5. ~~Detail panel in its view state, then its edit state (D-011).~~ Done
+   2026-10-05. Edits the book's own fields; authors and series are not
+   edited there yet (author editing needs the importer's credit parsing
+   moved out of `io`; series editing is Phase 2).
 6. Read toggle and rating control.
 
 The seed is converted: `seed/library.csv`, made by `seed/convert_catalogue.py`
@@ -171,6 +174,12 @@ Not vectors, but worth knowing:
 - **A re-read is read → reading → read.** The counter is driven by the state
   transition, not edited by hand, so any re-read control must perform both
   updates.
+- **The edit form shows `times_read`; it does not set it.** The count moves
+  only by read-state transitions through `trg_book_finished` (F-006). A form
+  that wrote it would race the trigger.
+- **An edited synopsis becomes `manual`.** `BookEditor` sets
+  `synopsis_source = 'manual'` when the text changes, so enrichment must skip
+  it (AV-001). Keep that link when touching either side.
 - **Series positions are not unique within a series.** An omnibus may share a
   position with its constituent volumes. The unique index covers series plus
   book, not series plus position.

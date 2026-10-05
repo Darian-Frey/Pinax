@@ -67,9 +67,9 @@ Tests set `QT_QPA_PLATFORM=offscreen`, so they run without a display.
 | `pinax_db` | static library | `src/db/` — SQLite wrapper, migrations, repositories; no Qt |
 | `pinax_io` | static library | `src/io/` — CSV reader, importer, sort-position derivation; no Qt |
 | `pinax_ui` | static library | `src/ui/` — list model, sort proxy, list view; no `db` |
-| `pinax_app` | static library | `src/app/` — composition root and window shell |
+| `pinax_app` | static library | `src/app/` — `Catalogue` and the window shell; links `ui` and `db` |
 | `pinax` | executable | `src/main.cpp` |
-| `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_import` | tests | `tests/<name>.cpp`, added with `pinax_add_test` |
+| `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_import`, `test_detail_panel`, `test_catalogue` | tests | `tests/<name>.cpp`, added with `pinax_add_test` |
 
 `db/migrations/NNN_description.sql` files are picked up by a configure-time
 glob; adding one re-runs configure on the next build. `NNN` is the schema

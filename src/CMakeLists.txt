@@ -4,6 +4,7 @@
 # domain: plain value types, no Qt or SQL.
 add_library(pinax_domain STATIC
     domain/book.h
+    domain/book_detail.h
     domain/author.h
     domain/book_summary.h
     domain/credit.h
@@ -12,6 +13,7 @@ add_library(pinax_domain STATIC
     domain/isbn.cpp
     domain/isbn.h
     domain/series_entry.h
+    domain/series_membership.h
     domain/sort_name.cpp
     domain/sort_name.h
     domain/sort_title.cpp
@@ -83,21 +85,33 @@ set_target_properties(pinax_io PROPERTIES AUTOMOC OFF)
 # ui: Qt Widgets panels and item models. Fed domain types; issues no SQL
 # (invariant 8), so it does not link pinax_db.
 add_library(pinax_ui STATIC
+    ui/book_editor.cpp
+    ui/book_editor.h
     ui/book_list_model.cpp
     ui/book_list_model.h
     ui/book_list_view.cpp
     ui/book_list_view.h
     ui/book_sort_proxy.cpp
-    ui/book_sort_proxy.h)
+    ui/book_sort_proxy.h
+    ui/book_view.cpp
+    ui/book_view.h
+    ui/detail_panel.cpp
+    ui/detail_panel.h
+    ui/rating_bar.cpp
+    ui/rating_bar.h
+    ui/style.cpp
+    ui/style.h)
 target_include_directories(pinax_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(pinax_ui PUBLIC pinax_domain Qt6::Widgets)
 
 # app: composition root and window shell.
 add_library(pinax_app STATIC
+    app/catalogue.cpp
+    app/catalogue.h
     app/main_window.cpp
     app/main_window.h)
 target_include_directories(pinax_app PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(pinax_app PUBLIC pinax_ui Qt6::Widgets)
+target_link_libraries(pinax_app PUBLIC pinax_ui pinax_db Qt6::Widgets)
 
 qt_add_executable(pinax main.cpp)
 target_link_libraries(pinax PRIVATE pinax_app pinax_db pinax_io)

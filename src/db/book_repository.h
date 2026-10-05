@@ -54,6 +54,9 @@ public:
 
     std::int64_t count();
 
+    // One book as the list view shows it.
+    std::optional<domain::BookSummary> summary(std::int64_t id);
+
     // Every book as the list view shows it, read from v_book_display so that
     // flattening and sort keys are the database's, not recomputed here.
     // Unordered; the view sorts.
