@@ -17,7 +17,7 @@ database and exports to SQL, CSV and Excel.
 
 ## 2. Current state
 
-**Phase 1 built: open, import (`--import`), list and sort, view and edit in the panel (F2) including credits, add (Ctrl+N), delete (Delete, confirmed in the panel), toggle read (R), rate (1–9, 0). F-001–F-003 and F-005–F-007 Complete; F-004's no-overwrite rule waits on enrichment. Closing Phase 1 in ROADMAP is the owner's call.**
+**Phase 1 built: open, import (`--import`), list and sort, view and edit in the panel (F2) including credits, add (Ctrl+N), delete (Delete, confirmed in the panel), toggle read (R), rate (1–9, 0). F-001–F-003 and F-005–F-007 Complete; F-004's no-overwrite rule waits on enrichment. Phase 1 closed 2026-10-05.**
 
 | Path | State |
 |---|---|
@@ -30,7 +30,7 @@ database and exports to SQL, CSV and Excel.
 | `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_import` (its seed test skips without `seed/library.csv`), `test_detail_panel`, `test_catalogue`. Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
 | `FEATURES.md` | Complete. F-001 to F-025. F-001, F-002, F-003, F-005, F-006, F-007 Complete; F-004, F-011, F-016 In progress; the rest Not started. |
-| `ROADMAP.md` | Complete. Phase 0 done; Phase 1 in progress; Phases 2–5 not started; Phase 5 (webcam scanning) waits on hardware. |
+| `ROADMAP.md` | Complete. Phases 0 and 1 done; Phases 2–5 not started; Phase 5 (webcam scanning) waits on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
 | `DECISIONS.md` | Complete. D-001 to D-017, all Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
@@ -57,29 +57,35 @@ code.
 
 ## 3. Active task
 
-**Phase 1 — Catalogue core** (F-001 to F-007). Nothing blocks it.
+**Phase 2 — Series** (F-008 to F-010). Phase 1 closed 2026-10-05; its history
+is in ROADMAP.md and CHANGELOG.md.
 
 Suggested order:
 
-1. ~~Project skeleton: CMake, Qt6 Widgets, a window that opens.~~ Done 2026-10-05.
-2. ~~`db` module: connection with `PRAGMA foreign_keys = ON` asserted (AV-004),
-   migration runner keyed to `schema_version`, `BookRepository`.~~ Done
-   2026-10-05. Author, series and genre repositories come with step 4.
-3. ~~List view over `v_book_display`, sortable.~~ Done 2026-10-05 (schema v2).
-4. ~~CSV importer per SPEC.md §1 — idempotent (AV-002), `times_read` written
-   explicitly (AV-005).~~ Done 2026-10-05: `pinax --import` (D-016).
-5. ~~Detail panel in its view state, then its edit state (D-011).~~ Done
-   2026-10-05. Edits the book's own fields; authors and series are not
-   edited there yet (series editing is Phase 2). Credits became editable,
-   books addable and deletable, and Reads a list column on 2026-10-05,
-   completing F-001, F-002 and F-006.
-6. ~~Read toggle and rating control.~~ Done 2026-10-05 (D-017).
+1. **Missing volumes from the seed.** The spreadsheet's "Still missing"
+   column is free text ("Consider Phlebas (1)", "Books 1-5", "Later volumes",
+   "… unwritten") and its "Series status" column marks ongoing series
+   ("Complete to date"). Turn what is specific into `series_entry` rows with no
+   book, flag ongoing series, and report what is too vague to convert for the
+   owner to settle. Needs an import format first — a SPEC.md section and
+   probably a DECISIONS entry. Until this lands every series reports
+   complete, because nothing is known to be missing.
+2. Series in the rail with held/known counts (`v_series_status`), as the
+   mock-up's SERIES · 144 section.
+3. Selecting a series lists its entries in position order with missing ones
+   inline, in italic and marked (D-010, mock-up screen 2), and the panel
+   describes the series.
+4. Entry editor: add, edit and remove entries, non-numeric positions, "Mark
+   as owned" attaching a book (AV-007).
+5. Missing-volumes view from `v_missing_entries`, fewest-needed first.
 
-The seed is converted: `seed/library.csv`, made by `seed/convert_catalogue.py`
-from the spreadsheet (both git-ignored). The converter fixes two credits the
-` & ` split would get wrong (`Arkady & Boris Strugatsky`, `Wong, Bukalov &
-Slavin`). The spreadsheet's "Still missing" column is free text and is not in
-the CSV; missing volumes are Phase 2 data. Re-import is safe at any time:
+Open with the owner: BUG-003 (three editors imported as authors), IMP-002,
+IMP-003.
+
+The seed: `seed/library.csv`, made by `seed/convert_catalogue.py` from the
+spreadsheet (both git-ignored). The converter fixes two credits the ` & `
+split would get wrong (`Arkady & Boris Strugatsky`, `Wong, Bukalov &
+Slavin`). Re-import is safe at any time:
 
 ```sh
 build/src/pinax --import seed/library.csv

@@ -33,7 +33,10 @@ entry, with no gaps in any ID sequence.
 ## Phase 1 — Catalogue core
 **Goal:** A working local catalogue holding the existing collection, with
 reading state and ratings.
-**Status:** In progress
+**Status:** Complete (2026-10-05). F-001, F-002, F-003, F-005, F-006 and
+F-007 are Complete. F-004 is recordable and editable; its second criterion,
+that a metadata fetch never overwrites the notes, is carried to Phase 3,
+where the fetch it constrains is built (AV-001).
 **Features delivered:** F-001, F-002, F-003, F-004, F-005, F-006, F-007
 **Deliverables:**
 - [x] Project skeleton: CMake, Qt6 Widgets, a window that opens (D-001) —
@@ -41,11 +44,11 @@ reading state and ratings.
 - [x] Seed data converted from the catalogue spreadsheet to the CSV format in
       SPEC.md §1 — a prerequisite for the importer, not a product of it —
       2026-10-05, `seed/library.csv` (git-ignored)
-- [ ] `db` module: connection asserting `PRAGMA foreign_keys = ON` (AV-004),
+- [x] `db` module: connection asserting `PRAGMA foreign_keys = ON` (AV-004),
       migration runner keyed to `schema_version`, repositories returning
       domain types — connection, migrations, `BookRepository`,
       `AuthorRepository` and `SeriesRepository` done 2026-10-05 (D-015);
-      genre repository arrives with enrichment
+      the genre repository moves to Phase 3, where genres first arrive
 - [x] Book list view over `v_book_display`, sortable — 2026-10-05; needed
       schema version 2 for the sort keys
 - [x] Detail panel: view state, then edit state (D-011) — 2026-10-05; edits a
@@ -83,6 +86,9 @@ everything published reports complete to date.
 **Status:** Not started
 **Features delivered:** F-011, F-012, F-013, F-014, F-015, F-024
 **Deliverables:**
+- [ ] `GenreRepository`, carried from Phase 1
+- [ ] F-004's remaining criterion: a fetch never overwrites edition or
+      condition notes, carried from Phase 1 (AV-001)
 - [ ] HTTP client with rate limiting and retry
 - [ ] Google Books lookup by ISBN and by title/author
 - [ ] Open Library fallback for covers and older titles

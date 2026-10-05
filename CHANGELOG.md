@@ -11,6 +11,8 @@ change can be traced to the capability or decision that motivated it.
 
 ## [Unreleased]
 
+Phase 1 (catalogue core) closed 2026-10-05.
+
 ### Added
 - Adding and deleting books (F-001): Add a book (Ctrl+N) opens an empty form
   in the panel; Delete in the list or the panel asks in the panel, Keep being
