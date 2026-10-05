@@ -1,0 +1,13 @@
+# Personal library data. Never committed: the repository has a GitHub remote.
+/seed/
+library-catalogue.*
+
+# Live catalogue and its cover cache
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+covers/
+
+# Build output
+build/
