@@ -45,6 +45,26 @@ books. Translators and illustrators are not proposed as fallbacks.
 **Notes.** The detail panel already shows every credit via the edit form; only
 the list and its sort are affected.
 
+### IMP-005 Summarise placeholder volumes in the detail panel
+
+**Status:** suggested
+**Found:** 2026-10-05 (Phase 2 step 1, viewing Discworld after the series import)
+**Location:** `src/ui/book_view.cpp`, `missingText`
+**Effort:** trivial
+**Description.** The panel lists up to three missing volumes by name, then
+"and N more". For a series whose gaps are placeholders, that reads "Missing
+14: Unidentified volume 1, Unidentified volume 2, Unidentified volume 3 and
+11 more" — three names that say nothing.
+**Proposal.** When every missing volume is unidentified, say so: "Missing 14,
+not yet identified". When some are named, list the named ones and count the
+rest: "Missing Sea of Sorrows, River of Pain and 3 unidentified".
+**Trade-offs.** The panel would need to recognise a placeholder, and the only
+mark one carries is its title. Either the title pattern becomes a convention
+the code relies on, or entries gain a flag — a schema change for a display
+nicety. A third route is to leave it until the series view (Phase 2 step 3)
+shows placeholders in place, where the repetition matters less.
+**Notes.** Placeholders were the owner's choice for the seed (D-018).
+
 ## Applied
 
 ### IMP-002 Keep unsaved edits when the selection moves

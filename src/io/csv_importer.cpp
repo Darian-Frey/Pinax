@@ -10,6 +10,7 @@
 #include "domain/credit_text.h"
 #include "domain/isbn.h"
 #include "io/csv_reader.h"
+#include "io/import_support.h"
 #include "io/sort_position.h"
 
 #include <algorithm>
@@ -37,38 +38,10 @@ constexpr std::array<std::string_view, 16> knownColumns{
     "shelf", "times_read", "rating", "isbn13", "publisher", "published_year",
     "binding", "edition_note", "condition_note", "notes"};
 
-// A row that cannot be imported, for a reason the file can fix.
-struct RowError {
-    std::string message;
-};
-
-std::string trim(std::string_view text)
-{
-    while (!text.empty() && std::isspace(static_cast<unsigned char>(text.front())))
-        text.remove_prefix(1);
-    while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back())))
-        text.remove_suffix(1);
-    return std::string(text);
-}
-
-std::optional<std::string> optionalText(const std::string& cell)
-{
-    if (cell.empty())
-        return std::nullopt;
-    return cell;
-}
-
-template <typename Number>
-std::optional<Number> parseNumber(const std::string& cell, std::string_view column)
-{
-    if (cell.empty())
-        return std::nullopt;
-    Number value {};
-    const auto result = std::from_chars(cell.data(), cell.data() + cell.size(), value);
-    if (result.ec != std::errc() || result.ptr != cell.data() + cell.size())
-        throw RowError { std::string(column) + " '" + cell + "' is not a number" };
-    return value;
-}
+using detail::optionalText;
+using detail::parseNumber;
+using detail::RowError;
+using detail::trim;
 
 using ParsedCredit = domain::NamedCredit;
 

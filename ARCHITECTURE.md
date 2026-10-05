@@ -92,6 +92,9 @@ No Qt; reaches the database only through `db`'s repositories and
   code that reads a number out of a series position (invariant 3).
 - **Export** — CSV of the current view, `.xlsx` workbook, plain-text SQL dump.
 - **Backup** — `VACUUM INTO` to a chosen path.
+- **Series import** — `SeriesImporter` applies SPEC.md §1.6: known volumes
+  and ongoing flags, matched within a series on position or title, never
+  touching a volume already on the shelf (D-018).
 - **Barcode capture** — webcam frames decoded to a validated ISBN (F-025,
   D-014). Optional at build time; emits an ISBN and touches nothing else.
 

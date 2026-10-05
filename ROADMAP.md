@@ -68,9 +68,12 @@ genre links, and leaves its series entries as missing volumes.
 
 ## Phase 2 — Series
 **Goal:** Series membership and completeness, including volumes not owned.
-**Status:** Not started
+**Status:** In progress
 **Features delivered:** F-008, F-009, F-010
 **Deliverables:**
+- [x] Known-but-unowned volumes and ongoing flags loaded from the seed —
+      2026-10-05, `--import-series` (D-018); 144 of 144 statuses match the
+      spreadsheet
 - [ ] Series list with held, known and status columns backed by `v_series_status`
 - [ ] Series detail showing owned and missing entries in position order
 - [ ] Entry editor accepting non-numeric positions

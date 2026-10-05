@@ -17,26 +17,26 @@ database and exports to SQL, CSV and Excel.
 
 ## 2. Current state
 
-**Phase 1 built: open, import (`--import`), list and sort, view and edit in the panel (F2) including credits, add (Ctrl+N), delete (Delete, confirmed in the panel), toggle read (R), rate (1–9, 0). F-001–F-003 and F-005–F-007 Complete; F-004's no-overwrite rule waits on enrichment. Phase 1 closed 2026-10-05.**
+**Phase 1 built: open, import (`--import`, and `--import-series` for known volumes), list and sort, view and edit in the panel (F2) including credits, add (Ctrl+N), delete (Delete, confirmed in the panel), toggle read (R), rate (1–9, 0). F-001–F-003 and F-005–F-007 Complete; F-004's no-overwrite rule waits on enrichment. Phase 1 closed 2026-10-05; Phase 2 step 1 (missing volumes from the seed) done the same day.**
 
 | Path | State |
 |---|---|
 | `db/schema.sql`, `db/migrations/` | Version 2. `schema.sql` is the latest full schema; `002_book_display_sort_keys.sql` carries a version 1 file forward. Its `CREATE VIEW` must stay byte-identical to `schema.sql`'s — `migratingVersion1MatchesFreshSchema` fails otherwise. |
 | `src/domain/` | `Book`, enums with schema strings, `makeSortTitle`. No Qt, no SQL. |
 | `src/db/` | SQLite C API, no Qt (D-015). `Connection` (FK on + verified, WAL), `Statement` (named binds), `Transaction` (RAII), `migrate()` with schema compiled in from `db/schema.sql`, `BookRepository`. Errors throw `DbError` with the extended result code. |
-| `src/io/` | Qt-free. `parseCsv` (RFC 4180), `CsvImporter` (SPEC.md §1; one transaction, savepoint per row, reports `line: message`), `deriveSortPosition` (the only code that parses `position`). |
+| `src/io/` | Qt-free. `parseCsv` (RFC 4180), `CsvImporter` (SPEC.md §1) and `SeriesImporter` (§1.6), sharing `import_support.h`: one transaction, savepoint per row, failures by line, `deriveSortPosition` (the only code that parses `position`). |
 | `src/ui/` | `BookListModel`, `BookSortProxy` (view keys; missing values last; author then series), `BookListView` (opens sorted by author; emits `selectionChangedTo`). `DetailPanel` stacks Empty / Viewing (`BookView`) / Editing (`BookEditor`) / Several. `RatingBar`, `style.h` (accent, muted, section headings). Links `domain`, not `db`. |
 | `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save(Book)`, `save(BookEdit)` which creates at id 0 and resolves credits, `remove`, `toggleRead`, `setRating`). Toolbar: Add a book. `MainWindow`: splitter of `rail` (empty), `list`, `detail`; selection → panel, panel save → Catalogue → row refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import`, shows the count. |
-| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_import` (its seed test skips without `seed/library.csv`), `test_detail_panel`, `test_catalogue`. Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
+| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_import` and `test_series_import` (their seed tests skip without `seed/`), `test_detail_panel`, `test_catalogue`. Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
-| `FEATURES.md` | Complete. F-001 to F-025. F-001, F-002, F-003, F-005, F-006, F-007 Complete; F-004, F-011, F-016 In progress; the rest Not started. |
-| `ROADMAP.md` | Complete. Phases 0 and 1 done; Phases 2–5 not started; Phase 5 (webcam scanning) waits on hardware. |
+| `FEATURES.md` | Complete. F-001 to F-025. F-001, F-002, F-003, F-005, F-006, F-007 Complete; F-004, F-009, F-010, F-011, F-016 In progress; the rest Not started. |
+| `ROADMAP.md` | Complete. Phases 0 and 1 done; Phase 2 in progress; Phases 3–5 not started; Phase 5 (webcam scanning) waits on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
-| `DECISIONS.md` | Complete. D-001 to D-017, all Accepted. |
+| `DECISIONS.md` | Complete. D-001 to D-018, all Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-013. Detection implemented for AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007, AV-013; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001, BUG-002 and BUG-003 fixed. |
-| `IMPROVEMENTS.md` | IMP-004 suggested (show editors in the list when there is no author); owner to decide. IMP-001, IMP-002, IMP-003 applied. |
+| `IMPROVEMENTS.md` | IMP-004 (show editors in the list when there is no author) and IMP-005 (summarise placeholder volumes in the panel) suggested; owner to decide. IMP-001, IMP-002, IMP-003 applied. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
@@ -62,14 +62,13 @@ is in ROADMAP.md and CHANGELOG.md.
 
 Suggested order:
 
-1. **Missing volumes from the seed.** The spreadsheet's "Still missing"
-   column is free text ("Consider Phlebas (1)", "Books 1-5", "Later volumes",
-   "… unwritten") and its "Series status" column marks ongoing series
-   ("Complete to date"). Turn what is specific into `series_entry` rows with no
-   book, flag ongoing series, and report what is too vague to convert for the
-   owner to settle. Needs an import format first — a SPEC.md section and
-   probably a DECISIONS entry. Until this lands every series reports
-   complete, because nothing is known to be missing.
+1. ~~**Missing volumes from the seed.**~~ Done 2026-10-05 (D-018):
+   `--import-series` and SPEC.md §1.6; the converter turns the spreadsheet's
+   "Still missing" into `seed/series.csv`, with unnamed placeholders
+   ("Unidentified volume n", "Later volumes — unidentified") where it gave
+   only a count or a gap — the owner's choice. 287 volumes, 4 ongoing flags;
+   all 144 statuses match the spreadsheet. Loaded into the owner's catalogue
+   after a backup (`pinax-2026-10-05-before-series.db`).
 2. Series in the rail with held/known counts (`v_series_status`), as the
    mock-up's SERIES · 144 section.
 3. Selecting a series lists its entries in position order with missing ones
@@ -79,10 +78,10 @@ Suggested order:
    as owned" attaching a book (AV-007).
 5. Missing-volumes view from `v_missing_entries`, fewest-needed first.
 
-Open with the owner: IMP-004.
+Open with the owner: IMP-004, IMP-005.
 
-The seed: `seed/library.csv`, made by `seed/convert_catalogue.py` from the
-spreadsheet (both git-ignored). The converter fixes two credits the ` & `
+The seed: `seed/library.csv` and `seed/series.csv`, made by
+`seed/convert_catalogue.py` from the spreadsheet (all git-ignored). The converter fixes two credits the ` & `
 split would get wrong (`Arkady & Boris Strugatsky`, `Wong, Bukalov &
 Slavin`) and turns a leading `ed. ` into an `(editor)` credit (BUG-003).
 Re-importing the current seed is safe; re-importing a file older than a credit
@@ -197,6 +196,10 @@ Not vectors, but worth knowing:
 - **Authors are removed when nothing credits them** (IMP-003), unless they
   have notes. Anything that changes credits outside `Catalogue::save` or the
   importer must call `AuthorRepository::removeUncredited()` too.
+- **Placeholder volumes are ordinary entries.** "Unidentified volume n" and
+  "Later volumes — unidentified" are titles, nothing more; no column marks
+  them (D-018, IMP-005). Matching on re-import relies on those titles staying
+  put until the owner renames them.
 - **An edited synopsis becomes `manual`.** `BookEditor` sets
   `synopsis_source = 'manual'` when the text changes, so enrichment must skip
   it (AV-001). Keep that link when touching either side.

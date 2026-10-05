@@ -69,7 +69,7 @@ Tests set `QT_QPA_PLATFORM=offscreen`, so they run without a display.
 | `pinax_ui` | static library | `src/ui/` — list model, sort proxy, list view; no `db` |
 | `pinax_app` | static library | `src/app/` — `Catalogue` and the window shell; links `ui` and `db` |
 | `pinax` | executable | `src/main.cpp` |
-| `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_import`, `test_detail_panel`, `test_catalogue` | tests | `tests/<name>.cpp`, added with `pinax_add_test` |
+| `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_import`, `test_series_import`, `test_detail_panel`, `test_catalogue` | tests | `tests/<name>.cpp`, added with `pinax_add_test` |
 
 `db/migrations/NNN_description.sql` files are picked up by a configure-time
 glob; adding one re-runs configure on the next build. `NNN` is the schema
@@ -78,7 +78,8 @@ version the step produces. `tests/fixtures/schema_v1.sql` is a frozen version
 
 `test_import`'s `seedCatalogueImportsInOnePass` reads the owner's real
 catalogue from `seed/library.csv` when it exists and skips otherwise, so a
-clone without `seed/` still passes.
+clone without `seed/` still passes. `test_series_import`'s
+`seedSeriesMatchTheSpreadsheet` does the same with `seed/series.csv`.
 
 Each module in ARCHITECTURE.md §2 becomes its own static library under `src/`
 as it gains code, so tests link only what they exercise.

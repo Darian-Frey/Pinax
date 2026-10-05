@@ -30,7 +30,8 @@ build/src/pinax
 The application creates `~/.local/share/pinax/pinax.db` on first run (or opens
 the file given as its argument), upgrades an older file in place, and lists
 every book, sortable by any column. `--import file.csv` loads a catalogue in
-the format of SPEC.md §1 first, and is safe to repeat. Selecting a book shows
+the format of SPEC.md §1 first, and `--import-series series.csv` the volumes
+each series is known to contain (§1.6); both are safe to repeat. Selecting a book shows
 it in the detail panel; F2 or Edit opens its fields for editing in place. In
 the list, R toggles read, 1–9 or 0 rate and Delete deletes (after asking in
 the panel) the selected books; the panel's rating squares are clickable.
@@ -96,7 +97,7 @@ pinax/
 ├── FEATURES.md           F-001 … F-025, MoSCoW priorities, acceptance criteria
 ├── ROADMAP.md            Phases 0–1 complete; Phases 2–5 planned
 ├── ARCHITECTURE.md       modules, data flow, invariants
-├── DECISIONS.md          D-001 … D-017, append-only
+├── DECISIONS.md          D-001 … D-018, append-only
 ├── SPEC.md               CSV format, ISBN validation, provider contracts, exports
 ├── ATTACK_VECTORS.md     AV-001 … AV-013, failure modes with detection
 ├── BUGS.md               empty; present so Rule 8 applies from commit one

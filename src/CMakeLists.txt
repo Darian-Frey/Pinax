@@ -79,6 +79,9 @@ add_library(pinax_io STATIC
     io/csv_importer.h
     io/csv_reader.cpp
     io/csv_reader.h
+    io/import_support.h
+    io/series_importer.cpp
+    io/series_importer.h
     io/sort_position.cpp
     io/sort_position.h)
 target_include_directories(pinax_io PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

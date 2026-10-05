@@ -113,6 +113,43 @@ pinax --import seed/library.csv [database]
 Failures print as `file:line: message`; the summary (new, updated, unchanged,
 failed) goes to standard output and the status bar (D-016).
 
+### 1.6 Series CSV — known volumes and ongoing series
+
+What a series contains beyond the shelf (D-006, D-018). Same encoding and
+quoting as §1. Imported with `pinax --import-series series.csv`, after
+`--import` when both are given.
+
+| Column | Required | Type | Notes |
+|---|---|---|---|
+| `series` | yes | text | Series name, exact. Created if unknown. |
+| `position` | no | text | As printed: `1`, `Broadcast 6.5`, `3-4`, `novella`. |
+| `sort_position` | no | real | Omitted: derived from `position` by §1.2. |
+| `title` | no | text | The volume's title, where known. |
+| `ongoing` | no | `yes` \| `no` | Sets the series' flag; empty leaves it alone. |
+| `notes` | no | text | Notes on the volume. |
+
+A row with a `position` or `title` is a volume the series contains. A row
+with only `ongoing` is a flag on the series. A row may be both.
+
+**Matching.** Within the series, a volume is matched on `position` when it
+has one, otherwise on `title` among entries with no position, without regard
+to ASCII case.
+- No match: a volume with no book attached is added.
+- A match with no book: its title, sort position and notes are brought into
+  line with the file where the file gives them.
+- A match with a book: the volume is on the shelf; the row is left alone
+  (AV-007).
+
+Nothing is removed: a volume dropped from the file stays in the catalogue
+until removed in the application. Re-running the same file changes nothing.
+
+**Errors**, reported by line as in §1.4: an empty `series`; a row with no
+`position`, `title` or `ongoing`; `notes` with no volume; `ongoing` other
+than `yes` or `no`; a `sort_position` that is not a number; and an
+`ongoing` that contradicts an earlier row of the same file for the same
+series. An unknown or repeated column, or no `series` column, stops the run
+before anything is written.
+
 ---
 
 ## 2. ISBN validation

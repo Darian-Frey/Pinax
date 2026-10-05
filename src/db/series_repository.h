@@ -29,6 +29,19 @@ public:
     std::optional<domain::SeriesEntry> unownedEntryAt(std::int64_t seriesId,
         const std::string& position);
 
+    // The first entry in this series at exactly this printed position,
+    // owned or not.
+    std::optional<domain::SeriesEntry> entryAt(std::int64_t seriesId, const std::string& position);
+
+    // The first entry in this series with no position and this title,
+    // compared without regard to ASCII case. Owned entries are matched on
+    // their entry title only, not the book's.
+    std::optional<domain::SeriesEntry> unpositionedEntryTitled(std::int64_t seriesId,
+        const std::string& title);
+
+    std::optional<bool> ongoing(std::int64_t seriesId);
+    void setOngoing(std::int64_t seriesId, bool ongoing);
+
     // Every series the book belongs to, by series name, with completeness and
     // missing volumes read from v_series_status and v_missing_entries.
     std::vector<domain::SeriesMembership> membershipsForBook(std::int64_t bookId);

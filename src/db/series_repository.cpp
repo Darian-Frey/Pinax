@@ -85,6 +85,50 @@ std::optional<SeriesEntry> SeriesRepository::unownedEntryAt(std::int64_t seriesI
     return readEntry(select);
 }
 
+std::optional<SeriesEntry> SeriesRepository::entryAt(std::int64_t seriesId,
+    const std::string& position)
+{
+    Statement select(connection_, "SELECT " + std::string(entryColumns)
+            + " FROM series_entry WHERE series_id = :series_id AND position = :position"
+              " ORDER BY book_id IS NULL, id LIMIT 1");
+    select.bind(":series_id", seriesId);
+    select.bind(":position", position);
+    if (!select.step())
+        return std::nullopt;
+    return readEntry(select);
+}
+
+std::optional<SeriesEntry> SeriesRepository::unpositionedEntryTitled(std::int64_t seriesId,
+    const std::string& title)
+{
+    Statement select(connection_, "SELECT " + std::string(entryColumns)
+            + " FROM series_entry"
+              " WHERE series_id = :series_id AND position IS NULL AND lower(title) = lower(:title)"
+              " ORDER BY id LIMIT 1");
+    select.bind(":series_id", seriesId);
+    select.bind(":title", title);
+    if (!select.step())
+        return std::nullopt;
+    return readEntry(select);
+}
+
+std::optional<bool> SeriesRepository::ongoing(std::int64_t seriesId)
+{
+    Statement select(connection_, "SELECT ongoing FROM series WHERE id = :id");
+    select.bind(":id", seriesId);
+    if (!select.step())
+        return std::nullopt;
+    return select.columnInt(0) != 0;
+}
+
+void SeriesRepository::setOngoing(std::int64_t seriesId, bool ongoing)
+{
+    Statement update(connection_, "UPDATE series SET ongoing = :ongoing WHERE id = :id");
+    update.bind(":ongoing", std::int64_t { ongoing ? 1 : 0 });
+    update.bind(":id", seriesId);
+    update.step();
+}
+
 std::vector<domain::SeriesMembership> SeriesRepository::membershipsForBook(std::int64_t bookId)
 {
     Statement select(connection_, R"(

@@ -11,9 +11,16 @@ change can be traced to the capability or decision that motivated it.
 
 ## [Unreleased]
 
-Phase 1 (catalogue core) closed 2026-10-05.
+Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) in progress.
 
 ### Added
+- Series import (Phase 2 step 1, D-018): `pinax --import-series series.csv`
+  records volumes a series is known to contain and which series are still
+  being written (SPEC.md §1.6), idempotently, never touching a volume on the
+  shelf. The seed's free-text "Still missing" column, converted outside the
+  repository, brought 287 known volumes and 4 ongoing flags, with unnamed
+  placeholders where the spreadsheet gave only a count; all 144 derived
+  statuses now match the spreadsheet's hand-kept ones.
 - IMP-002 applied: while the panel holds an edit or a delete question, the
   list and Add a book stand still, and the status bar says why.
 - IMP-003 applied: authors no book credits any more, and without notes, are
@@ -103,6 +110,8 @@ Phase 1 (catalogue core) closed 2026-10-05.
   change needed.
 
 ### Decided
+- Known-but-unowned volumes import from their own CSV, not the book CSV
+  (D-018).
 - Unmarking a read book takes back one read and, at nought, its finish date
   (D-017).
 - Import runs from the command line until an in-panel file chooser exists;
@@ -136,6 +145,7 @@ Phase 1 (catalogue core) closed 2026-10-05.
   after the habit of silent fixing has set in.
 
 ### Notes
+- IMP-005 suggested: summarise placeholder volumes in the detail panel.
 - BUG-003 found and fixed: three editors in the seed had been imported as
   authors named "ed. …". The converter now reads "ed." as an editor credit;
   the owner's catalogue was backed up and corrected through `Catalogue::save`.

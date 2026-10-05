@@ -2,6 +2,7 @@
 #include "app/main_window.h"
 #include "db/db_error.h"
 #include "io/csv_importer.h"
+#include "io/series_importer.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -73,6 +74,11 @@ int main(int argc, char* argv[])
         QStringLiteral("Import a CSV file (SPEC.md §1) before opening. Safe to repeat."),
         QStringLiteral("file.csv"));
     parser.addOption(importOption);
+    const QCommandLineOption importSeriesOption(QStringLiteral("import-series"),
+        QStringLiteral("Import known volumes and ongoing flags (SPEC.md §1.6) before opening, "
+                       "after --import. Safe to repeat."),
+        QStringLiteral("series.csv"));
+    parser.addOption(importSeriesOption);
     parser.addPositionalArgument(QStringLiteral("database"),
         QStringLiteral("Catalogue file to open. Default: ~/.local/share/pinax/pinax.db"),
         QStringLiteral("[database]"));
@@ -90,6 +96,11 @@ int main(int argc, char* argv[])
         if (parser.isSet(importOption)) {
             const QString csvPath = parser.value(importOption);
             pinax::io::CsvImporter importer(catalogue->connection());
+            importSummary = reportImport(csvPath, importer.importFile(csvPath.toStdString()));
+        }
+        if (parser.isSet(importSeriesOption)) {
+            const QString csvPath = parser.value(importSeriesOption);
+            pinax::io::SeriesImporter importer(catalogue->connection());
             importSummary = reportImport(csvPath, importer.importFile(csvPath.toStdString()));
         }
 

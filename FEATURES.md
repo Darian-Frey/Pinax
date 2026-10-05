@@ -139,7 +139,10 @@ rules in SPEC.md §1.2.
 - A series entry can be recorded with no book attached, representing a volume
   known to exist but absent from the shelf.
 - Attaching a book to that entry later does not create a duplicate.
-**Status:** Not started
+**Status:** In progress — recorded through `--import-series` (D-018); the seed
+brought 287 known volumes, placeholders included. A book imported into a
+waiting position attaches to it (AV-007). Editing entries in the application
+is Phase 2 step 4.
 **Notes:** D-006. Attaching is an update to `book_id` on the existing row; see
 AV-007 for the failure this avoids.
 
@@ -153,7 +156,10 @@ AV-007 for the failure this avoids.
 - A series with no known entries recorded reports as unknown, not complete.
 - The missing-volume list is ordered so that series needing one book appear
   before series needing several.
-**Status:** Not started
+**Status:** In progress — every criterion holds in `v_series_status` and
+`v_missing_entries`, and the detail panel shows held against known and the
+missing volumes; all 144 seeded statuses match the spreadsheet's. The
+series list and missing-volumes view are Phase 2 steps 2 and 5.
 **Notes:** D-004. Views `v_series_status`, `v_missing_entries`. Do not add a
 stored status column — that is the staleness the views exist to prevent.
 

@@ -585,3 +585,51 @@ already in the target state are not written, so they are not counted again.
 **Reversal conditions.** Revisit if reading history is ever kept as dated
 events rather than a counter, at which point an unmark would delete the
 latest event instead.
+
+---
+
+### D-018 Known-but-unowned volumes import from their own CSV
+**Decided:** 2026-10-05
+**Recorded:** 2026-10-05
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-05)
+**Related:** F-009, F-010, D-004, D-006, D-016, AV-007
+
+**Context.** Series completeness means nothing until each series knows what
+it contains (D-006). The source spreadsheet recorded that by hand for all 144
+series — a "Still missing" note and a status — and Phase 2 starts by bringing
+it in. The book CSV of SPEC.md §1 has no place for a volume that is not on
+the shelf.
+
+**Options.**
+- **A. An `owned` column in the book CSV.** Rejected: every other column of a
+  book row describes a book; a missing volume has no read state, rating or
+  ISBN, and F-023's round trip of the book list would carry rows that are not
+  books.
+- **B. A second CSV, one row per missing volume or series flag.** Chosen.
+- **C. Hand entry through the Phase 2 entry editor only.** Rejected for the
+  seed: 287 volumes across 93 series is a day's typing for a fact the
+  spreadsheet already records.
+
+**Decision.** Option B. `pinax --import-series series.csv` (SPEC.md §1.6),
+beside `--import` (D-016). A row names a series and a volume by position,
+title or both, a series' `ongoing` flag, or both. Matching is within the
+series on position, else title; a volume already on the shelf at that
+position is left alone. Nothing is removed by an import.
+
+For the seed, the owner chose unnamed placeholders where the spreadsheet
+gave a count or a gap but no titles ("14 of 41 novels", "Later volumes"):
+titled "Unidentified volume n" or "Later volumes — unidentified", noted with
+the spreadsheet's words, to be named or removed in the entry editor.
+
+**Consequences.**
+- All 144 series' derived statuses match the spreadsheet's hand-kept ones:
+  51 complete (4 of them to date) and 93 with gaps.
+- Placeholders make counts right before they make names right: Discworld
+  reads 27 of 41, though its 14 missing novels are not yet identified.
+- A volume removed from the file is not removed from the catalogue; removal is
+  the entry editor's.
+
+**Reversal conditions.** Revisit if an ISFDB bulk import (FEATURES.md,
+Candidates) lands, which would supply series contents wholesale and could
+replace this file for most series.
