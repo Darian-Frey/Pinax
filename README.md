@@ -2,10 +2,10 @@
 
 > **Status:** Active
 > **Provenance:** Shane Hartley (author); Claude (primary auditor)
-> **Last reviewed:** 2026-10-04
+> **Last reviewed:** 2026-10-05
 > **Why this status:** Scaffold, data model and design decisions complete;
-> Phase 1 implementation not yet begun. Toolchain fixed by D-001. `BUILD.md`
-> and `LICENSE` are deliberately absent — see the Documentation map.
+> Phase 1 in progress — the application builds and opens an empty window.
+> Toolchain fixed by D-001. `LICENSE` is deliberately absent — see Licence.
 
 A Linux desktop catalogue for a personal physical library. Pinax tracks what is
 on the shelf, what has been read and how often, ratings out of ten, and series
@@ -20,7 +20,14 @@ Named for the *Pinakes*, Callimachus's catalogue of the Library of Alexandria.
 
 ## Quick start
 
-No application yet. The database is usable on its own:
+```sh
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j
+build/src/pinax
+```
+
+The application is an empty three-panel window so far. The database is usable
+on its own:
 
 ```sh
 # create the catalogue
@@ -49,8 +56,7 @@ foreign keys in the schema are advisory only (AV-004).
 - **libxlsxwriter** for Excel export (F-022)
 - CMake 3.21 or later
 
-`BUILD.md` is written once the first build succeeds, per the documentation
-standard's creation order. Until then this list is the whole story.
+Packages, verified versions and troubleshooting are in [`BUILD.md`](BUILD.md).
 
 ---
 
@@ -60,19 +66,22 @@ standard's creation order. Until then this list is the whole story.
 pinax/
 ├── db/
 │   └── schema.sql        schema version 1: tables, views, triggers, indexes
+├── CMakeLists.txt
 ├── src/                  one directory per module, per ARCHITECTURE.md §2
+│   ├── main.cpp
 │   ├── app/              composition root, settings, main window shell
 │   ├── domain/           plain value types, no Qt or SQL
 │   ├── db/               connection, migrations, repositories
 │   ├── metadata/         Google Books, Open Library, cover cache
 │   ├── io/               CSV import, export, backup
 │   └── ui/               rail, list, detail panel
-├── tests/
+├── tests/                Qt Test, run by ctest
 ├── design/
 │   ├── Pinax UI.html     interactive mock-up, four screens
 │   └── screens/          the same four screens as PNG
 ├── seed/                 the real catalogue; git-ignored, never committed
 ├── README.md
+├── BUILD.md              requirements, build, test, troubleshooting
 ├── FEATURES.md           F-001 … F-025, MoSCoW priorities, acceptance criteria
 ├── ROADMAP.md            Phase 0 complete; Phases 1–5 planned
 ├── ARCHITECTURE.md       modules, data flow, invariants
@@ -116,7 +125,7 @@ ordering.
 | [`BUGS.md`](BUGS.md) · [`IMPROVEMENTS.md`](IMPROVEMENTS.md) | Realised defects, and candidate refactors |
 | [`CLAUDE.md`](CLAUDE.md) | Handoff for AI development sessions |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history with ID traceability |
-| `BUILD.md` | *Deliberately absent* — written when the first build succeeds |
+| [`BUILD.md`](BUILD.md) | Requirements, build and test commands, troubleshooting |
 
 ---
 

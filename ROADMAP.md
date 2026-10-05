@@ -33,10 +33,11 @@ entry, with no gaps in any ID sequence.
 ## Phase 1 — Catalogue core
 **Goal:** A working local catalogue holding the existing collection, with
 reading state and ratings.
-**Status:** Not started
+**Status:** In progress
 **Features delivered:** F-001, F-002, F-003, F-004, F-005, F-006, F-007
 **Deliverables:**
-- [ ] Project skeleton: CMake, Qt6 Widgets, a window that opens (D-001)
+- [x] Project skeleton: CMake, Qt6 Widgets, a window that opens (D-001) —
+      2026-10-05
 - [ ] Seed data converted from the catalogue spreadsheet to the CSV format in
       SPEC.md §1 — a prerequisite for the importer, not a product of it
 - [ ] `db` module: connection asserting `PRAGMA foreign_keys = ON` (AV-004),
@@ -48,7 +49,7 @@ reading state and ratings.
       (AV-005), reporting per-row failures without aborting the run
 - [ ] Read/unread keystroke binding
 - [ ] Rating control
-- [ ] `BUILD.md`, written once the build succeeds
+- [x] `BUILD.md`, written once the build succeeds — 2026-10-05
 **Acceptance:** The 443-book seed imports in one pass; read state and ratings
 survive a restart; re-running the import changes no row count; a book imported
 as read reports `times_read >= 1`; deleting a book leaves no orphan credits or

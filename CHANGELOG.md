@@ -12,6 +12,11 @@ change can be traced to the capability or decision that motivated it.
 ## [Unreleased]
 
 ### Added
+- Project skeleton (Phase 1, step 1): CMake build for C++20 and Qt 6.4+, a
+  `pinax_app` library holding the main window shell — a splitter with empty
+  rail, list and detail panels per D-010 — and the `pinax` executable. One
+  headless Qt Test confirms the window opens with its three panels.
+- `BUILD.md`, written on the first successful build.
 - Project scaffold against the development documentation standard: `README.md`,
   `FEATURES.md`, `ROADMAP.md`, `CLAUDE.md`, `CHANGELOG.md`.
 - `db/schema.sql`, schema version 1. Tables for books, authors, series,
@@ -53,8 +58,6 @@ change can be traced to the capability or decision that motivated it.
   after the habit of silent fixing has set in.
 
 ### Notes
-- No application code yet. The schema is the only executable artefact.
-- `BUILD.md` is deliberately absent until the first build succeeds, per the
-  documentation standard's creation order.
+- The application opens an empty window; no catalogue functionality yet.
 - `LICENSE` is deliberately absent; the omission is recorded as D-013 and the
   repository stays private until it is revisited.
