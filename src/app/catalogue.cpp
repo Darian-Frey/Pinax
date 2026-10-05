@@ -4,7 +4,9 @@
 #include "db/db_error.h"
 #include "db/migrations.h"
 #include "db/series_repository.h"
+#include "db/transaction.h"
 
+#include <algorithm>
 #include <filesystem>
 
 namespace pinax::app {
@@ -54,6 +56,53 @@ std::optional<domain::BookDetail> Catalogue::detail(std::int64_t id)
             detail.coverFile = std::filesystem::absolute(cover, error).string();
     }
     return detail;
+}
+
+domain::ReadStatus Catalogue::toggleRead(const std::vector<std::int64_t>& ids)
+{
+    using domain::ReadStatus;
+
+    db::BookRepository books(connection_);
+    std::vector<domain::Book> found;
+    for (const std::int64_t id : ids) {
+        if (auto book = books.find(id))
+            found.push_back(std::move(*book));
+    }
+
+    const bool allRead = !found.empty()
+        && std::all_of(found.begin(), found.end(),
+            [](const domain::Book& book) { return book.readStatus == ReadStatus::Read; });
+    const ReadStatus target = allRead ? ReadStatus::Unread : ReadStatus::Read;
+
+    db::Transaction transaction(connection_);
+    for (domain::Book& book : found) {
+        if (book.readStatus == target)
+            continue; // already there: no update, so no count
+        if (target == ReadStatus::Unread) {
+            // D-017: unmarking takes back the read that marking counted.
+            book.timesRead = std::max(book.timesRead - 1, 0);
+            if (book.timesRead == 0)
+                book.dateFinished.reset();
+        }
+        book.readStatus = target; // into Read, the trigger counts and dates it
+        books.update(book);
+    }
+    transaction.commit();
+    return target;
+}
+
+void Catalogue::setRating(const std::vector<std::int64_t>& ids, std::optional<int> rating)
+{
+    db::BookRepository books(connection_);
+    db::Transaction transaction(connection_);
+    for (const std::int64_t id : ids) {
+        auto book = books.find(id);
+        if (!book || book->rating == rating)
+            continue;
+        book->rating = rating;
+        books.update(*book);
+    }
+    transaction.commit();
 }
 
 std::optional<std::string> Catalogue::save(const domain::Book& book)

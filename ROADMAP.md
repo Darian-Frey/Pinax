@@ -53,8 +53,8 @@ reading state and ratings.
 - [x] CSV importer, idempotent (AV-002), writing `times_read` explicitly
       (AV-005), reporting per-row failures without aborting the run —
       2026-10-05, `pinax --import` (D-016)
-- [ ] Read/unread keystroke binding
-- [ ] Rating control
+- [x] Read/unread keystroke binding — 2026-10-05, R (D-017)
+- [x] Rating control — 2026-10-05, keys 1–9 and 0, clickable squares
 - [x] `BUILD.md`, written once the build succeeds — 2026-10-05
 **Acceptance:** The 443-book seed imports in one pass; read state and ratings
 survive a restart; re-running the import changes no row count; a book imported

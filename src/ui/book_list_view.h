@@ -37,6 +37,15 @@ public:
 signals:
     void selectionChangedTo(const QList<qint64>& ids);
 
+    // R with books selected (F-005).
+    void toggleReadRequested(const QList<qint64>& ids);
+
+    // 1-9 rate, 0 rates 10, Backspace or - clears (sent as 0) (F-007).
+    void ratingRequested(const QList<qint64>& ids, int rating);
+
+protected:
+    void keyPressEvent(QKeyEvent* event) override;
+
 private:
     BookListModel* model_;
     BookSortProxy* proxy_;

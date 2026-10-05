@@ -103,8 +103,9 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
   `QAbstractTableModel` of `domain::BookSummary`) through `BookSortProxy`. The
   composition root reads summaries from `BookRepository` and hands them over;
   `ui` does not link `db`. Sorting uses the view's sort keys, never the text
-  on screen. Owns selection, sorting, the read toggle and the inline rating
-  column.
+  on screen. Owns selection, sorting, and the single-key actions on the
+  selection: R toggles read, 1–9 and 0 rate, Backspace or − clears the
+  rating. It emits requests; it changes nothing itself.
 - **Detail** — `DetailPanel` describes the current selection, whichever kind
   it is: nothing, a book, a series, or a multi-selection (which renders as the
   bulk editor). Carries both the view state (`BookView`) and the edit state
@@ -119,7 +120,8 @@ module permitted to know about all the others.
 
 - **Catalogue** — the open database: one `Connection`, migrated on open, and
   the reads and writes the window needs, assembled from `db`'s repositories
-  (`summaries`, `detail`, `save`). `save` turns a constraint failure into a
+  (`summaries`, `detail`, `save`, `toggleRead`, `setRating`, each write in
+  one transaction). `save` turns a constraint failure into a
   sentence for the owner.
 - **MainWindow** — the splitter. List selection drives the detail panel
   through the Catalogue; the panel's `saveRequested` is saved through it, and

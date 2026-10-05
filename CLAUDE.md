@@ -17,7 +17,7 @@ database and exports to SQL, CSV and Excel.
 
 ## 2. Current state
 
-**Phase 1 steps 1–5 done: the application opens its database, imports CSV (`--import`), lists every book sortable by column, and shows the selected book in the detail panel, where its own fields can be edited (F2). Remaining in Phase 1: the read toggle and rating control (step 6).**
+**Phase 1 steps 1–6 done: the application opens its database, imports CSV (`--import`), lists every book sortable by column, shows the selected book in the detail panel and edits its own fields there (F2); R toggles read and 1–9/0 rate from the list. Every Phase 1 deliverable is ticked except the genre repository; F-001, F-002 and F-006 still have gaps (see FEATURES), so whether Phase 1 is closed is the owner's call.**
 
 | Path | State |
 |---|---|
@@ -26,13 +26,13 @@ database and exports to SQL, CSV and Excel.
 | `src/db/` | SQLite C API, no Qt (D-015). `Connection` (FK on + verified, WAL), `Statement` (named binds), `Transaction` (RAII), `migrate()` with schema compiled in from `db/schema.sql`, `BookRepository`. Errors throw `DbError` with the extended result code. |
 | `src/io/` | Qt-free. `parseCsv` (RFC 4180), `CsvImporter` (SPEC.md §1; one transaction, savepoint per row, reports `line: message`), `deriveSortPosition` (the only code that parses `position`). |
 | `src/ui/` | `BookListModel`, `BookSortProxy` (view keys; missing values last; author then series), `BookListView` (opens sorted by author; emits `selectionChangedTo`). `DetailPanel` stacks Empty / Viewing (`BookView`) / Editing (`BookEditor`) / Several. `RatingBar`, `style.h` (accent, muted, section headings). Links `domain`, not `db`. |
-| `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save`). `MainWindow`: splitter of `rail` (empty), `list`, `detail`; selection → panel, panel save → Catalogue → row refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import`, shows the count. |
+| `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save`, `toggleRead`, `setRating`). `MainWindow`: splitter of `rail` (empty), `list`, `detail`; selection → panel, panel save → Catalogue → row refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import`, shows the count. |
 | `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_import` (its seed test skips without `seed/library.csv`), `test_detail_panel`, `test_catalogue`. Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
-| `FEATURES.md` | Complete. F-001 to F-025. F-003 Complete; F-001, F-002, F-011, F-016 In progress; the rest Not started. |
+| `FEATURES.md` | Complete. F-001 to F-025. F-003, F-005, F-007 Complete; F-001, F-002, F-004, F-006, F-011, F-016 In progress; the rest Not started. |
 | `ROADMAP.md` | Complete. Phase 0 done; Phase 1 in progress; Phases 2–5 not started; Phase 5 (webcam scanning) waits on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
-| `DECISIONS.md` | Complete. D-001 to D-016, all Accepted. |
+| `DECISIONS.md` | Complete. D-001 to D-017, all Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-012. Detection implemented for AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001 fixed (delete keeps series entries as missing volumes). BUG-002 fixed (view joined credits out of cover order). |
@@ -72,7 +72,7 @@ Suggested order:
    2026-10-05. Edits the book's own fields; authors and series are not
    edited there yet (author editing needs the importer's credit parsing
    moved out of `io`; series editing is Phase 2).
-6. Read toggle and rating control.
+6. ~~Read toggle and rating control.~~ Done 2026-10-05 (D-017).
 
 The seed is converted: `seed/library.csv`, made by `seed/convert_catalogue.py`
 from the spreadsheet (both git-ignored). The converter fixes two credits the
@@ -173,7 +173,9 @@ Not vectors, but worth knowing:
 
 - **A re-read is read → reading → read.** The counter is driven by the state
   transition, not edited by hand, so any re-read control must perform both
-  updates.
+  updates. The R toggle is not a re-read: unmarking takes back the read it
+  counted (D-017), so `Catalogue::toggleRead` writes `times_read` on the way
+  down and leaves the trigger to count on the way up.
 - **The edit form shows `times_read`; it does not set it.** The count moves
   only by read-state transitions through `trg_book_finished` (F-006). A form
   that wrote it would race the trigger.

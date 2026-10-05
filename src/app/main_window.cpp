@@ -2,8 +2,10 @@
 
 #include "app/catalogue.h"
 #include "ui/book_list_view.h"
+#include "db/db_error.h"
 #include "ui/detail_panel.h"
 
+#include <QLabel>
 #include <QSplitter>
 #include <QStatusBar>
 
@@ -39,6 +41,10 @@ MainWindow::MainWindow(QWidget* parent)
 
     connect(list_, &ui::BookListView::selectionChangedTo, this, &MainWindow::showSelection);
     connect(detail_, &ui::DetailPanel::saveRequested, this, &MainWindow::saveBook);
+    connect(list_, &ui::BookListView::toggleReadRequested, this, &MainWindow::toggleRead);
+    connect(list_, &ui::BookListView::ratingRequested, this, &MainWindow::rate);
+    connect(detail_, &ui::DetailPanel::ratingRequested, this,
+        [this](qint64 id, int rating) { rate({id}, rating); });
 
     splitter_->setChildrenCollapsible(false);
     splitter_->setStretchFactor(0, 0);
@@ -48,6 +54,10 @@ MainWindow::MainWindow(QWidget* parent)
     setCentralWidget(splitter_);
 
     statusBar()->showMessage(tr("No catalogue open"));
+    auto* keys = new QLabel(tr("R toggles read · 1–9, 0 rate · F2 edits"), this);
+    keys->setObjectName(QStringLiteral("keys"));
+    keys->setEnabled(false);
+    statusBar()->addPermanentWidget(keys);
 
     resize(railWidth + listWidth + detailWidth, 700);
 }
@@ -88,6 +98,68 @@ void MainWindow::saveBook(const domain::Book& book)
         detail_->showBook(*detail);
     list_->setFocus();
     statusBar()->showMessage(tr("Saved “%1”").arg(QString::fromStdString(book.title)), 4000);
+}
+
+void MainWindow::toggleRead(const QList<qint64>& ids)
+{
+    if (!catalogue_ || ids.isEmpty())
+        return;
+    domain::ReadStatus state;
+    try {
+        state = catalogue_->toggleRead(std::vector<std::int64_t>(ids.begin(), ids.end()));
+    } catch (const db::DbError& error) {
+        statusBar()->showMessage(tr("Read state not changed: %1").arg(QString::fromUtf8(error.what())));
+        return;
+    }
+    refreshBooks(ids);
+
+    const bool read = state == domain::ReadStatus::Read;
+    if (ids.size() == 1) {
+        statusBar()->showMessage(read ? tr("“%1” marked read").arg(titleOf(ids.first()))
+                                      : tr("“%1” marked unread").arg(titleOf(ids.first())),
+            4000);
+    } else {
+        statusBar()->showMessage(read ? tr("%1 books marked read").arg(ids.size())
+                                      : tr("%1 books marked unread").arg(ids.size()),
+            4000);
+    }
+}
+
+void MainWindow::rate(const QList<qint64>& ids, int rating)
+{
+    if (!catalogue_ || ids.isEmpty())
+        return;
+    const std::optional<int> value = rating == 0 ? std::nullopt : std::optional(rating);
+    try {
+        catalogue_->setRating(std::vector<std::int64_t>(ids.begin(), ids.end()), value);
+    } catch (const db::DbError& error) {
+        statusBar()->showMessage(tr("Rating not changed: %1").arg(QString::fromUtf8(error.what())));
+        return;
+    }
+    refreshBooks(ids);
+
+    const QString subject = ids.size() == 1 ? tr("“%1”").arg(titleOf(ids.first()))
+                                            : tr("%1 books").arg(ids.size());
+    statusBar()->showMessage(value ? tr("%1 rated %2 / 10").arg(subject).arg(*value)
+                                   : tr("%1 unrated").arg(subject),
+        4000);
+}
+
+void MainWindow::refreshBooks(const QList<qint64>& ids)
+{
+    for (const qint64 id : ids) {
+        if (const auto summary = catalogue_->summary(id))
+            list_->updateBook(*summary);
+    }
+    // Never redraw over a form in progress.
+    if (detail_->state() == ui::DetailPanel::State::Viewing)
+        showSelection(list_->selectedBooks());
+}
+
+QString MainWindow::titleOf(qint64 id) const
+{
+    const auto summary = catalogue_ ? catalogue_->summary(id) : std::nullopt;
+    return summary ? QString::fromStdString(summary->title) : QString();
 }
 
 } // namespace pinax::app

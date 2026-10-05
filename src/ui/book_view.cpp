@@ -213,6 +213,8 @@ BookView::BookView(QWidget* parent)
     auto* ratingRow = new QHBoxLayout;
     rating_ = new RatingBar(this);
     rating_->setObjectName(QStringLiteral("ratingBar"));
+    rating_->setInteractive(true);
+    connect(rating_, &RatingBar::ratingChosen, this, &BookView::ratingChosen);
     ratingText_ = makeValue(QStringLiteral("ratingText"), this);
     ratingText_->setWordWrap(false);
     ratingRow->addWidget(rating_);

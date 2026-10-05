@@ -3,6 +3,7 @@
 #include "ui/book_sort_proxy.h"
 
 #include <QHeaderView>
+#include <QSignalSpy>
 #include <QTest>
 
 using pinax::domain::BookSummary;
@@ -69,6 +70,8 @@ private slots:
     void authorKeepsTheirSeriesTogether();
     void seriesSortsBySortPositionNotPrintedPosition();
     void missingValuesSortLastInBothDirections();
+    void keysActOnTheSelection();
+    void keysWithoutASelectionDoNothing();
 };
 
 void TestBookList::showsOneRowPerBookWithItsColumns()
@@ -200,6 +203,52 @@ void TestBookList::missingValuesSortLastInBothDirections()
 
     view.sortByColumn(BookListModel::RatingColumn, Qt::DescendingOrder);
     QCOMPARE(shownTitles(view), QStringList({"Nine", "Seven", "Unrated"}));
+}
+
+void TestBookList::keysActOnTheSelection()
+{
+    BookListView view;
+    view.setBooks({book(1, "Excession"), book(2, "Matter"), book(3, "Tau Zero")});
+    view.selectBook(2);
+
+    QSignalSpy toggled(&view, &BookListView::toggleReadRequested);
+    QSignalSpy rated(&view, &BookListView::ratingRequested);
+
+    QTest::keyClick(&view, Qt::Key_R);
+    QCOMPARE(toggled.count(), 1);
+    QCOMPARE(toggled.at(0).at(0).value<QList<qint64>>(), QList<qint64>({2}));
+
+    QTest::keyClick(&view, Qt::Key_8);
+    QTest::keyClick(&view, Qt::Key_0);
+    QTest::keyClick(&view, Qt::Key_Backspace);
+    QTest::keyClick(&view, Qt::Key_5, Qt::KeypadModifier);
+    QCOMPARE(rated.count(), 4);
+    QCOMPARE(rated.at(0).at(1).toInt(), 8);
+    QCOMPARE(rated.at(1).at(1).toInt(), 10);
+    QCOMPARE(rated.at(2).at(1).toInt(), 0);
+    QCOMPARE(rated.at(3).at(1).toInt(), 5);
+
+    // Several selected: one keystroke for all of them.
+    view.selectAll();
+    QTest::keyClick(&view, Qt::Key_R);
+    QCOMPARE(toggled.at(1).at(0).value<QList<qint64>>().size(), 3);
+
+    // With Ctrl held, R is not the toggle.
+    QTest::keyClick(&view, Qt::Key_R, Qt::ControlModifier);
+    QCOMPARE(toggled.count(), 2);
+}
+
+void TestBookList::keysWithoutASelectionDoNothing()
+{
+    BookListView view;
+    view.setBooks({book(1, "Excession")});
+    QSignalSpy toggled(&view, &BookListView::toggleReadRequested);
+    QSignalSpy rated(&view, &BookListView::ratingRequested);
+
+    QTest::keyClick(&view, Qt::Key_R);
+    QTest::keyClick(&view, Qt::Key_3);
+    QCOMPARE(toggled.count(), 0);
+    QCOMPARE(rated.count(), 0);
 }
 
 QTEST_MAIN(TestBookList)

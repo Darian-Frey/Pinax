@@ -12,6 +12,13 @@ change can be traced to the capability or decision that motivated it.
 ## [Unreleased]
 
 ### Added
+- Read toggle (F-005, Phase 1 step 6): R in the list marks the selected books
+  read, or unread if all of them are read already, saved at once with the
+  selection kept. Unmarking takes back the read it counted (D-017).
+- Rating control (F-007): 1–9, and 0 for 10, in the list; Backspace or − to
+  clear; the detail panel's squares are clickable with a hover preview, the
+  current one clearing. Both act on every selected book, in one transaction.
+- A key hint in the status bar, as the mock-up's footer has it.
 - Detail panel (Phase 1 step 5, D-010, D-011): the selected book in its view
   state — cover placeholder, title, authors, read state and count, rating as
   ten squares, each series with "Book 5 of 10", held against known and the
@@ -82,6 +89,8 @@ change can be traced to the capability or decision that motivated it.
   change needed.
 
 ### Decided
+- Unmarking a read book takes back one read and, at nought, its finish date
+  (D-017).
 - Import runs from the command line until an in-panel file chooser exists;
   a modal file dialogue would break D-011 (D-016).
 - Database access uses the SQLite C API directly, with no Qt in the `db`

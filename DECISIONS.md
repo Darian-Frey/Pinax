@@ -542,3 +542,46 @@ status bar.
 **Reversal conditions.** Revisit when the detail panel exists and an import
 path from inside the application is wanted, for example for F-023 round
 trips.
+
+---
+
+### D-017 Unmarking a read book takes back one read
+**Decided:** 2026-10-05
+**Recorded:** 2026-10-05
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-05)
+**Related:** F-005, F-006
+
+**Context.** F-005 puts the read state on a single key. `trg_book_finished`
+counts every move into `read`, which is right for a finish and wrong for a
+slip: R pressed twice by accident would leave a book unread with a read
+counted, and pressed three times would record a re-read that never
+happened.
+
+**Options.**
+- **A. The toggle only ever marks read.** Rejected: F-005 is a toggle, and a
+  mistaken mark could then only be undone in the edit form, where the count
+  is deliberately not editable.
+- **B. Unmarking leaves the count alone.** Rejected: the count drifts upward
+  with every slip and nothing shows it happening.
+- **C. Unmarking takes back one read, and clears the finish date when none
+  are left.** Chosen.
+
+**Decision.** Option C. The toggle on a read book sets it unread and
+decrements `times_read` by one, never below nought; at nought,
+`date_finished` is cleared. Marking it read again counts and dates it through
+the trigger as usual. A genuine re-read still runs read → reading → read and
+is untouched by this rule. With several books selected, R marks them all read
+unless every one is read already, in which case it unmarks them all; books
+already in the target state are not written, so they are not counted again.
+
+**Consequences.**
+- A toggle pressed twice leaves the count where it was.
+- The finish date of a book unmarked and marked again becomes the day of the
+  second marking; the earlier date is not remembered.
+- Unmarking a book read twice leaves it unread with one read counted and its
+  last finish date kept, which reads as "read once before".
+
+**Reversal conditions.** Revisit if reading history is ever kept as dated
+events rather than a counter, at which point an unmark would delete the
+latest event instead.

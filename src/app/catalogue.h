@@ -28,6 +28,17 @@ public:
     std::optional<domain::BookSummary> summary(std::int64_t id);
     std::optional<domain::BookDetail> detail(std::int64_t id);
 
+    // F-005. Marks every listed book read; or, if all of them are read
+    // already, marks them all unread. Moving into read counts a read through
+    // the trigger (F-006); unmarking takes that read back, so a toggle
+    // pressed twice leaves the count where it was (D-017). One transaction.
+    // Returns the state the books now have. Throws db::DbError.
+    domain::ReadStatus toggleRead(const std::vector<std::int64_t>& ids);
+
+    // F-007. Sets or clears the rating of every listed book in one
+    // transaction. Throws db::DbError, including for a rating outside 1-10.
+    void setRating(const std::vector<std::int64_t>& ids, std::optional<int> rating);
+
     // Writes the book's own fields. Returns nothing on success, or a message
     // in the owner's terms: a duplicate ISBN, a book deleted meanwhile.
     std::optional<std::string> save(const domain::Book& book);

@@ -4,6 +4,7 @@
 #include "ui/book_sort_proxy.h"
 
 #include <QHeaderView>
+#include <QKeyEvent>
 #include <QItemSelectionModel>
 
 #include <utility>
@@ -81,6 +82,34 @@ void BookListView::selectBook(std::int64_t id)
     selectionModel()->setCurrentIndex(index,
         QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
     scrollTo(index);
+}
+
+void BookListView::keyPressEvent(QKeyEvent* event)
+{
+    // Single keys act on the selection without leaving the list. Anything
+    // with Ctrl, Alt or Meta, and every other key, is the table's as usual.
+    const auto modifiers = event->modifiers() & ~Qt::KeypadModifier;
+    const QList<qint64> ids = selectedBooks();
+    if (modifiers == Qt::NoModifier && !ids.isEmpty()) {
+        const int key = event->key();
+        if (key == Qt::Key_R) {
+            emit toggleReadRequested(ids);
+            return;
+        }
+        if (key >= Qt::Key_1 && key <= Qt::Key_9) {
+            emit ratingRequested(ids, key - Qt::Key_0);
+            return;
+        }
+        if (key == Qt::Key_0) {
+            emit ratingRequested(ids, 10);
+            return;
+        }
+        if (key == Qt::Key_Backspace || key == Qt::Key_Minus) {
+            emit ratingRequested(ids, 0);
+            return;
+        }
+    }
+    QTableView::keyPressEvent(event);
 }
 
 QList<qint64> BookListView::selectedBooks() const

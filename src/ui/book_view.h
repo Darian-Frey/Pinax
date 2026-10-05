@@ -26,6 +26,8 @@ public:
 
 signals:
     void editRequested();
+    // From the rating squares: 1-10, or 0 to clear (F-007).
+    void ratingChosen(int rating);
 
 private:
     void showSeries(const std::vector<domain::SeriesMembership>& series);

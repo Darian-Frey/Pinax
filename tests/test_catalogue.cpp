@@ -1,4 +1,5 @@
 #include "app/catalogue.h"
+#include "db/db_error.h"
 #include "app/main_window.h"
 #include "io/csv_importer.h"
 #include "ui/book_list_view.h"
@@ -6,6 +7,7 @@
 #include "ui/detail_panel.h"
 
 #include <QLabel>
+#include <QSignalSpy>
 #include <QTest>
 
 using pinax::app::Catalogue;
@@ -45,6 +47,18 @@ private slots:
     void movingIntoReadCountsARead();
     void selectingARowShowsTheBook();
     void savingFromThePanelUpdatesTheList();
+
+    // F-005, F-006, D-017
+    void toggleMarksAnUnreadBookRead();
+    void toggleTwiceLeavesTheCountAlone();
+    void toggleOnAReReadBookTakesBackOneRead();
+    void toggleWithAnyUnreadMarksAllRead();
+    // F-007
+    void ratingSetsAndClearsEverySelectedBook();
+    void ratingOutsideRangeIsRefused();
+    // Through the window
+    void pressingRInTheListTogglesAndRefreshes();
+    void clickingASquareInThePanelRates();
 };
 
 void TestCatalogue::detailCarriesSeriesCompleteness()
@@ -156,6 +170,149 @@ void TestCatalogue::savingFromThePanelUpdatesTheList()
         }
     }
     QVERIFY(found);
+}
+
+void TestCatalogue::toggleMarksAnUnreadBookRead()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+    const std::int64_t id = idOf(catalogue, "Tau Zero");
+
+    QVERIFY(catalogue.toggleRead({id}) == ReadStatus::Read);
+    const auto book = catalogue.detail(id)->book;
+    QVERIFY(book.readStatus == ReadStatus::Read);
+    QCOMPARE(book.timesRead, 1);
+    QVERIFY(book.dateFinished);
+}
+
+void TestCatalogue::toggleTwiceLeavesTheCountAlone()
+{
+    // D-017: a slip of the key is not a re-read.
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+    const std::int64_t id = idOf(catalogue, "Tau Zero");
+
+    catalogue.toggleRead({id});
+    QVERIFY(catalogue.toggleRead({id}) == ReadStatus::Unread);
+    auto book = catalogue.detail(id)->book;
+    QVERIFY(book.readStatus == ReadStatus::Unread);
+    QCOMPARE(book.timesRead, 0);
+    QVERIFY(!book.dateFinished);
+
+    catalogue.toggleRead({id});
+    QCOMPARE(catalogue.detail(id)->book.timesRead, 1);
+}
+
+void TestCatalogue::toggleOnAReReadBookTakesBackOneRead()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+    const std::int64_t id = idOf(catalogue, "Excession");
+
+    // Read once by import; a real re-read is read -> reading -> read.
+    auto book = catalogue.detail(id)->book;
+    book.readStatus = ReadStatus::Reading;
+    catalogue.save(book);
+    book = catalogue.detail(id)->book;
+    book.readStatus = ReadStatus::Read;
+    catalogue.save(book);
+    QCOMPARE(catalogue.detail(id)->book.timesRead, 2);
+
+    catalogue.toggleRead({id});
+    book = catalogue.detail(id)->book;
+    QVERIFY(book.readStatus == ReadStatus::Unread);
+    QCOMPARE(book.timesRead, 1);
+    QVERIFY(book.dateFinished); // still read once before; that date stands
+}
+
+void TestCatalogue::toggleWithAnyUnreadMarksAllRead()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+    const std::int64_t read = idOf(catalogue, "Excession");
+    const std::int64_t unread = idOf(catalogue, "Surface Detail");
+
+    QVERIFY(catalogue.toggleRead({read, unread}) == ReadStatus::Read);
+    // The one already read was left alone, not counted again.
+    QCOMPARE(catalogue.detail(read)->book.timesRead, 1);
+    QCOMPARE(catalogue.detail(unread)->book.timesRead, 1);
+
+    QVERIFY(catalogue.toggleRead({read, unread}) == ReadStatus::Unread);
+    QVERIFY(catalogue.detail(read)->book.readStatus == ReadStatus::Unread);
+    QVERIFY(catalogue.detail(unread)->book.readStatus == ReadStatus::Unread);
+}
+
+void TestCatalogue::ratingSetsAndClearsEverySelectedBook()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+    const std::int64_t a = idOf(catalogue, "Excession");
+    const std::int64_t b = idOf(catalogue, "Tau Zero");
+
+    catalogue.setRating({a, b}, 8);
+    QCOMPARE(catalogue.detail(a)->book.rating, std::optional<int>(8));
+    QCOMPARE(catalogue.detail(b)->book.rating, std::optional<int>(8));
+
+    catalogue.setRating({b}, std::nullopt);
+    QCOMPARE(catalogue.detail(a)->book.rating, std::optional<int>(8));
+    QVERIFY(!catalogue.detail(b)->book.rating);
+}
+
+void TestCatalogue::ratingOutsideRangeIsRefused()
+{
+    // F-007: rejected, not clamped; the whole call rolls back.
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+    const std::int64_t a = idOf(catalogue, "Excession");
+    const std::int64_t b = idOf(catalogue, "Tau Zero");
+
+    QVERIFY_THROWS_EXCEPTION(pinax::db::DbError, catalogue.setRating({a, b}, 11));
+    QVERIFY(!catalogue.detail(a)->book.rating);
+    QVERIFY(!catalogue.detail(b)->book.rating);
+}
+
+void TestCatalogue::pressingRInTheListTogglesAndRefreshes()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    const std::int64_t id = idOf(catalogue, "Tau Zero");
+    window.bookList()->selectBook(id);
+    auto* readCount = window.detailPanel()->view()->findChild<QLabel*>(QStringLiteral("readCount"));
+    QCOMPARE(readCount->text(), QStringLiteral("not read yet"));
+
+    QTest::keyClick(window.bookList(), Qt::Key_R);
+
+    QVERIFY(catalogue.detail(id)->book.readStatus == ReadStatus::Read);
+    QCOMPARE(readCount->text(), QStringLiteral("read once"));
+    QCOMPARE(window.bookList()->selectedBooks(), QList<qint64>({id}));
+
+    QTest::keyClick(window.bookList(), Qt::Key_7);
+    QCOMPARE(catalogue.detail(id)->book.rating, std::optional<int>(7));
+    QTest::keyClick(window.bookList(), Qt::Key_Backspace);
+    QVERIFY(!catalogue.detail(id)->book.rating);
+}
+
+void TestCatalogue::clickingASquareInThePanelRates()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    const std::int64_t id = idOf(catalogue, "Excession");
+    window.bookList()->selectBook(id);
+
+    auto* bar = window.detailPanel()->view()->findChild<QWidget*>(QStringLiteral("ratingBar"));
+    // The sixth square: five squares and five gaps of 11px in, plus a little.
+    QTest::mouseClick(bar, Qt::LeftButton, Qt::NoModifier, QPoint(5 * 11 + 4, 5));
+    QCOMPARE(catalogue.detail(id)->book.rating, std::optional<int>(6));
+
+    // The same square again clears it.
+    QTest::mouseClick(bar, Qt::LeftButton, Qt::NoModifier, QPoint(5 * 11 + 4, 5));
+    QVERIFY(!catalogue.detail(id)->book.rating);
 }
 
 QTEST_MAIN(TestCatalogue)

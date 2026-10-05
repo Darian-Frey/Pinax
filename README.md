@@ -30,7 +30,9 @@ The application creates `~/.local/share/pinax/pinax.db` on first run (or opens
 the file given as its argument), upgrades an older file in place, and lists
 every book, sortable by any column. `--import file.csv` loads a catalogue in
 the format of SPEC.md §1 first, and is safe to repeat. Selecting a book shows
-it in the detail panel; F2 or Edit opens its fields for editing in place. The
+it in the detail panel; F2 or Edit opens its fields for editing in place. In
+the list, R toggles read and 1–9 or 0 rate the selected books; the panel's
+rating squares are clickable. The
 filter rail is still empty. The database is also usable on its own:
 
 ```sh
@@ -92,7 +94,7 @@ pinax/
 ├── FEATURES.md           F-001 … F-025, MoSCoW priorities, acceptance criteria
 ├── ROADMAP.md            Phase 0 complete; Phases 1–5 planned
 ├── ARCHITECTURE.md       modules, data flow, invariants
-├── DECISIONS.md          D-001 … D-016, append-only
+├── DECISIONS.md          D-001 … D-017, append-only
 ├── SPEC.md               CSV format, ISBN validation, provider contracts, exports
 ├── ATTACK_VECTORS.md     AV-001 … AV-012, failure modes with detection
 ├── BUGS.md               empty; present so Rule 8 applies from commit one

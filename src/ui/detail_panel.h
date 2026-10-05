@@ -39,6 +39,8 @@ public:
 
 signals:
     void saveRequested(const domain::Book& book);
+    // The shown book's rating squares were clicked: 1-10, or 0 to clear.
+    void ratingRequested(qint64 bookId, int rating);
 
 private:
     void setState(State state);

@@ -86,7 +86,8 @@ misprints, acquisition.
 - A book's state changes between unread and read with one keystroke from the
   list view, without opening a dialogue or losing the current selection.
 - The change is persisted immediately.
-**Status:** Not started
+**Status:** Complete (2026-10-05). R in the list toggles the selection and saves at
+once; the selection stays. Unmarking takes back the read it counted (D-017).
 
 ### F-006 Re-read counter
 **Priority:** Should
@@ -95,7 +96,9 @@ misprints, acquisition.
 - The count is visible in the list view and sortable.
 - Importing an already-read book sets the count explicitly rather than
   relying on a state transition.
-**Status:** Not started
+**Status:** In progress — the trigger counts and dates each move into read, imports
+write the count explicitly, and the detail panel shows it ("read twice").
+Not yet a list column, so not yet sortable.
 **Notes:** See trigger `trg_book_finished`; re-reads run read → reading → read.
 
 ### F-007 Rating out of ten
@@ -104,9 +107,10 @@ misprints, acquisition.
 - A book takes an integer rating from 1 to 10, or none.
 - Unrated is distinguishable from rated zero, and sorting separates the two.
 - A value outside the range is rejected rather than clamped.
-**Status:** In progress — shown as ten squares in the detail panel and set from
-its edit form, 1 to 10 or unrated; out-of-range values are rejected, not
-clamped. The one-keystroke rating control is Phase 1 step 6.
+**Status:** Complete (2026-10-05). Keys 1–9 and 0 (for 10) in the list, Backspace
+or − to clear; the detail panel's squares are clickable, the current one
+clearing. Unrated sorts after every rating; out-of-range values are
+rejected, not clamped.
 
 ---
 

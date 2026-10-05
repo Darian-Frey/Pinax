@@ -37,6 +37,13 @@ public:
 private:
     void showSelection(const QList<qint64>& ids);
     void saveBook(const domain::Book& book);
+    void toggleRead(const QList<qint64>& ids);
+    void rate(const QList<qint64>& ids, int rating);
+
+    // Re-reads these books into the list, and into the panel when it is
+    // showing one of them and not mid-edit.
+    void refreshBooks(const QList<qint64>& ids);
+    QString titleOf(qint64 id) const;
 
     Catalogue* catalogue_ = nullptr;
     QSplitter* splitter_;

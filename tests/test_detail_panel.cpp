@@ -8,6 +8,7 @@
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QSignalSpy>
 #include <QTest>
 
 using pinax::domain::Binding;
@@ -75,6 +76,7 @@ private slots:
     void editRejectsABadIsbnWithoutEmitting();
     void escapeCancelsBackToView();
     void editedSynopsisIsMarkedManual();
+    void ratingSquaresChooseAndClear();
 };
 
 void TestDetailPanel::startsEmptyAndShowsSeveral()
@@ -220,6 +222,24 @@ void TestDetailPanel::editedSynopsisIsMarkedManual()
     QVERIFY(saved);
     QCOMPARE(saved->synopsis, std::optional<std::string>("My own words."));
     QVERIFY(saved->synopsisSource == Source::Manual);
+}
+
+void TestDetailPanel::ratingSquaresChooseAndClear()
+{
+    DetailPanel panel;
+    panel.showBook(excession()); // rated 9
+    QSignalSpy requested(&panel, &DetailPanel::ratingRequested);
+    auto* bar = child<pinax::ui::RatingBar>(*panel.view(), QStringLiteral("ratingBar"));
+
+    QCOMPARE(bar->ratingAt(QPoint(4, 5)), 1);
+    QCOMPARE(bar->ratingAt(QPoint(9 * 11 + 4, 5)), 10);
+    QCOMPARE(bar->ratingAt(QPoint(8 * 11 + 4, 5)), 0); // the current rating: clears
+    QCOMPARE(bar->ratingAt(QPoint(4, 30)), -1);
+
+    QTest::mouseClick(bar, Qt::LeftButton, Qt::NoModifier, QPoint(2 * 11 + 4, 5));
+    QCOMPARE(requested.count(), 1);
+    QCOMPARE(requested.at(0).at(0).toLongLong(), qint64(5));
+    QCOMPARE(requested.at(0).at(1).toInt(), 3);
 }
 
 QTEST_MAIN(TestDetailPanel)

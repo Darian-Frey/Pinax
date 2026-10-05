@@ -61,6 +61,10 @@ DetailPanel::DetailPanel(QWidget* parent)
 
     connect(view_, &BookView::editRequested, this, &DetailPanel::beginEdit);
     connect(editor_, &BookEditor::saveRequested, this, &DetailPanel::saveRequested);
+    connect(view_, &BookView::ratingChosen, this, [this](int rating) {
+        if (shown_)
+            emit ratingRequested(shown_->book.id, rating);
+    });
     connect(editor_, &BookEditor::cancelled, this, [this] {
         if (shown_)
             showBook(*shown_);
