@@ -60,9 +60,12 @@ persisted by the schema file. A connection opened without it treats every
 `REFERENCES` clause as advisory, so cascades do not fire and orphan rows
 accumulate unnoticed — a deleted book leaves its credits and series entries
 behind.
-**Detection.** Not implemented (would require a test deleting a book and
-asserting no `book_author` or `book_genre` rows survive, plus an assertion at
-connection open).
+**Detection.** Implemented, 2026-10-05. `db::Connection` enables foreign keys
+on open and throws if `PRAGMA foreign_keys` does not then read back as 1.
+`tests/test_db.cpp`: `foreignKeysEnforcedOnEveryConnection` opens the same
+file twice and checks both the setting and an actual rejected insert;
+`deletingABookLeavesNoOrphanLinks` deletes a book and asserts no
+`book_author` or `book_genre` rows survive.
 **Related decisions.** D-001, D-002.
 **History.** Identified during schema design, 2026-10-04.
 
@@ -77,8 +80,11 @@ connection open).
 `times_read = 0`, so importing the 176 already-read books leaves every one of
 them recorded as never finished. The error is quiet and only visible later,
 when the counter is trusted.
-**Detection.** Not implemented (would require a test asserting that a book
-imported as read has `times_read >= 1`).
+**Detection.** Partly implemented, 2026-10-05. `BookRepository::create`
+writes `times_read` as given, and `tests/test_db.cpp`,
+`importedReadBookKeepsItsTimesRead`, asserts it survives the insert. The
+importer-level test — a book imported from CSV as read has
+`times_read >= 1` — is still owed by F-003.
 **Related decisions.** —
 **History.** Found during schema verification on 2026-10-04, by inserting a
 read book directly and observing the counter stay at zero. Recorded in

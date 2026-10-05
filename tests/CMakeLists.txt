@@ -1,6 +1,12 @@
-qt_add_executable(test_main_window test_main_window.cpp)
-target_link_libraries(test_main_window PRIVATE pinax_app Qt6::Test)
+# Each test is a Qt Test executable registered with ctest. Tests run without
+# a display.
+function(pinax_add_test name)
+    qt_add_executable(${name} ${name}.cpp)
+    target_link_libraries(${name} PRIVATE Qt6::Test ${ARGN})
+    add_test(NAME ${name} COMMAND ${name})
+    set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endfunction()
 
-add_test(NAME main_window COMMAND test_main_window)
-# Tests run without a display.
-set_tests_properties(main_window PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+pinax_add_test(test_main_window pinax_app)
+pinax_add_test(test_domain pinax_domain)
+pinax_add_test(test_db pinax_db)

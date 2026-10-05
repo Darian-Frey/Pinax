@@ -26,7 +26,8 @@ spreadsheet of titles and authors.
 - Deleting a book removes its credits, series entries and genre links, and
   leaves no orphan rows.
 - Every record carries creation and modification timestamps without manual input.
-**Status:** Not started
+**Status:** In progress — repository layer done (`BookRepository`); no UI yet.
+See BUG-001 on series entries at deletion.
 **Notes:** `db/schema.sql`, table `book`.
 
 ### F-002 Multiple authors with roles

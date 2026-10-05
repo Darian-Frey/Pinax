@@ -11,3 +11,6 @@ covers/
 
 # Build output
 build/
+
+# Editor and language-server caches
+.cache/

@@ -42,7 +42,9 @@ reading state and ratings.
       SPEC.md §1 — a prerequisite for the importer, not a product of it
 - [ ] `db` module: connection asserting `PRAGMA foreign_keys = ON` (AV-004),
       migration runner keyed to `schema_version`, repositories returning
-      domain types
+      domain types — connection, migrations and `BookRepository` done
+      2026-10-05 (D-015); author, series and genre repositories arrive with
+      the importer
 - [ ] Book list view over `v_book_display`, sortable
 - [ ] Detail panel: view state, then edit state (D-011)
 - [ ] CSV importer, idempotent (AV-002), writing `times_read` explicitly

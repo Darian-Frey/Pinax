@@ -11,6 +11,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets Test)
+# 3.31 for VACUUM INTO and partial indexes (README, Build requirements).
+find_package(SQLite3 3.31 REQUIRED)
 qt_standard_project_setup()
 
 add_compile_options(-Wall -Wextra -Wpedantic)

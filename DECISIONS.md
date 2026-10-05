@@ -460,3 +460,50 @@ the capture rules in SPEC.md §6.
 reliably at a usable distance, in which case Option A becomes the scanner and
 F-025 is withdrawn; or if ZXing-C++ ceases to be packaged for the target
 distribution.
+
+---
+
+### D-015 The `db` module uses the SQLite C API directly, with no Qt
+**Decided:** 2026-10-05
+**Recorded:** 2026-10-05
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-05)
+**Related:** D-001, D-002, AV-004, AV-005
+
+**Context.** D-001 left the database access layer open between Qt SQL and the
+SQLite C library. The `db` module is the only one that issues SQL, so the
+choice is contained there.
+
+**Options.**
+- **A. Qt SQL (`QSqlDatabase`, `QSqlQuery`).** Ships with Qt. Rejected: values
+  arrive as `QVariant` and must be unpacked by hand anyway; the driver hides
+  SQLite's extended result codes, which is how a constraint violation is told
+  apart from anything else; and connections are managed by name through a
+  global registry, which makes "every connection has foreign keys on" harder
+  to guarantee than a constructor that does it.
+- **B. The SQLite C API behind three small RAII wrappers.** Chosen.
+  `Connection`, `Statement` and `Transaction`, a few hundred lines in all. The
+  schema's views and triggers do the real work, so the wrapper stays thin.
+
+**Decision.** Option B. `pinax_db` links `SQLite::SQLite3` and `pinax_domain`
+and has no Qt dependency. Failures are thrown as `DbError` carrying the
+extended result code; callers for whom a failure is expected catch it and turn
+it into a value (ARCHITECTURE.md §4).
+
+**Consequences.**
+- `Connection`'s constructor is the single place foreign keys are enabled, and
+  it verifies the setting took (invariant 6). WAL is set there too.
+- `PRAGMA` statements left `db/schema.sql`: SQLite refuses to change journal
+  mode inside a transaction, and the migration runner applies the schema in
+  one transaction so that a failure leaves nothing behind. The schema version
+  is unchanged; pragmas are connection state, not schema.
+- `db/schema.sql` is compiled into the binary at configure time, so the
+  application needs nothing from the source tree at run time.
+- The module cannot use Qt's categorised logging. Callers log what `db`
+  throws, under `pinax.db`.
+- New build dependency: SQLite development headers (`libsqlite3-dev`), 3.31 or
+  later.
+
+**Reversal conditions.** Revisit if a second Qt-based consumer of the database
+appears that would benefit from Qt SQL's model classes, or if the wrapper grows
+past what is reasonable to maintain by hand.

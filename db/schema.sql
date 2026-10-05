@@ -3,12 +3,17 @@
 --
 -- Apply with:  sqlite3 pinax.db < db/schema.sql
 --
--- Note: `PRAGMA foreign_keys` is per-connection in SQLite and is NOT persisted
--- by this file. The application must issue `PRAGMA foreign_keys = ON;` on every
--- connection it opens, or the REFERENCES clauses below are advisory only.
-
-PRAGMA foreign_keys = ON;
-PRAGMA journal_mode = WAL;
+-- Schema objects only: no PRAGMA statements, so the whole file can run inside
+-- one transaction and a failed apply leaves nothing behind. Connection
+-- settings belong to the connection (src/db/connection.cpp):
+--
+--   PRAGMA foreign_keys = ON;   per-connection and never persisted; without it
+--                               every REFERENCES clause below is advisory only
+--                               (AV-004). Issue it on every connection.
+--   PRAGMA journal_mode = WAL;  persisted in the file once set; cannot be
+--                               changed inside a transaction.
+--
+-- When applying by hand, issue both before reading this file.
 
 
 -- ---------------------------------------------------------------------------

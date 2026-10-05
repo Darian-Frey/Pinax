@@ -12,6 +12,19 @@ change can be traced to the capability or decision that motivated it.
 ## [Unreleased]
 
 ### Added
+- `db` module on the SQLite C API (D-015): `Connection` enabling and verifying
+  foreign keys on every open (AV-004) and setting WAL; `Statement` and
+  `Transaction` wrappers; a migration runner that applies the compiled-in
+  schema to an empty file in one transaction and refuses a newer database;
+  `BookRepository` with create, find, update, delete and count (F-001).
+- `domain` module: `Book`, the read-state, binding, metadata-status and source
+  enumerations with their schema strings, and sort-title derivation that
+  files 'The Long Earth' as 'Long Earth, The' (F-016).
+- The application opens or creates `~/.local/share/pinax/pinax.db`, or a file
+  given on the command line, and shows the volume count.
+- Tests `test_domain` and `test_db`: migrations, foreign-key enforcement,
+  cascades, the re-read counter (F-006, AV-005), rating bounds (F-007),
+  duplicate ISBN-13 refusal.
 - Project skeleton (Phase 1, step 1): CMake build for C++20 and Qt 6.4+, a
   `pinax_app` library holding the main window shell — a splitter with empty
   rail, list and detail panels per D-010 — and the `pinax` executable. One
@@ -31,6 +44,8 @@ change can be traced to the capability or decision that motivated it.
   change needed.
 
 ### Decided
+- Database access uses the SQLite C API directly, with no Qt in the `db`
+  module (D-015).
 - Webcam barcode scanning planned as F-025 (Could), Phase 5, blocked on
   hardware. Capture with Qt6 Multimedia, decoding with ZXing-C++, both optional
   at build time (D-014). Capture rules in SPEC.md §6; misread risk as AV-012.
@@ -58,6 +73,9 @@ change can be traced to the capability or decision that motivated it.
   after the habit of silent fixing has set in.
 
 ### Notes
-- The application opens an empty window; no catalogue functionality yet.
+- `PRAGMA` statements moved out of `db/schema.sql` into the connection, so the
+  schema can be applied in a single transaction. Schema version unchanged.
+- BUG-001 logged: F-001 says deleting a book removes its series entries; the
+  schema keeps them as unowned volumes. Open, for the author to decide.
 - `LICENSE` is deliberately absent; the omission is recorded as D-013 and the
   repository stays private until it is revisited.

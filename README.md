@@ -26,8 +26,9 @@ cmake --build build -j
 build/src/pinax
 ```
 
-The application is an empty three-panel window so far. The database is usable
-on its own:
+The application creates `~/.local/share/pinax/pinax.db` on first run (or opens
+the file given as its argument) and shows an empty three-panel window with the
+volume count in the status bar. The database is also usable on its own:
 
 ```sh
 # create the catalogue
@@ -51,8 +52,9 @@ foreign keys in the schema are advisory only (AV-004).
 
 ## Build requirements
 
-- **C++20** and **Qt6** (Widgets, Network, Sql) — fixed by D-001
-- **SQLite 3.31** or later — `VACUUM INTO`, partial indexes
+- **C++20** and **Qt6** (Widgets; Network from Phase 3) — fixed by D-001
+- **SQLite 3.31** or later, used directly rather than through Qt SQL (D-015) —
+  `VACUUM INTO`, partial indexes
 - **libxlsxwriter** for Excel export (F-022)
 - CMake 3.21 or later
 
@@ -85,7 +87,7 @@ pinax/
 ├── FEATURES.md           F-001 … F-025, MoSCoW priorities, acceptance criteria
 ├── ROADMAP.md            Phase 0 complete; Phases 1–5 planned
 ├── ARCHITECTURE.md       modules, data flow, invariants
-├── DECISIONS.md          D-001 … D-014, append-only
+├── DECISIONS.md          D-001 … D-015, append-only
 ├── SPEC.md               CSV format, ISBN validation, provider contracts, exports
 ├── ATTACK_VECTORS.md     AV-001 … AV-012, failure modes with detection
 ├── BUGS.md               empty; present so Rule 8 applies from commit one

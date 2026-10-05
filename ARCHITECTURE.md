@@ -52,10 +52,14 @@ validation that is intrinsic to the type (ISBN check digits).
 ### `db`
 Owns the SQLite connection and is the only module that writes SQL.
 
+Uses the SQLite C API directly and has no Qt dependency (D-015).
+
 - **Connection** — opens the database, asserts `PRAGMA foreign_keys = ON` on
-  every connection (see invariant 6), sets WAL.
-- **Migrations** — applies `db/schema.sql` to an empty file, and thereafter
-  steps forward by comparing `schema_version`.
+  every connection (see invariant 6), sets WAL. `Statement` and `Transaction`
+  are the only other ways SQL reaches SQLite.
+- **Migrations** — applies `db/schema.sql`, compiled into the binary, to an
+  empty file in one transaction, and thereafter steps forward by comparing
+  `schema_version`. Refuses a database newer than the build.
 - **Repositories** — one per aggregate: `BookRepository`, `SeriesRepository`,
   `AuthorRepository`, `GenreRepository`. Each returns `domain` types, never
   result sets. Derived reads go through the views (`v_book_display`,
@@ -142,7 +146,8 @@ transaction: CSV import, bulk edit, and attaching a confirmed book to a waiting
 `series_entry`. A partial import is a failed import.
 
 **Logging.** Qt's categorised logging, one category per module
-(`pinax.db`, `pinax.metadata`, `pinax.io`, `pinax.ui`). Provider requests log
+(`pinax.db`, `pinax.metadata`, `pinax.io`, `pinax.ui`). `db` has no Qt, so
+what it throws is logged under `pinax.db` by its caller. Provider requests log
 the URL and outcome but never a full response body.
 
 **Settings.** `QSettings` for window state and view preferences only. Nothing

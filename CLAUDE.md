@@ -17,21 +17,23 @@ database and exports to SQL, CSV and Excel.
 
 ## 2. Current state
 
-**Phase 1 step 1 done: the application builds and opens an empty three-panel window. No catalogue functionality yet.**
+**Phase 1 steps 1–2 done: the application builds, opens or creates its database, and shows an empty three-panel window with the volume count. No list, import or editing yet.**
 
 | Path | State |
 |---|---|
 | `db/schema.sql` | Complete. Version 1. Applies cleanly; views verified against sample data drawn from the real collection. |
-| `CMakeLists.txt`, `src/` | Skeleton. `pinax_app` static library (`src/app/main_window.*`: `QMainWindow` with a `QSplitter` of three empty panels named `rail`, `list`, `detail`) plus `pinax` executable. Other module directories are empty. |
-| `tests/` | One Qt Test, `test_main_window`, run headless by ctest. |
+| `src/domain/` | `Book`, enums with schema strings, `makeSortTitle`. No Qt, no SQL. |
+| `src/db/` | SQLite C API, no Qt (D-015). `Connection` (FK on + verified, WAL), `Statement` (named binds), `Transaction` (RAII), `migrate()` with schema compiled in from `db/schema.sql`, `BookRepository`. Errors throw `DbError` with the extended result code. |
+| `src/app/`, `src/main.cpp` | `MainWindow`: `QSplitter` of three empty panels `rail`, `list`, `detail`. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], migrates, shows the count. |
+| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`. Add new ones with `pinax_add_test`. |
 | `README.md` | Complete. |
-| `FEATURES.md` | Complete. F-001 to F-025, all Not started. |
-| `ROADMAP.md` | Complete. Phase 0 done; Phases 1–5 not started; Phase 5 (webcam scanning) waits on hardware. |
+| `FEATURES.md` | Complete. F-001 to F-025. F-001 In progress; the rest Not started. |
+| `ROADMAP.md` | Complete. Phase 0 done; Phase 1 in progress; Phases 2–5 not started; Phase 5 (webcam scanning) waits on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
-| `DECISIONS.md` | Complete. D-001 to D-014, all Accepted. |
+| `DECISIONS.md` | Complete. D-001 to D-015, all Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
-| `ATTACK_VECTORS.md` | Complete. AV-001 to AV-012. Every detection currently reads `not implemented` — correctly, since there is no code to detect anything in. |
-| `BUGS.md` | Empty, by design. Present so Maintenance Rule 8 applies from the first commit. |
+| `ATTACK_VECTORS.md` | Complete. AV-001 to AV-012. AV-004 detection implemented, AV-005 partly; the rest `not implemented`. |
+| `BUGS.md` | BUG-001 open: F-001 says delete removes series entries, schema keeps them as unowned (SET NULL). Author to decide. |
 | `IMPROVEMENTS.md` | Empty, by design. Same reason. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
@@ -44,8 +46,9 @@ owner's library is not to be published. The spreadsheet is the intended seed
 for F-003 and has not yet been converted to the CSV format in SPEC.md §1; the
 converted CSV belongs in `seed/` too.
 
-`src/` holds one directory per module (ARCHITECTURE.md §2); only `app/` has
-code so far. Each module becomes its own static library as it gains code.
+`src/` holds one directory per module (ARCHITECTURE.md §2); `domain/`, `db/`
+and `app/` have code. Each module becomes its own static library as it gains
+code.
 `design/` holds the UI mock-up with PNG captures of its four screens.
 
 ---
@@ -57,8 +60,9 @@ code so far. Each module becomes its own static library as it gains code.
 Suggested order:
 
 1. ~~Project skeleton: CMake, Qt6 Widgets, a window that opens.~~ Done 2026-10-05.
-2. `db` module: connection with `PRAGMA foreign_keys = ON` asserted (AV-004),
-   migration runner keyed to `schema_version`, `BookRepository`.
+2. ~~`db` module: connection with `PRAGMA foreign_keys = ON` asserted (AV-004),
+   migration runner keyed to `schema_version`, `BookRepository`.~~ Done
+   2026-10-05. Author, series and genre repositories come with step 4.
 3. List view over `v_book_display`, sortable.
 4. CSV importer per SPEC.md §1 — idempotent (AV-002), `times_read` written
    explicitly (AV-005).
@@ -96,18 +100,18 @@ Verified with Qt 6.4.2, GCC 13.3, CMake 3.28 on Linux Mint 22.3; details in
 `BUILD.md`. Tests run with `QT_QPA_PLATFORM=offscreen`. Builds use
 `-Wall -Wextra -Wpedantic` and are currently warning-free; keep them so.
 
-The schema on its own:
+The schema on its own (it holds no PRAGMAs; the connection sets them):
 
 ```sh
 sqlite3 pinax.db < db/schema.sql
 sqlite3 pinax.db "SELECT version, applied_at FROM schema_version;"
 ```
 
-Toolchain is C++20 with Qt6 Widgets and SQLite (D-001). Qt 6.4 is the floor
-because that is what the target distribution ships. Excel export needs
-libxlsxwriter; Qt SQL versus direct `sqlite3` is still open (D-001 allows
-either) and is decided in step 2. Each dependency added is worth a DECISIONS
-entry.
+Toolchain is C++20 with Qt6 Widgets and the SQLite C API (D-001, D-015). Qt
+6.4 is the floor because that is what the target distribution ships; Qt 6.4's
+`QCOMPARE` cannot compare `std::optional` with a plain value, so tests use
+`QVERIFY(a == b)` there. Excel export needs libxlsxwriter. Each dependency
+added is worth a DECISIONS entry.
 
 ---
 
