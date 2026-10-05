@@ -3,6 +3,7 @@
 #include "db/connection.h"
 #include "db/db_error.h"
 #include "db/migrations.h"
+#include "ui/book_list_view.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -54,6 +55,7 @@ int main(int argc, char* argv[])
         connection = std::make_unique<pinax::db::Connection>(path.toStdString());
         pinax::db::migrate(*connection);
         pinax::db::BookRepository books(*connection);
+        window.bookList()->setBooks(books.summaries());
         const qlonglong count = books.count();
         const QString volumes = count == 1
             ? QObject::tr("1 volume")

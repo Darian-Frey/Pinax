@@ -45,7 +45,8 @@ reading state and ratings.
       domain types — connection, migrations and `BookRepository` done
       2026-10-05 (D-015); author, series and genre repositories arrive with
       the importer
-- [ ] Book list view over `v_book_display`, sortable
+- [x] Book list view over `v_book_display`, sortable — 2026-10-05; needed
+      schema version 2 for the sort keys
 - [ ] Detail panel: view state, then edit state (D-011)
 - [ ] CSV importer, idempotent (AV-002), writing `times_read` explicitly
       (AV-005), reporting per-row failures without aborting the run

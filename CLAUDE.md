@@ -17,23 +17,24 @@ database and exports to SQL, CSV and Excel.
 
 ## 2. Current state
 
-**Phase 1 steps 1–2 done: the application builds, opens or creates its database, and shows an empty three-panel window with the volume count. No list, import or editing yet.**
+**Phase 1 steps 1–3 done: the application opens or creates its database, upgrades it, and lists every book sortable by column. No import, detail panel or editing yet.**
 
 | Path | State |
 |---|---|
-| `db/schema.sql` | Complete. Version 1. Applies cleanly; views verified against sample data drawn from the real collection. |
+| `db/schema.sql`, `db/migrations/` | Version 2. `schema.sql` is the latest full schema; `002_book_display_sort_keys.sql` carries a version 1 file forward. Its `CREATE VIEW` must stay byte-identical to `schema.sql`'s — `migratingVersion1MatchesFreshSchema` fails otherwise. |
 | `src/domain/` | `Book`, enums with schema strings, `makeSortTitle`. No Qt, no SQL. |
 | `src/db/` | SQLite C API, no Qt (D-015). `Connection` (FK on + verified, WAL), `Statement` (named binds), `Transaction` (RAII), `migrate()` with schema compiled in from `db/schema.sql`, `BookRepository`. Errors throw `DbError` with the extended result code. |
+| `src/ui/` | `BookListModel` (table of `BookSummary`), `BookSortProxy` (sorts by view keys, missing values last both ways), `BookListView` (opens sorted by author). Links `domain`, not `db`. |
 | `src/app/`, `src/main.cpp` | `MainWindow`: `QSplitter` of three empty panels `rail`, `list`, `detail`. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], migrates, shows the count. |
-| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`. Add new ones with `pinax_add_test`. |
+| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`. Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
-| `FEATURES.md` | Complete. F-001 to F-025. F-001 In progress; the rest Not started. |
+| `FEATURES.md` | Complete. F-001 to F-025. F-001 and F-016 In progress; the rest Not started. |
 | `ROADMAP.md` | Complete. Phase 0 done; Phase 1 in progress; Phases 2–5 not started; Phase 5 (webcam scanning) waits on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
 | `DECISIONS.md` | Complete. D-001 to D-015, all Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
-| `ATTACK_VECTORS.md` | Complete. AV-001 to AV-012. AV-004 detection implemented, AV-005 partly; the rest `not implemented`. |
-| `BUGS.md` | No open bugs. BUG-001 fixed: deleting a book keeps its series entries as missing volumes (SET NULL), and F-001 now says so. |
+| `ATTACK_VECTORS.md` | Complete. AV-001 to AV-012. AV-004 detection implemented; AV-005 and AV-006 partly; the rest `not implemented`. |
+| `BUGS.md` | No open bugs. BUG-001 fixed (delete keeps series entries as missing volumes). BUG-002 fixed (view joined credits out of cover order). |
 | `IMPROVEMENTS.md` | Empty, by design. Same reason. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
@@ -46,8 +47,8 @@ owner's library is not to be published. The spreadsheet is the intended seed
 for F-003 and has not yet been converted to the CSV format in SPEC.md §1; the
 converted CSV belongs in `seed/` too.
 
-`src/` holds one directory per module (ARCHITECTURE.md §2); `domain/`, `db/`
-and `app/` have code. Each module becomes its own static library as it gains
+`src/` holds one directory per module (ARCHITECTURE.md §2); `domain/`, `db/`,
+`ui/` and `app/` have code. Each module becomes its own static library as it gains
 code.
 `design/` holds the UI mock-up with PNG captures of its four screens.
 
@@ -63,7 +64,7 @@ Suggested order:
 2. ~~`db` module: connection with `PRAGMA foreign_keys = ON` asserted (AV-004),
    migration runner keyed to `schema_version`, `BookRepository`.~~ Done
    2026-10-05. Author, series and genre repositories come with step 4.
-3. List view over `v_book_display`, sortable.
+3. ~~List view over `v_book_display`, sortable.~~ Done 2026-10-05 (schema v2).
 4. CSV importer per SPEC.md §1 — idempotent (AV-002), `times_read` written
    explicitly (AV-005).
 5. Detail panel in its view state, then its edit state (D-011).
@@ -130,7 +131,11 @@ added is worth a DECISIONS entry.
 - Commit messages are multi-paragraph, reference F-/D-/AV- IDs, and carry
   exactly one Subtle Chaos anomaly each — one small unexplained irregularity
   in otherwise ordinary professional prose, never placed at the centre of the
-  sentence and never explained. Development-flavoured anomalies preferred.
+  sentence and never explained. Development-flavoured anomalies preferred,
+  and from 2026-10-05 **a little ominous** at the owner's request: something
+  in the building, the data or the machine that should not quite be so,
+  stated flatly. Unsettling, never alarming; one clause, not a story. The
+  anomaly is quoted back to the owner after every commit and push.
   (Definition as given in Aether's CLAUDE.md; the fuller Subtle Chaos spec is
   not in this repository. The first two commits predate this and carry none.)
 - Documentation changes travel in the same commit as the code that invalidates
@@ -147,8 +152,8 @@ added is worth a DECISIONS entry.
 `ATTACK_VECTORS.md` is the canonical list — AV-001 to AV-012 cover enrichment
 overwriting manual fields, double import, unsafe WAL backup, unenforced foreign
 keys, the `times_read` trap, numeric position parsing, duplicate series
-entries, joint-credit counting, provider quota, wrong-edition matches, and
-export drift, and barcode misreads.
+entries, joint-credit counting, provider quota, wrong-edition matches, export
+drift and barcode misreads.
 
 Not vectors, but worth knowing:
 
@@ -158,6 +163,14 @@ Not vectors, but worth knowing:
 - **Series positions are not unique within a series.** An omnibus may share a
   position with its constituent volumes. The unique index covers series plus
   book, not series plus position.
+- **`group_concat` order is not set by an `ORDER BY` beside it.** Join from
+  an ordered inner subquery instead (BUG-002). The `ORDER BY` inside the
+  aggregate needs SQLite 3.44; the floor is 3.31.
+- **Schema changes are two edits.** Update `db/schema.sql` (the latest full
+  schema, with a `schema_version` row per version) *and* add
+  `db/migrations/NNN_*.sql`, then bump `latestSchemaVersion`. The migration
+  test compares `sqlite_master` byte for byte, comments inside `CREATE`
+  statements included.
 - **Cross-references between documents are aspirational.** No `check_xrefs`
   tooling exists in this repository, so a reference from a DECISIONS entry to
   an AV entry may not have a matching reference back. Treat any cross-reference

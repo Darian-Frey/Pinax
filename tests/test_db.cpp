@@ -4,6 +4,7 @@
 #include "db/migrations.h"
 #include "db/statement.h"
 
+#include <QFile>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -26,6 +27,23 @@ std::int64_t scalar(Connection& connection, std::string_view sql)
     Statement statement(connection, sql);
     statement.step();
     return statement.columnInt(0);
+}
+
+// Every schema object and the version history, as one comparable string.
+std::string schemaDump(Connection& connection)
+{
+    std::string dump;
+    Statement objects(connection,
+        "SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name");
+    while (objects.step()) {
+        for (int column = 0; column < 4; ++column)
+            dump += objects.columnText(column) + '\x1f';
+        dump += '\n';
+    }
+    Statement versions(connection, "SELECT version, note FROM schema_version ORDER BY version");
+    while (versions.step())
+        dump += std::to_string(versions.columnInt(0)) + ' ' + versions.columnText(1) + '\n';
+    return dump;
 }
 
 std::string scalarText(Connection& connection, std::string_view sql)
@@ -66,6 +84,7 @@ private slots:
     void migrateRefusesNewerDatabase();
     void failedMigrationLeavesNothingBehind();
     void foreignKeysEnforcedOnEveryConnection();
+    void migratingVersion1MatchesFreshSchema();
 
     // BookRepository
     void bookRoundTripsEveryField();
@@ -76,6 +95,11 @@ private slots:
     void ratingOutsideRangeIsRejected();
     void duplicateIsbn13IsRejected();
     void deletingABookLeavesNoOrphanLinks();
+
+    // v_book_display through BookRepository::summaries
+    void authorsJoinInCoverOrder();
+    void summariesCarrySeriesSortKeys();
+    void severalSeriesJoinInStableOrder();
 };
 
 void TestDb::migrateCreatesSchemaOnEmptyDatabase()
@@ -96,7 +120,9 @@ void TestDb::migrateIsIdempotent()
     Connection connection(":memory:");
     pinax::db::migrate(connection);
     pinax::db::migrate(connection);
-    QCOMPARE(scalar(connection, "SELECT COUNT(*) FROM schema_version"), 1);
+    // One row per version, none added by the second run.
+    QCOMPARE(scalar(connection, "SELECT COUNT(*) FROM schema_version"),
+        pinax::db::latestSchemaVersion);
 }
 
 void TestDb::migrateRefusesNewerDatabase()
@@ -138,6 +164,24 @@ void TestDb::foreignKeysEnforcedOnEveryConnection()
     QVERIFY(throwsWithCode(
         [&] { second.exec("INSERT INTO book_author (book_id, author_id) VALUES (999, 999)"); },
         SQLITE_CONSTRAINT));
+}
+
+void TestDb::migratingVersion1MatchesFreshSchema()
+{
+    QFile fixture(QStringLiteral(PINAX_TEST_FIXTURES "/schema_v1.sql"));
+    QVERIFY(fixture.open(QIODevice::ReadOnly));
+    const std::string version1 = fixture.readAll().toStdString();
+
+    Connection migrated(":memory:");
+    migrated.exec(version1);
+    QCOMPARE(pinax::db::schemaVersion(migrated), 1);
+    QCOMPARE(pinax::db::migrate(migrated), pinax::db::latestSchemaVersion);
+
+    Connection fresh(":memory:");
+    pinax::db::migrate(fresh);
+
+    QCOMPARE(QString::fromStdString(schemaDump(migrated)),
+        QString::fromStdString(schemaDump(fresh)));
 }
 
 void TestDb::bookRoundTripsEveryField()
@@ -313,6 +357,87 @@ void TestDb::deletingABookLeavesNoOrphanLinks()
     // The series entry stays as a known-but-unowned volume, so the series
     // shows the gap (F-001, D-006; settled in BUG-001).
     QCOMPARE(scalar(connection, "SELECT COUNT(*) FROM series_entry WHERE book_id IS NULL"), 1);
+}
+
+void TestDb::authorsJoinInCoverOrder()
+{
+    // BUG-002: the first-billed author was not reliably joined first.
+    Connection connection(":memory:");
+    pinax::db::migrate(connection);
+    BookRepository books(connection);
+
+    const std::string id = std::to_string(books.create(titled("The Mote in God's Eye")));
+    // Pournelle is inserted first and has the lower id; Niven is billed first.
+    connection.exec(
+        "INSERT INTO author (id, name, sort_name) VALUES "
+        "(1, 'Jerry Pournelle', 'Pournelle, Jerry'), (2, 'Larry Niven', 'Niven, Larry');"
+        "INSERT INTO book_author (book_id, author_id, ordinal) VALUES (" + id + ", 1, 1);"
+        "INSERT INTO book_author (book_id, author_id, ordinal) VALUES (" + id + ", 2, 0);");
+
+    const auto rows = books.summaries();
+    QCOMPARE(rows.size(), std::size_t(1));
+    QCOMPARE(rows[0].authors, std::optional<std::string>("Larry Niven & Jerry Pournelle"));
+    QCOMPARE(rows[0].authorSort, std::optional<std::string>("Niven, Larry"));
+}
+
+void TestDb::summariesCarrySeriesSortKeys()
+{
+    Connection connection(":memory:");
+    pinax::db::migrate(connection);
+    BookRepository books(connection);
+
+    Book excession = titled("Excession");
+    excession.readStatus = ReadStatus::Read;
+    excession.timesRead = 1;
+    excession.dateFinished = "2024-02-11";
+    excession.rating = 9;
+    excession.publishedYear = 1996;
+    const std::string id = std::to_string(books.create(excession));
+    books.create(titled("Tau Zero"));
+    connection.exec(
+        "INSERT INTO series (id, name) VALUES (1, 'The Culture');"
+        "INSERT INTO series_entry (series_id, book_id, position, sort_position) "
+        "VALUES (1, " + id + ", '5', 5);");
+
+    const auto rows = books.summaries();
+    QCOMPARE(rows.size(), std::size_t(2));
+    const auto& culture = rows[0].title == "Excession" ? rows[0] : rows[1];
+    const auto& standalone = rows[0].title == "Excession" ? rows[1] : rows[0];
+
+    QCOMPARE(culture.seriesLabel, std::optional<std::string>("The Culture · 5"));
+    QCOMPARE(culture.seriesSort, std::optional<std::string>("The Culture"));
+    QCOMPARE(culture.seriesSortPosition, std::optional<double>(5.0));
+    QCOMPARE(culture.dateFinished, std::optional<std::string>("2024-02-11"));
+    QCOMPARE(culture.rating, std::optional<int>(9));
+    QCOMPARE(culture.publishedYear, std::optional<int>(1996));
+    QVERIFY(culture.readStatus == ReadStatus::Read);
+
+    QVERIFY(!standalone.seriesLabel);
+    QVERIFY(!standalone.seriesSortPosition);
+    QVERIFY(!standalone.authors);
+}
+
+void TestDb::severalSeriesJoinInStableOrder()
+{
+    // Series by name, with positions in step even where one is missing.
+    Connection connection(":memory:");
+    pinax::db::migrate(connection);
+    BookRepository books(connection);
+
+    const std::string id = std::to_string(books.create(titled("Chasm City")));
+    connection.exec(
+        "INSERT INTO series (id, name) VALUES (1, 'Revelation Space'), (2, 'Chasm City Sequence');"
+        "INSERT INTO series_entry (series_id, book_id, position, sort_position) "
+        "VALUES (1, " + id + ", 'companion', NULL);"
+        "INSERT INTO series_entry (series_id, book_id, position, sort_position) "
+        "VALUES (2, " + id + ", NULL, NULL);");
+
+    const auto rows = books.summaries();
+    QCOMPARE(rows[0].seriesLabel,
+        std::optional<std::string>("Chasm City Sequence; Revelation Space · companion"));
+    QCOMPARE(rows[0].seriesSort, std::optional<std::string>("Chasm City Sequence"));
+    QCOMPARE(scalarText(connection, "SELECT positions FROM v_book_display"),
+        std::string("; companion"));
 }
 
 QTEST_APPLESS_MAIN(TestDb)

@@ -27,8 +27,9 @@ build/src/pinax
 ```
 
 The application creates `~/.local/share/pinax/pinax.db` on first run (or opens
-the file given as its argument) and shows an empty three-panel window with the
-volume count in the status bar. The database is also usable on its own:
+the file given as its argument), upgrades an older file in place, and lists
+every book, sortable by any column. The rail and detail panel are still
+empty. The database is also usable on its own:
 
 ```sh
 # create the catalogue
@@ -67,7 +68,8 @@ Packages, verified versions and troubleshooting are in [`BUILD.md`](BUILD.md).
 ```
 pinax/
 ├── db/
-│   └── schema.sql        schema version 1: tables, views, triggers, indexes
+│   ├── schema.sql        schema version 2, always the latest in full
+│   └── migrations/       NNN_*.sql, one step per version, for older files
 ├── CMakeLists.txt
 ├── src/                  one directory per module, per ARCHITECTURE.md §2
 │   ├── main.cpp
@@ -78,6 +80,7 @@ pinax/
 │   ├── io/               CSV import, export, backup
 │   └── ui/               rail, list, detail panel
 ├── tests/                Qt Test, run by ctest
+│   └── fixtures/         frozen schema_v1.sql for the migration test
 ├── design/
 │   ├── Pinax UI.html     interactive mock-up, four screens
 │   └── screens/          the same four screens as PNG

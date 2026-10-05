@@ -59,9 +59,15 @@ Tests set `QT_QPA_PLATFORM=offscreen`, so they run without a display.
 |---|---|---|
 | `pinax_domain` | static library | `src/domain/` — value types, no Qt or SQL |
 | `pinax_db` | static library | `src/db/` — SQLite wrapper, migrations, repositories; no Qt |
+| `pinax_ui` | static library | `src/ui/` — list model, sort proxy, list view; no `db` |
 | `pinax_app` | static library | `src/app/` — composition root and window shell |
 | `pinax` | executable | `src/main.cpp` |
-| `test_main_window`, `test_domain`, `test_db` | tests | `tests/<name>.cpp`, added with `pinax_add_test` |
+| `test_main_window`, `test_domain`, `test_db`, `test_book_list` | tests | `tests/<name>.cpp`, added with `pinax_add_test` |
+
+`db/migrations/NNN_description.sql` files are picked up by a configure-time
+glob; adding one re-runs configure on the next build. `NNN` is the schema
+version the step produces. `tests/fixtures/schema_v1.sql` is a frozen version
+1 schema that `test_db` migrates forward; never edit it.
 
 Each module in ARCHITECTURE.md §2 becomes its own static library under `src/`
 as it gains code, so tests link only what they exercise.

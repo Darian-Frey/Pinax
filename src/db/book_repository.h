@@ -1,9 +1,11 @@
 #pragma once
 
 #include "domain/book.h"
+#include "domain/book_summary.h"
 
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 namespace pinax::db {
 
@@ -34,6 +36,11 @@ public:
     bool remove(std::int64_t id);
 
     std::int64_t count();
+
+    // Every book as the list view shows it, read from v_book_display so that
+    // flattening and sort keys are the database's, not recomputed here.
+    // Unordered; the view sorts.
+    std::vector<domain::BookSummary> summaries();
 
 private:
     Connection& connection_;

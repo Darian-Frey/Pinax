@@ -1,5 +1,7 @@
 #include "app/main_window.h"
 
+#include "ui/book_list_view.h"
+
 #include <QSplitter>
 #include <QStatusBar>
 
@@ -26,10 +28,11 @@ MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , splitter_(new QSplitter(Qt::Horizontal, this))
     , rail_(makePanel(QStringLiteral("rail"), splitter_))
-    , list_(makePanel(QStringLiteral("list"), splitter_))
+    , list_(new ui::BookListView(splitter_))
     , detail_(makePanel(QStringLiteral("detail"), splitter_))
 {
     setWindowTitle(QStringLiteral("Pinax"));
+    list_->setObjectName(QStringLiteral("list"));
 
     splitter_->setChildrenCollapsible(false);
     splitter_->setStretchFactor(0, 0);

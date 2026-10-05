@@ -4,9 +4,10 @@ namespace pinax::db {
 
 class Connection;
 
-// The schema version this build writes. Must equal the version db/schema.sql
-// inserts into `schema_version`; a test holds the two together.
-inline constexpr int latestSchemaVersion = 1;
+// The schema version this build writes. Must equal the highest version
+// db/schema.sql inserts into `schema_version` and the last migration step's;
+// migrate() checks the result and the tests hold them together.
+inline constexpr int latestSchemaVersion = 2;
 
 // The database's schema version, or 0 for a database with no schema yet.
 int schemaVersion(Connection& connection);

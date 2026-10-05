@@ -40,8 +40,10 @@ public:
 
     bool columnIsNull(int index) const;
     std::int64_t columnInt(int index) const;
+    double columnDouble(int index) const;
     std::string columnText(int index) const;
     std::optional<std::int64_t> columnOptionalInt(int index) const;
+    std::optional<double> columnOptionalDouble(int index) const;
     std::optional<std::string> columnOptionalText(int index) const;
 
 private:

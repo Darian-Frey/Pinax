@@ -59,7 +59,10 @@ Uses the SQLite C API directly and has no Qt dependency (D-015).
   are the only other ways SQL reaches SQLite.
 - **Migrations** — applies `db/schema.sql`, compiled into the binary, to an
   empty file in one transaction, and thereafter steps forward by comparing
-  `schema_version`. Refuses a database newer than the build.
+  `schema_version`, one `db/migrations/NNN_*.sql` file per version, each in its
+  own transaction. `schema.sql` is always the latest full schema; a test
+  proves that migrating a frozen version 1 file produces it exactly. Refuses
+  a database newer than the build.
 - **Repositories** — one per aggregate: `BookRepository`, `SeriesRepository`,
   `AuthorRepository`, `GenreRepository`. Each returns `domain` types, never
   result sets. Derived reads go through the views (`v_book_display`,
@@ -90,9 +93,12 @@ Everything that crosses the application boundary as a file or a device.
 Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
 
 - **Rail** — a `QTreeView` over a filter tree. Selecting a node narrows the list.
-- **List** — a `QTableView` over a custom `QAbstractTableModel` fed by
-  `BookRepository`. Owns selection, sorting, the read toggle and the inline
-  rating column.
+- **List** — `BookListView`, a `QTableView` over `BookListModel` (a
+  `QAbstractTableModel` of `domain::BookSummary`) through `BookSortProxy`. The
+  composition root reads summaries from `BookRepository` and hands them over;
+  `ui` does not link `db`. Sorting uses the view's sort keys, never the text
+  on screen. Owns selection, sorting, the read toggle and the inline rating
+  column.
 - **Detail** — describes the current selection, whichever kind it is: a book, a
   series, or a multi-selection (which renders as the bulk editor). Carries both
   the view state and the edit state (D-011).

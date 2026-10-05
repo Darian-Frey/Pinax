@@ -8,25 +8,10 @@
 
 #include <sqlite3.h>
 
-#include <span>
 #include <string>
 #include <string_view>
 
 namespace pinax::db {
-
-namespace {
-
-struct Step {
-    int version;          // the version this step produces
-    std::string_view sql; // must also insert its row into schema_version
-};
-
-// Steps from each version to the next. Empty while there is only version 1:
-// db/schema.sql is always the latest full schema, and these exist only to
-// carry an older file forward.
-constexpr std::span<const Step> steps{};
-
-} // namespace
 
 int schemaVersion(Connection& connection)
 {
@@ -56,7 +41,7 @@ int migrate(Connection& connection)
         connection.exec(schemaSql);
         transaction.commit();
     } else {
-        for (const Step& step : steps) {
+        for (const MigrationStep& step : migrationSteps) {
             if (step.version <= version)
                 continue;
             Transaction transaction(connection);

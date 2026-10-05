@@ -79,6 +79,11 @@ std::int64_t Statement::columnInt(int index) const
     return sqlite3_column_int64(stmt_, index);
 }
 
+double Statement::columnDouble(int index) const
+{
+    return sqlite3_column_double(stmt_, index);
+}
+
 std::string Statement::columnText(int index) const
 {
     const auto* text = sqlite3_column_text(stmt_, index);
@@ -93,6 +98,13 @@ std::optional<std::int64_t> Statement::columnOptionalInt(int index) const
     if (columnIsNull(index))
         return std::nullopt;
     return columnInt(index);
+}
+
+std::optional<double> Statement::columnOptionalDouble(int index) const
+{
+    if (columnIsNull(index))
+        return std::nullopt;
+    return columnDouble(index);
 }
 
 std::optional<std::string> Statement::columnOptionalText(int index) const

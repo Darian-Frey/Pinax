@@ -24,6 +24,36 @@ detection becomes an entry here.
 
 ## Fixed
 
+### BUG-002 `v_book_display` joins credits and series in arbitrary order
+
+**Status:** fixed (2026-10-05)
+**Found:** 2026-10-05 (Phase 1 step 3, while extending the view for the list's sort keys)
+**Location:** `db/schema.sql`, view `v_book_display`, columns `authors`, `series`, `positions` (schema version 1)
+**Severity:** medium
+**Description.** The `authors` column was built as
+`SELECT group_concat(a.name, ' & ') … ORDER BY ba.ordinal`. In SQLite an
+`ORDER BY` beside an aggregate orders the single result row, not the values
+the aggregate consumes, so names were joined in whatever order the index scan
+produced. F-002's "cover order is preserved" did not hold in the one place
+the list reads it. `series` and `positions` were joined the same way with no
+order at all, so for a book in several series nothing tied the n-th position
+to the n-th series, and `group_concat` skipping NULL positions could shift
+them out of step.
+**Reproduction (was).** Insert a book with two authors, the first-billed
+(`ordinal` 0) having the higher `author.id` and inserted second. `SELECT
+authors FROM v_book_display` returned 'Jerry Pournelle & Larry Niven' for
+*The Mote in God's Eye*.
+**Fix.** Schema version 2 (`db/migrations/002_book_display_sort_keys.sql`)
+rebuilds the view with each multi-valued column joined from an ordered inner
+subquery: credits by `ordinal` then filing name, series by name then entry
+id, and positions in step with series using `''` where none is printed. The
+owner approved fixing it in the same migration that added the list's sort
+keys rather than as a separate change. `tests/test_db.cpp`:
+`authorsJoinInCoverOrder`, `severalSeriesJoinInStableOrder`.
+**Notes.** `group_concat(x, sep ORDER BY y)` would say this directly but needs
+SQLite 3.44; the ordered-subquery form works from the 3.31 floor. Any future
+view that joins values must use the same pattern.
+
 ### BUG-001 Deleting a book keeps its series entry; F-001 says it should go
 
 **Status:** fixed (2026-10-05)

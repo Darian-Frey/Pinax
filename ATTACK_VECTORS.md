@@ -96,9 +96,12 @@ SPEC.md §1.3 and CLAUDE.md §7 before any importer existed.
 the next volume, to label a row — breaks on every non-numeric form the real
 collection contains: `Broadcast 6.5`, `1-4`, `3a`, `novellas`, `companion`.
 Failures are silent where parsing yields a partial number rather than an error.
-**Detection.** Not implemented (would require a test ordering a series
-containing each form and asserting the sequence, plus a grep-level review that
-`position` is never passed to a numeric conversion outside the importer).
+**Detection.** Partly implemented, 2026-10-05. `tests/test_book_list.cpp`,
+`seriesSortsBySortPositionNotPrintedPosition`, orders a series by
+`sort_position` with `10`, `6.5` and a non-numeric `companion` among the
+printed positions and asserts the sequence. The grep-level review that
+`position` is never passed to a numeric conversion outside the importer is
+still owed, as is the importer's own derivation test (SPEC.md §1.2).
 **Related decisions.** D-005.
 **History.** Identified while cataloguing Spinward Fringe, whose Broadcast 6.5
 entry is the canonical case.

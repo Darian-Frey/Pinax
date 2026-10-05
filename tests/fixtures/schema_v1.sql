@@ -1,9 +1,9 @@
+-- Frozen copy of db/schema.sql at version 1 (commit 0e5f4d7). Used only by
+-- tests, to prove that migrating a version 1 file matches a fresh schema.
+-- Never edit; a later version gets its own fixture if one is needed.
+
 -- Pinax — physical library catalogue
--- SQLite schema, version 2
---
--- This file is always the latest full schema, applied whole to an empty
--- database. Older files are carried forward by db/migrations/NNN_*.sql, one
--- file per version step.
+-- SQLite schema, version 1
 --
 -- Apply with:  sqlite3 pinax.db < db/schema.sql
 --
@@ -30,10 +30,7 @@ CREATE TABLE schema_version (
     note        TEXT
 );
 
--- One row per version, so a fresh file and a migrated one record the same
--- history.
 INSERT INTO schema_version (version, note) VALUES (1, 'Initial schema');
-INSERT INTO schema_version (version, note) VALUES (2, 'v_book_display: sort keys, series label, ordered credits');
 
 
 -- ---------------------------------------------------------------------------
@@ -201,71 +198,26 @@ CREATE INDEX idx_book_genre_genre ON book_genre (genre_id);
 -- Derived views
 -- ---------------------------------------------------------------------------
 
--- One row per book, flattened for the list view.
---
---   authors               credited authors in cover order, joined ' & '
---   author_sort           filing form of the first-billed author, so
---                         'Iain M. Banks' sorts under B
---   series, positions     every series the book is in, by series name, with
---                         positions in step ('' where none is printed)
---   series_label          'The Culture · 5', joined '; ' for several series
---   series_sort,          the first of those series and the book's
---   series_sort_position  sort_position in it: the series column's sort key
---                         (never parsed from position, D-005)
---
--- Multi-valued columns are joined from an ordered inner subquery. An ORDER BY
--- beside group_concat in the same query does not fix the order of what it
--- joins (BUG-002).
+-- One row per book, with authors flattened for list display.
 CREATE VIEW v_book_display AS
 SELECT
     b.id,
     b.title,
     b.sort_title,
-    (SELECT group_concat(name, ' & ') FROM (
-        SELECT a.name
-          FROM book_author ba
-          JOIN author a ON a.id = ba.author_id
-         WHERE ba.book_id = b.id AND ba.role = 'author'
-         ORDER BY ba.ordinal, a.sort_name))                 AS authors,
-    (SELECT a.sort_name
+    (SELECT group_concat(a.name, ' & ')
        FROM book_author ba
        JOIN author a ON a.id = ba.author_id
       WHERE ba.book_id = b.id AND ba.role = 'author'
-      ORDER BY ba.ordinal, a.sort_name
-      LIMIT 1)                                              AS author_sort,
-    (SELECT group_concat(name, '; ') FROM (
-        SELECT s.name
-          FROM series_entry se
-          JOIN series s ON s.id = se.series_id
-         WHERE se.book_id = b.id
-         ORDER BY s.name, se.id))                           AS series,
-    (SELECT group_concat(position, '; ') FROM (
-        SELECT COALESCE(se.position, '') AS position
-          FROM series_entry se
-          JOIN series s ON s.id = se.series_id
-         WHERE se.book_id = b.id
-         ORDER BY s.name, se.id))                           AS positions,
-    (SELECT group_concat(label, '; ') FROM (
-        SELECT s.name || COALESCE(' · ' || se.position, '') AS label
-          FROM series_entry se
-          JOIN series s ON s.id = se.series_id
-         WHERE se.book_id = b.id
-         ORDER BY s.name, se.id))                           AS series_label,
-    (SELECT s.name
+      ORDER BY ba.ordinal)                                  AS authors,
+    (SELECT group_concat(s.name, '; ')
        FROM series_entry se
        JOIN series s ON s.id = se.series_id
-      WHERE se.book_id = b.id
-      ORDER BY s.name, se.id
-      LIMIT 1)                                              AS series_sort,
-    (SELECT se.sort_position
+      WHERE se.book_id = b.id)                              AS series,
+    (SELECT group_concat(se.position, '; ')
        FROM series_entry se
-       JOIN series s ON s.id = se.series_id
-      WHERE se.book_id = b.id
-      ORDER BY s.name, se.id
-      LIMIT 1)                                              AS series_sort_position,
+      WHERE se.book_id = b.id)                              AS positions,
     b.read_status,
     b.times_read,
-    b.date_finished,
     b.rating,
     b.published_year,
     b.cover_path,

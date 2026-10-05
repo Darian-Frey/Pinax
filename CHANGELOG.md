@@ -12,6 +12,17 @@ change can be traced to the capability or decision that motivated it.
 ## [Unreleased]
 
 ### Added
+- Book list view (Phase 1, step 3): `BookListView` over `BookListModel` and
+  `BookSortProxy` in a new `ui` module, showing read state, title, author,
+  series, rating and year, opening sorted by author. Sorting uses the
+  database's keys — filing title, author surname, series then
+  `sort_position` — with missing values last in both directions (F-016,
+  AV-006).
+- Schema version 2, the first migration: `v_book_display` gains
+  `author_sort`, `series_label`, `series_sort`, `series_sort_position` and
+  `date_finished`. Migration steps live in `db/migrations/`, are compiled in,
+  and are proven against a frozen version 1 fixture.
+- `BookRepository::summaries()`, reading the list from the view.
 - `db` module on the SQLite C API (D-015): `Connection` enabling and verifying
   foreign keys on every open (AV-004) and setting WAL; `Statement` and
   `Transaction` wrappers; a migration runner that applies the compiled-in
@@ -73,6 +84,9 @@ change can be traced to the capability or decision that motivated it.
   after the habit of silent fixing has set in.
 
 ### Notes
+- BUG-002 found and fixed: `v_book_display` joined credits and series in
+  arbitrary order, so joint authors could display out of cover order (F-002).
+  Fixed in the schema version 2 view with the owner's approval.
 - `PRAGMA` statements moved out of `db/schema.sql` into the connection, so the
   schema can be applied in a single transaction. Schema version unchanged.
 - BUG-001 found and fixed: F-001 said deleting a book removes its series
