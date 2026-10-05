@@ -34,9 +34,11 @@ provenance columns exist for this reason.
 seed file produces 886 books, duplicate authors and duplicate series entries.
 Recovery means restoring a backup, which may not exist yet at the point the
 mistake is most likely — the first import.
-**Detection.** Not implemented (would require a test importing the same file
-twice and asserting the row counts for `book`, `author` and `series_entry` are
-unchanged after the second run).
+**Detection.** Implemented, 2026-10-05. `tests/test_import.cpp`:
+`secondRunChangesNothing` imports twice and asserts the counts for `book`,
+`author`, `book_author`, `series` and `series_entry`, and that no
+`updated_at` moved; `seedCatalogueImportsInOnePass` does the same against the
+real 443-book seed where it is present.
 **Related decisions.** D-007.
 **History.** Identified while specifying F-003 idempotency, 2026-10-04.
 
@@ -80,11 +82,12 @@ file twice and checks both the setting and an actual rejected insert;
 `times_read = 0`, so importing the 176 already-read books leaves every one of
 them recorded as never finished. The error is quiet and only visible later,
 when the counter is trusted.
-**Detection.** Partly implemented, 2026-10-05. `BookRepository::create`
-writes `times_read` as given, and `tests/test_db.cpp`,
-`importedReadBookKeepsItsTimesRead`, asserts it survives the insert. The
-importer-level test — a book imported from CSV as read has
-`times_read >= 1` — is still owed by F-003.
+**Detection.** Implemented, 2026-10-05. `tests/test_db.cpp`,
+`importedReadBookKeepsItsTimesRead`, at the repository; `tests/test_import.cpp`,
+`readBooksCarryTheirCount` (explicit, defaulted and unread) and
+`changedRowsUpdateInPlace` (the trigger's override corrected) at the
+importer; `seedCatalogueImportsInOnePass` asserts no read book in the real
+seed is left below 1.
 **Related decisions.** —
 **History.** Found during schema verification on 2026-10-04, by inserting a
 read book directly and observing the counter stay at zero. Recorded in
@@ -112,9 +115,11 @@ entry is the canonical case.
 `series_entry` instead of attaching to the waiting one. The series then shows
 eleven entries where ten exist, never reports complete, and the ghost row
 persists beside the book that was meant to replace it.
-**Detection.** Not implemented (would require a test adding a book whose series
-and position match an entry with `book_id IS NULL`, then asserting the entry
-count is unchanged and `v_series_status` reports Complete).
+**Detection.** Partly implemented, 2026-10-05. `tests/test_import.cpp`,
+`fillsAWaitingMissingVolume`, imports a book whose series and position match
+an unowned entry and asserts the entry count is unchanged and
+`v_series_status` moves to Complete. The add-by-ISBN path (F-024) owes the
+same test when it exists.
 **Related decisions.** D-004, D-006, D-012.
 **History.** Identified while specifying F-024, 2026-10-04.
 
@@ -125,9 +130,10 @@ count is unchanged and `v_series_status` reports Complete).
 every per-author total is wrong and filtering by an author misses their
 collaborations. This is a realised defect in the source spreadsheet, carried in
 if the importer does not split credits.
-**Detection.** Not implemented (would require a test importing a joint credit
-and asserting both authors resolve to existing rows, with per-author counts
-including the collaboration).
+**Detection.** Implemented, 2026-10-05. `tests/test_import.cpp`,
+`jointCreditsBecomeSeparateAuthors`, imports a joint and a solo credit and
+asserts two authors, the collaboration counted for both, and cover order in
+`v_book_display`.
 **Related decisions.** D-007.
 **History.** Observed in the seed data during cataloguing, 2026-08-30.
 

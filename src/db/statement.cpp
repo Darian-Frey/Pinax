@@ -45,6 +45,12 @@ void Statement::bind(const char* name, std::int64_t value)
         fail(connection_, std::string("cannot bind ") + name);
 }
 
+void Statement::bind(const char* name, double value)
+{
+    if (sqlite3_bind_double(stmt_, parameterIndex(name), value) != SQLITE_OK)
+        fail(connection_, std::string("cannot bind ") + name);
+}
+
 void Statement::bind(const char* name, std::string_view value)
 {
     if (sqlite3_bind_text(stmt_, parameterIndex(name), value.data(),

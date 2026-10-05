@@ -2,9 +2,11 @@
 
 #include "domain/book.h"
 #include "domain/book_summary.h"
+#include "domain/credit.h"
 
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace pinax::db {
@@ -25,6 +27,21 @@ public:
     std::int64_t create(const domain::Book& book);
 
     std::optional<domain::Book> find(std::int64_t id);
+
+    std::optional<domain::Book> findByIsbn13(const std::string& isbn13);
+
+    // The import match of SPEC.md §1.3: title compared without regard to
+    // case, plus the first-billed author's name likewise; nullopt matches a
+    // book with no author credit. ASCII case only, as SQLite's lower() is.
+    // The lowest id wins if several match.
+    std::optional<domain::Book> findByTitleAndFirstAuthor(const std::string& title,
+        const std::optional<std::string>& firstAuthor);
+
+    // Every credit on the book, in cover order.
+    std::vector<domain::Credit> credits(std::int64_t bookId);
+
+    // Replaces every credit on the book with these, in the order given.
+    void setCredits(std::int64_t bookId, const std::vector<domain::Credit>& credits);
 
     // Writes every field of the book with this id. Moving `readStatus` into
     // Read increments `timesRead` and stamps `dateFinished` by trigger,

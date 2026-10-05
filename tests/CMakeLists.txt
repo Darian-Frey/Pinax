@@ -13,3 +13,7 @@ pinax_add_test(test_db pinax_db)
 target_compile_definitions(test_db PRIVATE
     PINAX_TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 pinax_add_test(test_book_list pinax_ui)
+pinax_add_test(test_import pinax_io)
+# The owner's real catalogue, if present; the test skips without it.
+target_compile_definitions(test_import PRIVATE
+    PINAX_SEED_CSV="${PROJECT_SOURCE_DIR}/seed/library.csv")

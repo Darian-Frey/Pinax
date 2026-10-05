@@ -82,8 +82,14 @@ results are returned to the caller, which persists them through `db`.
 ### `io`
 Everything that crosses the application boundary as a file or a device.
 
-- **CSV import** — parses the seed format in `SPEC.md`, resolves authors and
-  series to existing rows, reports per-row failures without aborting the run.
+No Qt; reaches the database only through `db`'s repositories and
+`Savepoint`.
+
+- **CSV import** — `parseCsv` reads RFC 4180; `CsvImporter` applies
+  SPEC.md §1, resolving authors and series to existing rows, in one
+  transaction with a savepoint per row so a failed row is reported with its
+  line number and the rest still commit. `deriveSortPosition` here is the only
+  code that reads a number out of a series position (invariant 3).
 - **Export** — CSV of the current view, `.xlsx` workbook, plain-text SQL dump.
 - **Backup** — `VACUUM INTO` to a chosen path.
 - **Barcode capture** — webcam frames decoded to a validated ISBN (F-025,

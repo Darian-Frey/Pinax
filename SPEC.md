@@ -22,7 +22,7 @@ a header, quoting per RFC 4180.
 | `position` | no | text | Verbatim, including `Broadcast 6.5`, `1-4`, `3a`. |
 | `sort_position` | no | real | Omitted: derived by the rule below. |
 | `shelf` | no | enum | `read` \| `unread` \| `reading` \| `abandoned`. Default `unread`. |
-| `times_read` | no | integer | **Set explicitly for read books.** See §1.3. |
+| `times_read` | no | integer | **Set explicitly for read books.** Omitted or empty on a new book: 1 if `shelf` is `read`, else 0. See §1.3. |
 | `rating` | no | integer | 1–10, or empty for unrated. |
 | `isbn13` | no | text | Validated per §2. |
 | `publisher` | no | text | — |
@@ -61,12 +61,51 @@ value and is never recomputed from `position`.
 
 ### 1.3 Idempotency and the re-read trap
 Import matches an existing book on `isbn13` where present, otherwise on
-case-folded `title` plus the first author's name. A match updates; a miss
-inserts. Re-running the same file changes nothing.
+case-folded `title` plus the first-billed author's name (ASCII case folding,
+as SQLite's `lower()`). A title-and-author match is refused if the existing
+book carries a different ISBN-13, and the row then inserts. A match is
+updated only where the file differs from what is stored, so re-running the
+same file changes nothing — not even `updated_at`. A miss inserts.
+
+Columns absent from the header leave their fields alone on an update; a
+column present with an empty cell clears the field. Authors and series are
+reused by exact name. A new author's `sort_name` is derived surname-first,
+keeping a particle (`de`, `del`, `le`, `van`, `von` and similar) with the
+surname: `Jon Del Arroz` files as `Del Arroz, Jon`. It is never recomputed.
+
+A series position that matches an entry in that series with no book
+attached fills that entry rather than adding a second one (AV-007). A row
+naming a different series from last time adds an entry; it does not remove
+the old one.
 
 `times_read` **must be written directly** by the importer. The
 `trg_book_finished` trigger fires on `UPDATE` only, so a book inserted with
-`read_status = 'read'` keeps `times_read = 0`. See AV-005.
+`read_status = 'read'` keeps `times_read = 0` (AV-005). Conversely, an update
+that moves a book into `read` fires the trigger, which overrides the count;
+when the file gives `times_read`, the file's value is written afterwards.
+
+### 1.4 Errors
+
+The header is checked first. An unknown column, a repeated column or a
+missing `title` column stops the run before anything is written.
+
+The run is one transaction, with a savepoint per row. A row that fails —
+wrong field count, empty title, unrecognised `shelf` or `binding`, a number
+that does not parse, a rating outside 1–10, an ISBN-13 failing its check
+digit, a credit role not in §1.1, a `position` with no `series`, a constraint
+such as a duplicate ISBN-13, or a second row resolving to a book an earlier
+row of the same file already wrote — is rolled back alone and reported with
+the physical line it starts on. Any other database error rolls back the whole
+run; a partial import is a failed import.
+
+### 1.5 Running an import
+
+```sh
+pinax --import seed/library.csv [database]
+```
+
+Failures print as `file:line: message`; the summary (new, updated, unchanged,
+failed) goes to standard output and the status bar (D-016).
 
 ---
 

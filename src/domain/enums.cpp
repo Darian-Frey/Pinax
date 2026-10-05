@@ -38,6 +38,13 @@ constexpr NameTable<Source, 3> sourceNames{{
     {Source::Manual, "manual"},
 }};
 
+constexpr NameTable<CreditRole, 4> creditRoleNames{{
+    {CreditRole::Author, "author"},
+    {CreditRole::Editor, "editor"},
+    {CreditRole::Translator, "translator"},
+    {CreditRole::Illustrator, "illustrator"},
+}};
+
 template <typename Enum, std::size_t N>
 std::string_view nameOf(const NameTable<Enum, N>& table, Enum value)
 {
@@ -64,6 +71,7 @@ std::string_view toString(ReadStatus value) { return nameOf(readStatusNames, val
 std::string_view toString(Binding value) { return nameOf(bindingNames, value); }
 std::string_view toString(MetadataStatus value) { return nameOf(metadataStatusNames, value); }
 std::string_view toString(Source value) { return nameOf(sourceNames, value); }
+std::string_view toString(CreditRole value) { return nameOf(creditRoleNames, value); }
 
 std::optional<ReadStatus> readStatusFromString(std::string_view text)
 {
@@ -83,6 +91,11 @@ std::optional<MetadataStatus> metadataStatusFromString(std::string_view text)
 std::optional<Source> sourceFromString(std::string_view text)
 {
     return valueOf(sourceNames, text);
+}
+
+std::optional<CreditRole> creditRoleFromString(std::string_view text)
+{
+    return valueOf(creditRoleNames, text);
 }
 
 } // namespace pinax::domain

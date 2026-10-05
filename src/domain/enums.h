@@ -15,15 +15,20 @@ enum class MetadataStatus { Unmatched, Matched, Manual, Failed };
 // value is never overwritten by enrichment (AV-001).
 enum class Source { GoogleBooks, OpenLibrary, Manual };
 
+// What a credited person did for a book (`book_author.role`).
+enum class CreditRole { Author, Editor, Translator, Illustrator };
+
 // The string forms are the values the schema's CHECK constraints accept.
 std::string_view toString(ReadStatus value);
 std::string_view toString(Binding value);
 std::string_view toString(MetadataStatus value);
 std::string_view toString(Source value);
+std::string_view toString(CreditRole value);
 
 std::optional<ReadStatus> readStatusFromString(std::string_view text);
 std::optional<Binding> bindingFromString(std::string_view text);
 std::optional<MetadataStatus> metadataStatusFromString(std::string_view text);
 std::optional<Source> sourceFromString(std::string_view text);
+std::optional<CreditRole> creditRoleFromString(std::string_view text);
 
 } // namespace pinax::domain

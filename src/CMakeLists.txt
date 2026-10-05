@@ -4,9 +4,16 @@
 # domain: plain value types, no Qt or SQL.
 add_library(pinax_domain STATIC
     domain/book.h
+    domain/author.h
     domain/book_summary.h
+    domain/credit.h
     domain/enums.cpp
     domain/enums.h
+    domain/isbn.cpp
+    domain/isbn.h
+    domain/series_entry.h
+    domain/sort_name.cpp
+    domain/sort_name.h
     domain/sort_title.cpp
     domain/sort_title.h)
 target_include_directories(pinax_domain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -37,6 +44,8 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     ${PROJECT_SOURCE_DIR}/db/schema.sql ${PINAX_MIGRATION_FILES})
 
 add_library(pinax_db STATIC
+    db/author_repository.cpp
+    db/author_repository.h
     db/book_repository.cpp
     db/book_repository.h
     db/connection.cpp
@@ -44,6 +53,10 @@ add_library(pinax_db STATIC
     db/db_error.h
     db/migrations.cpp
     db/migrations.h
+    db/savepoint.cpp
+    db/savepoint.h
+    db/series_repository.cpp
+    db/series_repository.h
     db/statement.cpp
     db/statement.h
     db/transaction.cpp
@@ -53,6 +66,19 @@ target_include_directories(pinax_db
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_link_libraries(pinax_db PUBLIC pinax_domain SQLite::SQLite3)
 set_target_properties(pinax_db PROPERTIES AUTOMOC OFF)
+
+# io: files in and out. Talks to the database only through db's
+# repositories; no Qt.
+add_library(pinax_io STATIC
+    io/csv_importer.cpp
+    io/csv_importer.h
+    io/csv_reader.cpp
+    io/csv_reader.h
+    io/sort_position.cpp
+    io/sort_position.h)
+target_include_directories(pinax_io PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(pinax_io PUBLIC pinax_db pinax_domain)
+set_target_properties(pinax_io PROPERTIES AUTOMOC OFF)
 
 # ui: Qt Widgets panels and item models. Fed domain types; issues no SQL
 # (invariant 8), so it does not link pinax_db.
@@ -74,5 +100,5 @@ target_include_directories(pinax_app PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(pinax_app PUBLIC pinax_ui Qt6::Widgets)
 
 qt_add_executable(pinax main.cpp)
-target_link_libraries(pinax PRIVATE pinax_app pinax_db)
+target_link_libraries(pinax PRIVATE pinax_app pinax_db pinax_io)
 target_compile_definitions(pinax PRIVATE PINAX_VERSION="${PROJECT_VERSION}")

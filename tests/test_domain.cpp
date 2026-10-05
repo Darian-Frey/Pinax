@@ -1,4 +1,6 @@
 #include "domain/enums.h"
+#include "domain/isbn.h"
+#include "domain/sort_name.h"
 #include "domain/sort_title.h"
 
 #include <QTest>
@@ -13,6 +15,9 @@ private slots:
     void sortTitleMovesLeadingArticle();
     void enumsRoundTripThroughSchemaStrings();
     void unknownStringsAreRejected();
+    void sortNamePutsSurnameFirst_data();
+    void sortNamePutsSurnameFirst();
+    void isbnCheckDigits();
 };
 
 void TestDomain::sortTitleMovesLeadingArticle_data()
@@ -56,6 +61,43 @@ void TestDomain::unknownStringsAreRejected()
     QVERIFY(!readStatusFromString("Read"));
     QVERIFY(!bindingFromString(""));
     QVERIFY(!sourceFromString("goodreads"));
+}
+
+void TestDomain::sortNamePutsSurnameFirst_data()
+{
+    QTest::addColumn<QString>("name");
+    QTest::addColumn<QString>("expected");
+
+    QTest::newRow("initial") << "Iain M. Banks" << "Banks, Iain M.";
+    QTest::newRow("several initials") << "J. R. R. Tolkien" << "Tolkien, J. R. R.";
+    QTest::newRow("particle") << "Jon Del Arroz" << "Del Arroz, Jon";
+    QTest::newRow("particle after initial") << "Ursula K. Le Guin" << "Le Guin, Ursula K.";
+    QTest::newRow("one word") << "Wong" << "Wong";
+    QTest::newRow("particle is not a given name") << "Van Morrison" << "Morrison, Van";
+}
+
+void TestDomain::sortNamePutsSurnameFirst()
+{
+    QFETCH(QString, name);
+    QFETCH(QString, expected);
+    QCOMPARE(QString::fromStdString(makeSortName(name.toStdString())), expected);
+}
+
+void TestDomain::isbnCheckDigits()
+{
+    QCOMPARE(normaliseIsbn("978-0-306-40615-7"), std::string("9780306406157"));
+    QCOMPARE(normaliseIsbn("0-8044-2957-x"), std::string("080442957X"));
+
+    QVERIFY(isValidIsbn13("9780306406157"));
+    QVERIFY(isValidIsbn13("9780316005388"));
+    QVERIFY(!isValidIsbn13("9780306406158"));
+    QVERIFY(!isValidIsbn13("978030640615"));
+    QVERIFY(!isValidIsbn13("97803064061X7"));
+
+    QVERIFY(isValidIsbn10("0306406152"));
+    QVERIFY(isValidIsbn10("080442957X"));
+    QVERIFY(!isValidIsbn10("0306406153"));
+    QVERIFY(!isValidIsbn10("X306406152"));
 }
 
 QTEST_APPLESS_MAIN(TestDomain)

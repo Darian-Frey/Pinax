@@ -39,7 +39,8 @@ spreadsheet of titles and authors.
 - A person contributing to several books appears exactly once in the author
   table, and counting books per author gives the same total whether that
   author worked alone or jointly.
-**Status:** Not started
+**Status:** In progress — credits with roles and cover order stored and imported
+(`book_author`, BUG-002 fixed); no editing UI yet.
 **Notes:** Flattened author strings in the seed spreadsheet mis-count joint
 credits; this is the fix.
 
@@ -54,7 +55,9 @@ credits; this is the fix.
   unchanged rather than doubled.
 - A row that cannot be imported is reported with its line number and does not
   abort the remaining rows.
-**Status:** Not started
+**Status:** Complete (2026-10-05). `pinax --import` (D-016); the 443-book seed
+imports with no failures and re-imports unchanged. Format and rules in
+SPEC.md §1.
 **Notes:** Seeds the catalogue from the existing 443-row spreadsheet. Format in
 SPEC.md §1. See AV-002 (a second run must not double the catalogue) and AV-005
 (`times_read` must be written explicitly for already-read books). Author
@@ -151,7 +154,9 @@ stored status column — that is the staleness the views exist to prevent.
 **Acceptance:**
 - ISBN-13 and ISBN-10 are recordable and validated by check digit.
 - A duplicate ISBN-13 is refused.
-**Status:** Not started
+**Status:** In progress — ISBN-13 check digit validated on import and a duplicate
+refused by the schema; no entry field yet. ISBN-10 validation exists in
+`domain/isbn.h` but nothing calls it.
 **Notes:** The field itself. F-024 is the workflow built on it.
 
 ### F-012 Synopsis retrieval

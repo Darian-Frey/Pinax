@@ -22,6 +22,7 @@ public:
     Statement& operator=(const Statement&) = delete;
 
     void bind(const char* name, std::int64_t value);
+    void bind(const char* name, double value);
     void bind(const char* name, std::string_view value);
     void bindNull(const char* name);
 

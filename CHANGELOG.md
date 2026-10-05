@@ -12,6 +12,20 @@ change can be traced to the capability or decision that motivated it.
 ## [Unreleased]
 
 ### Added
+- CSV import (F-003, Phase 1 step 4): `pinax --import file.csv` (D-016), in a
+  new Qt-free `io` module. RFC 4180 reader; idempotent matching on ISBN-13 or
+  title and first-billed author, updating only what differs (AV-002);
+  `times_read` written explicitly (AV-005); joint credits split into separate
+  authors with roles (AV-008, D-007); missing volumes filled rather than
+  duplicated (AV-007); sort positions derived per SPEC.md §1.2. One
+  transaction per run with a savepoint per row, so bad rows are reported by
+  line and skipped.
+- `AuthorRepository`, `SeriesRepository`, `Savepoint`, and `BookRepository`
+  matching and credit methods. Domain gains `Author`, `Credit`,
+  `SeriesEntry`, `CreditRole`, surname-first sort names and ISBN-10/13 check
+  digits.
+- The seed catalogue converted to `seed/library.csv` (git-ignored): 443 books,
+  176 read, 144 series; imports with no failures and re-imports unchanged.
 - Book list view (Phase 1, step 3): `BookListView` over `BookListModel` and
   `BookSortProxy` in a new `ui` module, showing read state, title, author,
   series, rating and year, opening sorted by author. Sorting uses the
@@ -55,6 +69,8 @@ change can be traced to the capability or decision that motivated it.
   change needed.
 
 ### Decided
+- Import runs from the command line until an in-panel file chooser exists;
+  a modal file dialogue would break D-011 (D-016).
 - Database access uses the SQLite C API directly, with no Qt in the `db`
   module (D-015).
 - Webcam barcode scanning planned as F-025 (Could), Phase 5, blocked on
@@ -84,6 +100,7 @@ change can be traced to the capability or decision that motivated it.
   after the habit of silent fixing has set in.
 
 ### Notes
+- IMP-001 suggested: order an author's books by series before title.
 - BUG-002 found and fixed: `v_book_display` joined credits and series in
   arbitrary order, so joint authors could display out of cover order (F-002).
   Fixed in the schema version 2 view with the owner's approval.

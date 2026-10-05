@@ -192,6 +192,78 @@ std::optional<Book> BookRepository::find(std::int64_t id)
     return readBook(select);
 }
 
+std::optional<Book> BookRepository::findByIsbn13(const std::string& isbn13)
+{
+    Statement select(connection_,
+        "SELECT " + std::string(selectColumns) + " FROM book WHERE isbn13 = :isbn13");
+    select.bind(":isbn13", isbn13);
+    if (!select.step())
+        return std::nullopt;
+    return readBook(select);
+}
+
+std::optional<Book> BookRepository::findByTitleAndFirstAuthor(const std::string& title,
+    const std::optional<std::string>& firstAuthor)
+{
+    // The first-billed author is the lowest ordinal among 'author' credits,
+    // ties broken by filing name as in v_book_display.
+    Statement select(connection_, "SELECT " + std::string(selectColumns) + R"(
+          FROM book b
+         WHERE lower(b.title) = lower(:title)
+           AND (SELECT lower(a.name)
+                  FROM book_author ba
+                  JOIN author a ON a.id = ba.author_id
+                 WHERE ba.book_id = b.id AND ba.role = 'author'
+                 ORDER BY ba.ordinal, a.sort_name
+                 LIMIT 1) IS lower(:author)
+         ORDER BY b.id
+         LIMIT 1)");
+    select.bind(":title", title);
+    select.bind(":author", firstAuthor);
+    if (!select.step())
+        return std::nullopt;
+    return readBook(select);
+}
+
+std::vector<domain::Credit> BookRepository::credits(std::int64_t bookId)
+{
+    Statement select(connection_, R"(
+        SELECT author_id, role, ordinal
+          FROM book_author
+         WHERE book_id = :book_id
+         ORDER BY ordinal, role, author_id)");
+    select.bind(":book_id", bookId);
+
+    std::vector<domain::Credit> result;
+    while (select.step()) {
+        domain::Credit credit;
+        credit.authorId = select.columnInt(0);
+        credit.role = parseRequired<domain::CreditRole>(
+            select.columnText(1), domain::creditRoleFromString, "role");
+        credit.ordinal = static_cast<int>(select.columnInt(2));
+        result.push_back(credit);
+    }
+    return result;
+}
+
+void BookRepository::setCredits(std::int64_t bookId, const std::vector<domain::Credit>& credits)
+{
+    Statement clear(connection_, "DELETE FROM book_author WHERE book_id = :book_id");
+    clear.bind(":book_id", bookId);
+    clear.step();
+
+    for (const domain::Credit& credit : credits) {
+        Statement insert(connection_, R"(
+            INSERT INTO book_author (book_id, author_id, ordinal, role)
+            VALUES (:book_id, :author_id, :ordinal, :role))");
+        insert.bind(":book_id", bookId);
+        insert.bind(":author_id", credit.authorId);
+        insert.bind(":ordinal", std::int64_t { credit.ordinal });
+        insert.bind(":role", domain::toString(credit.role));
+        insert.step();
+    }
+}
+
 bool BookRepository::update(const Book& book)
 {
     Statement statement(connection_, R"(

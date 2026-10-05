@@ -17,25 +17,26 @@ database and exports to SQL, CSV and Excel.
 
 ## 2. Current state
 
-**Phase 1 steps 1–3 done: the application opens or creates its database, upgrades it, and lists every book sortable by column. No import, detail panel or editing yet.**
+**Phase 1 steps 1–4 done: the application opens or creates its database, upgrades it, imports CSV (`--import`), and lists every book sortable by column. No detail panel or editing yet.**
 
 | Path | State |
 |---|---|
 | `db/schema.sql`, `db/migrations/` | Version 2. `schema.sql` is the latest full schema; `002_book_display_sort_keys.sql` carries a version 1 file forward. Its `CREATE VIEW` must stay byte-identical to `schema.sql`'s — `migratingVersion1MatchesFreshSchema` fails otherwise. |
 | `src/domain/` | `Book`, enums with schema strings, `makeSortTitle`. No Qt, no SQL. |
 | `src/db/` | SQLite C API, no Qt (D-015). `Connection` (FK on + verified, WAL), `Statement` (named binds), `Transaction` (RAII), `migrate()` with schema compiled in from `db/schema.sql`, `BookRepository`. Errors throw `DbError` with the extended result code. |
+| `src/io/` | Qt-free. `parseCsv` (RFC 4180), `CsvImporter` (SPEC.md §1; one transaction, savepoint per row, reports `line: message`), `deriveSortPosition` (the only code that parses `position`). |
 | `src/ui/` | `BookListModel` (table of `BookSummary`), `BookSortProxy` (sorts by view keys, missing values last both ways), `BookListView` (opens sorted by author). Links `domain`, not `db`. |
 | `src/app/`, `src/main.cpp` | `MainWindow`: `QSplitter` of three empty panels `rail`, `list`, `detail`. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], migrates, shows the count. |
-| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`. Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
+| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_import` (its seed test skips without `seed/library.csv`). Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
-| `FEATURES.md` | Complete. F-001 to F-025. F-001 and F-016 In progress; the rest Not started. |
+| `FEATURES.md` | Complete. F-001 to F-025. F-003 Complete; F-001, F-002, F-011, F-016 In progress; the rest Not started. |
 | `ROADMAP.md` | Complete. Phase 0 done; Phase 1 in progress; Phases 2–5 not started; Phase 5 (webcam scanning) waits on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
-| `DECISIONS.md` | Complete. D-001 to D-015, all Accepted. |
+| `DECISIONS.md` | Complete. D-001 to D-016, all Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
-| `ATTACK_VECTORS.md` | Complete. AV-001 to AV-012. AV-004 detection implemented; AV-005 and AV-006 partly; the rest `not implemented`. |
+| `ATTACK_VECTORS.md` | Complete. AV-001 to AV-012. Detection implemented for AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001 fixed (delete keeps series entries as missing volumes). BUG-002 fixed (view joined credits out of cover order). |
-| `IMPROVEMENTS.md` | Empty, by design. Same reason. |
+| `IMPROVEMENTS.md` | IMP-001 suggested: author sort should order an author's books by series before title. Owner to decide. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
@@ -65,13 +66,20 @@ Suggested order:
    migration runner keyed to `schema_version`, `BookRepository`.~~ Done
    2026-10-05. Author, series and genre repositories come with step 4.
 3. ~~List view over `v_book_display`, sortable.~~ Done 2026-10-05 (schema v2).
-4. CSV importer per SPEC.md §1 — idempotent (AV-002), `times_read` written
-   explicitly (AV-005).
+4. ~~CSV importer per SPEC.md §1 — idempotent (AV-002), `times_read` written
+   explicitly (AV-005).~~ Done 2026-10-05: `pinax --import` (D-016).
 5. Detail panel in its view state, then its edit state (D-011).
 6. Read toggle and rating control.
 
-Convert the seed spreadsheet to CSV before step 4; the importer has nothing to
-prove against until then.
+The seed is converted: `seed/library.csv`, made by `seed/convert_catalogue.py`
+from the spreadsheet (both git-ignored). The converter fixes two credits the
+` & ` split would get wrong (`Arkady & Boris Strugatsky`, `Wong, Bukalov &
+Slavin`). The spreadsheet's "Still missing" column is free text and is not in
+the CSV; missing volumes are Phase 2 data. Re-import is safe at any time:
+
+```sh
+build/src/pinax --import seed/library.csv
+```
 
 ---
 
@@ -132,10 +140,13 @@ added is worth a DECISIONS entry.
   exactly one Subtle Chaos anomaly each — one small unexplained irregularity
   in otherwise ordinary professional prose, never placed at the centre of the
   sentence and never explained. Development-flavoured anomalies preferred,
-  and from 2026-10-05 **a little ominous** at the owner's request: something
-  in the building, the data or the machine that should not quite be so,
-  stated flatly. Unsettling, never alarming; one clause, not a story. The
-  anomaly is quoted back to the owner after every commit and push.
+  and from 2026-10-05 **ominous, and aimed at the reader**: at the owner's
+  request the anomaly should make whoever reads the message question what
+  they just read — a figure that cannot be right, a sentence that knows it is
+  being read, a sequence that ran in the wrong order. Still exactly one, still
+  one clause, still never explained, and the technical content around it stays
+  accurate. The anomaly is quoted back to the owner after every commit and
+  push.
   (Definition as given in Aether's CLAUDE.md; the fuller Subtle Chaos spec is
   not in this repository. The first two commits predate this and carry none.)
 - Documentation changes travel in the same commit as the code that invalidates

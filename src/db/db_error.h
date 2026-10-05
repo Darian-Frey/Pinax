@@ -19,6 +19,10 @@ public:
 
     int code() const { return code_; }
 
+    // A CHECK, UNIQUE, NOT NULL or foreign-key violation: the data was wrong,
+    // not the database.
+    bool isConstraintViolation() const { return (code_ & 0xff) == 19; } // SQLITE_CONSTRAINT
+
 private:
     int code_;
 };

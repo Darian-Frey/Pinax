@@ -38,18 +38,20 @@ reading state and ratings.
 **Deliverables:**
 - [x] Project skeleton: CMake, Qt6 Widgets, a window that opens (D-001) —
       2026-10-05
-- [ ] Seed data converted from the catalogue spreadsheet to the CSV format in
-      SPEC.md §1 — a prerequisite for the importer, not a product of it
+- [x] Seed data converted from the catalogue spreadsheet to the CSV format in
+      SPEC.md §1 — a prerequisite for the importer, not a product of it —
+      2026-10-05, `seed/library.csv` (git-ignored)
 - [ ] `db` module: connection asserting `PRAGMA foreign_keys = ON` (AV-004),
       migration runner keyed to `schema_version`, repositories returning
-      domain types — connection, migrations and `BookRepository` done
-      2026-10-05 (D-015); author, series and genre repositories arrive with
-      the importer
+      domain types — connection, migrations, `BookRepository`,
+      `AuthorRepository` and `SeriesRepository` done 2026-10-05 (D-015);
+      genre repository arrives with enrichment
 - [x] Book list view over `v_book_display`, sortable — 2026-10-05; needed
       schema version 2 for the sort keys
 - [ ] Detail panel: view state, then edit state (D-011)
-- [ ] CSV importer, idempotent (AV-002), writing `times_read` explicitly
-      (AV-005), reporting per-row failures without aborting the run
+- [x] CSV importer, idempotent (AV-002), writing `times_read` explicitly
+      (AV-005), reporting per-row failures without aborting the run —
+      2026-10-05, `pinax --import` (D-016)
 - [ ] Read/unread keystroke binding
 - [ ] Rating control
 - [x] `BUILD.md`, written once the build succeeds — 2026-10-05

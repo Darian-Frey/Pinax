@@ -507,3 +507,38 @@ it into a value (ARCHITECTURE.md §4).
 **Reversal conditions.** Revisit if a second Qt-based consumer of the database
 appears that would benefit from Qt SQL's model classes, or if the wrapper grows
 past what is reasonable to maintain by hand.
+
+---
+
+### D-016 CSV import is a command-line option for now
+**Decided:** 2026-10-05
+**Recorded:** 2026-10-05
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-05)
+**Related:** F-003, D-011
+
+**Context.** The importer needs a way to be told which file to read. The usual
+answer, a File → Import menu item opening a file chooser, is a modal dialogue,
+which D-011 rules out everywhere in the application.
+
+**Options.**
+- **A. A `QFileDialog` from a menu.** Rejected: modal, contrary to D-011, and
+  the first exception would not be the last.
+- **B. An inline file chooser in the detail panel.** Consistent with D-011,
+  but it is real UI work for an action taken once or twice in the
+  catalogue's life, ahead of the panel existing at all.
+- **C. `pinax --import file.csv [database]`.** Chosen.
+
+**Decision.** Option C. The import runs before the window opens; failures are
+printed as `file:line: message`, the summary goes to standard output and the
+status bar.
+
+**Consequences.**
+- The seed import, its only near-term use, needs nothing more.
+- Re-running is safe by construction (AV-002), so the option can sit in a
+  shell history without risk.
+- An in-application import, when one is wanted, is option B.
+
+**Reversal conditions.** Revisit when the detail panel exists and an import
+path from inside the application is wanted, for example for F-023 round
+trips.
