@@ -68,7 +68,11 @@ genre links, and leaves its series entries as missing volumes.
 
 ## Phase 2 — Series
 **Goal:** Series membership and completeness, including volumes not owned.
-**Status:** In progress
+**Status:** Complete (2026-10-06). F-008, F-009 and F-010 are Complete. The
+owner's 144 series carry 287 known volumes not owned, and every derived
+status matches the spreadsheet's hand-kept one. IMP-006, on placeholder-only
+gaps counting as one volume short, is open with the owner and does not hold
+the phase.
 **Features delivered:** F-008, F-009, F-010
 **Deliverables:**
 - [x] Known-but-unowned volumes and ongoing flags loaded from the seed —

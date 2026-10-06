@@ -11,7 +11,7 @@ change can be traced to the capability or decision that motivated it.
 
 ## [Unreleased]
 
-Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series): every step built 2026-10-06.
+Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 
 ### Added
 - The shopping list (Phase 2 step 5, F-010): the rail's NEEDS ATTENTION, with

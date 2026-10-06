@@ -17,7 +17,7 @@ database and exports to SQL, CSV and Excel.
 
 ## 2. Current state
 
-**Phase 1 built: open, import (`--import`, and `--import-series` for known volumes), list and sort, view and edit in the panel (F2) including credits, add (Ctrl+N), delete (Delete, confirmed in the panel), toggle read (R), rate (1–9, 0). F-001–F-003 and F-005–F-007 Complete; F-004's no-overwrite rule waits on enrichment. Phase 1 closed 2026-10-05. Phase 2 steps 1 (missing volumes from the seed), 2 (the filter rail), 3 (a series' own page and panel), 4 (the entry editor and Mark as owned) and 5 (the shopping list) done — every Phase 2 deliverable is built; closing Phase 2 is the owner's call.**
+**Phases 1 and 2 closed (2026-10-05, 2026-10-06).** The application opens and upgrades its database, imports books (`--import`) and series contents (`--import-series`), lists and sorts, edits books and credits in the panel (F2), adds (Ctrl+N), deletes (Delete), toggles read (R) and rates (1–9, 0). The rail filters by read state and series; a series has its own page with the volumes not owned in place, an entry editor and Mark as owned; NEEDS ATTENTION is the shopping list. F-001–F-003 and F-005–F-010 Complete; F-004's no-overwrite rule waits on enrichment.
 
 | Path | State |
 |---|---|
@@ -30,7 +30,7 @@ database and exports to SQL, CSV and Excel.
 | `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_rail`, `test_series_page`, `test_entry_editor`, `test_import` and `test_series_import` (their seed tests skip without `seed/`), `test_detail_panel`, `test_catalogue`. Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
 | `FEATURES.md` | Complete. F-001 to F-025. F-001, F-002, F-003, F-005, F-006, F-007, F-008, F-009, F-010 Complete; F-004, F-011, F-016, F-017 In progress; the rest Not started. |
-| `ROADMAP.md` | Complete. Phases 0 and 1 done; Phase 2 in progress; Phases 3–5 not started; Phase 5 (webcam scanning) waits on hardware. |
+| `ROADMAP.md` | Complete. Phases 0–2 done; Phases 3–5 not started; Phase 5 (webcam scanning) waits on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
 | `DECISIONS.md` | Complete. D-001 to D-018, all Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
@@ -56,36 +56,34 @@ code.
 
 ## 3. Active task
 
-**Phase 2 — Series** (F-008 to F-010). Phase 1 closed 2026-10-05; its history
-is in ROADMAP.md and CHANGELOG.md.
+**Phase 3 — Metadata enrichment** (F-011 to F-015, F-024). Phases 1 and 2 are
+closed; their history is in ROADMAP.md and CHANGELOG.md.
 
 Suggested order:
 
-1. ~~**Missing volumes from the seed.**~~ Done 2026-10-05 (D-018):
-   `--import-series` and SPEC.md §1.6; the converter turns the spreadsheet's
-   "Still missing" into `seed/series.csv`, with unnamed placeholders
-   ("Unidentified volume n", "Later volumes — unidentified") where it gave
-   only a count or a gap — the owner's choice. 287 volumes, 4 ongoing flags;
-   all 144 statuses match the spreadsheet. Loaded into the owner's catalogue
-   after a backup (`pinax-2026-10-05-before-series.db`).
-2. ~~Series in the rail with held/known counts (`v_series_status`), as the
-   mock-up's SERIES · 144 section.~~ Done 2026-10-06, with LIBRARY (read
-   states) above it. The mock-up's AUTHORS and NEEDS ATTENTION sections are
-   not built: authors are F-017, "one volume short" is step 5.
-3. ~~Selecting a series lists its entries in position order with missing ones
-   inline, in italic and marked (D-010, mock-up screen 2), and the panel
-   describes the series.~~ Done 2026-10-06. The mock-up's "concluded" is not
-   shown: an unflagged series is not known to be finished. The panel's
-   "Mark as owned" and "Edit entry" buttons belong to step 4.
-4. ~~Entry editor: add, edit and remove entries, non-numeric positions, "Mark
-   as owned" attaching a book (AV-007).~~ Done 2026-10-06. The sort number is
-   typed beside the position, never derived from it in the application
-   (AV-006).
-5. ~~Missing-volumes view from `v_missing_entries`, fewest-needed first.~~
-   Done 2026-10-06: NEEDS ATTENTION in the rail. Mark as owned now finds a
-   volume's series from the volume, so it works from the list as well.
+1. **The `metadata` module and its first dependency.** Qt Network for HTTP
+   (D-001 already names it). A client with a rate limiter and retry that
+   pauses on HTTP 429 rather than failing (AV-009), asynchronous on the UI
+   thread as ARCHITECTURE.md §4 plans. Tests use recorded JSON responses,
+   never the live providers.
+2. **Google Books by ISBN, then by title and author** (SPEC.md §3.1), mapped
+   to a `domain::Candidate`. A title-and-author match is never accepted
+   without confirmation (AV-010) — and none of the 443 seeded books has an
+   ISBN, so this path is the one the backlog takes.
+3. **Open Library fallback** for covers and older titles (§3.2), and the
+   **cover cache** beside the database (§4).
+4. **Per-field provenance on write** (F-015) and the carried F-004 / AV-001
+   rule: a field whose source is `manual` is never overwritten. Its test is
+   the first AV-001 detection. `GenreRepository` arrives here, carried from
+   Phase 1 (F-014).
+5. **Batch enrichment**: progress, cancel, resume after interruption or
+   quota (AV-009), and a queue of title-and-author candidates for the owner
+   to confirm or reject.
+6. **Add by ISBN** (F-024, D-012): lookup, a confirmation card in the panel,
+   duplicate and series checks, attaching to a waiting volume (AV-007). The
+   webcam scanner (Phase 5) will feed this.
 
-Open with the owner: IMP-006, and whether to close Phase 2.
+Open with the owner: IMP-006.
 
 The seed: `seed/library.csv` and `seed/series.csv`, made by
 `seed/convert_catalogue.py` from the spreadsheet (all git-ignored). The converter fixes two credits the ` & `

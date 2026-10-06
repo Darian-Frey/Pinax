@@ -2,11 +2,11 @@
 
 > **Status:** Active
 > **Provenance:** Shane Hartley (author); Claude (primary auditor)
-> **Last reviewed:** 2026-10-05
-> **Why this status:** Phase 1 complete — the catalogue is imported, listed,
-> sorted, viewed and edited, with reading state and ratings. Phase 2, series,
-> is next. Toolchain fixed by D-001. `LICENSE` is deliberately absent — see
-> Licence.
+> **Last reviewed:** 2026-10-06
+> **Why this status:** Phases 1 and 2 complete — the catalogue is imported,
+> listed, sorted, viewed and edited, with reading state, ratings, and series
+> that know what they lack. Phase 3, metadata enrichment, is next. Toolchain
+> fixed by D-001. `LICENSE` is deliberately absent — see Licence.
 
 A Linux desktop catalogue for a personal physical library. Pinax tracks what is
 on the shelf, what has been read and how often, ratings out of ten, and series
@@ -102,7 +102,7 @@ pinax/
 ├── README.md
 ├── BUILD.md              requirements, build, test, troubleshooting
 ├── FEATURES.md           F-001 … F-025, MoSCoW priorities, acceptance criteria
-├── ROADMAP.md            Phases 0–1 complete; Phases 2–5 planned
+├── ROADMAP.md            Phases 0–2 complete; Phases 3–5 planned
 ├── ARCHITECTURE.md       modules, data flow, invariants
 ├── DECISIONS.md          D-001 … D-018, append-only
 ├── SPEC.md               CSV format, ISBN validation, provider contracts, exports
