@@ -96,15 +96,17 @@ everything published reports complete to date.
 
 ## Phase 3 — Metadata enrichment
 **Goal:** Synopses, covers and genre pulled from public providers.
-**Status:** Not started
+**Status:** In progress
 **Features delivered:** F-011, F-012, F-013, F-014, F-015, F-024
 **Deliverables:**
 - [ ] `GenreRepository`, carried from Phase 1
 - [ ] F-004's remaining criterion: a fetch never overwrites edition or
       condition notes, carried from Phase 1 (AV-001)
-- [ ] HTTP client with rate limiting and retry
-- [ ] Google Books lookup by ISBN and by title/author
-- [ ] Open Library fallback for covers and older titles
+- [x] HTTP client with rate limiting and retry — 2026-10-06, `RequestQueue`
+      over Qt Network (D-020)
+- [x] Provider lookups by ISBN and by title/author — 2026-10-06, Open Library
+      first and Google Books with a key (D-019, superseding D-008's order)
+- [ ] Covers from Open Library, Google as a second source
 - [ ] On-disk cover cache keyed by book
 - [ ] Batch enrichment with progress, cancellation and resumption
 - [ ] Per-field provenance recorded on write

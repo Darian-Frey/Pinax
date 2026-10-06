@@ -19,6 +19,9 @@ pinax_add_test(test_entry_editor pinax_ui)
 pinax_add_test(test_import pinax_io)
 pinax_add_test(test_series_import pinax_io)
 target_compile_definitions(test_series_import PRIVATE PINAX_SEED_DIR="${PROJECT_SOURCE_DIR}/seed")
+pinax_add_test(test_metadata pinax_metadata)
+target_compile_definitions(test_metadata PRIVATE
+    PINAX_TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 pinax_add_test(test_detail_panel pinax_ui)
 pinax_add_test(test_catalogue pinax_app pinax_io)
 # The owner's real catalogue, if present; the test skips without it.

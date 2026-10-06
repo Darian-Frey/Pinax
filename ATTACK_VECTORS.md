@@ -167,15 +167,21 @@ duplicates.
 
 ### AV-009 Provider quota exhausted mid-run
 **Severity:** Major
-**Description.** Google Books allows roughly a thousand unauthenticated
-requests per day per IP. Enriching 443 books with a cover fetch each approaches
-that in one pass. A run that is not resumable loses its progress and burns the
-remaining quota retrying books already done.
-**Detection.** Not implemented (would require a test interrupting a batch and
-asserting that resuming skips books already marked `matched`, plus handling of
-HTTP 429 as a pause rather than a failure).
-**Related decisions.** D-008.
-**History.** Identified while specifying Phase 3, 2026-10-04.
+**Description.** A provider stops answering partway through a batch: a quota
+spent, a rate limit hit, a service down. Enriching 443 books takes well over a
+thousand requests at up to three per book plus covers. A run that is not
+resumable loses its progress, and one that treats a 429 as a failure marks
+good books `failed` and moves on.
+**Detection.** Partly implemented, 2026-10-06. `tests/test_metadata.cpp`:
+`aQuotaReplyPausesAndRetries` (a 429 pauses the queue and the request is
+retried), `persistentTroubleIsGivenUpOn`, `aMissingRecordIsNotRetried`,
+`requestsAreSpacedApart`, `cancellingDropsWhatIsQueued`. The batch-level test
+— interrupt a run, resume it, and books already `matched` are skipped — is
+owed by Phase 3 step 5.
+**Related decisions.** D-008, D-019, D-020.
+**History.** Identified while specifying Phase 3, 2026-10-04. On 2026-10-06
+Google Books turned out to give a keyless quota of 0 — every request refused
+with 429 — which is why D-019 put Open Library first.
 
 ### AV-010 Wrong edition or wrong book matched
 **Severity:** Major
@@ -190,7 +196,9 @@ queued for confirmation rather than auto-accepted, and a report listing books
 whose metadata was accepted on a fuzzy match).
 **Related decisions.** D-008, D-012.
 **History.** Identified while specifying the matching strategy in SPEC.md §3.3,
-2026-10-04.
+2026-10-04. A live instance, 2026-10-06: ISBN 9780000000002, chosen for a test
+as surely unknown, is a real 1985 book in Open Library — any lookup by a
+mistyped ISBN can return a confident, wrong answer.
 
 ---
 

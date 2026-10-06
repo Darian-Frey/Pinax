@@ -67,7 +67,7 @@ foreign keys in the schema are advisory only (AV-004).
 
 ## Build requirements
 
-- **C++20** and **Qt6** (Widgets; Network from Phase 3) — fixed by D-001
+- **C++20** and **Qt6** (Widgets, Network) — fixed by D-001
 - **SQLite 3.31** or later, used directly rather than through Qt SQL (D-015) —
   `VACUUM INTO`, partial indexes
 - **libxlsxwriter** for Excel export (F-022)
@@ -104,7 +104,7 @@ pinax/
 ├── FEATURES.md           F-001 … F-025, MoSCoW priorities, acceptance criteria
 ├── ROADMAP.md            Phases 0–2 complete; Phases 3–5 planned
 ├── ARCHITECTURE.md       modules, data flow, invariants
-├── DECISIONS.md          D-001 … D-018, append-only
+├── DECISIONS.md          D-001 … D-020, append-only
 ├── SPEC.md               CSV format, ISBN validation, provider contracts, exports
 ├── ATTACK_VECTORS.md     AV-001 … AV-013, failure modes with detection
 ├── BUGS.md               empty; present so Rule 8 applies from commit one

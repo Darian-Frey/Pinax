@@ -12,8 +12,14 @@ change can be traced to the capability or decision that motivated it.
 ## [Unreleased]
 
 Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
+Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- The `metadata` module (Phase 3 steps 1–2, D-020): a `Fetcher` over Qt
+  Network, a polite `RequestQueue` per provider that spaces requests and
+  pauses on 429 or 503 (AV-009), and clients for Open Library and Google
+  Books turning responses into `domain::Candidate`. Tested against recorded
+  responses, never the live services.
 - The shopping list (Phase 2 step 5, F-010): the rail's NEEDS ATTENTION, with
   "One volume short" and "Missing volumes" and their counts. Each shows every
   volume a series lacks — series, position, title, how many the series
@@ -147,6 +153,10 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
   change needed.
 
 ### Decided
+- Open Library is the primary provider and Google Books is used only with an
+  API key (D-019, superseding D-008): Google gives no keyless quota.
+- The metadata module uses Qt Network behind one seam, and its tests never
+  touch the network (D-020).
 - Known-but-unowned volumes import from their own CSV, not the book CSV
   (D-018).
 - Unmarking a read book takes back one read and, at nought, its finish date
@@ -182,7 +192,8 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
   after the habit of silent fixing has set in.
 
 ### Notes
-- IMP-006 suggested: keep placeholder-only gaps out of "one volume short".
+- IMP-006 suggested, then deferred by the owner: keep placeholder-only gaps
+  out of "one volume short".
 - IMP-005 suggested: summarise placeholder volumes in the detail panel.
 - BUG-003 found and fixed: three editors in the seed had been imported as
   authors named "ed. …". The converter now reads "ed." as an editor credit;

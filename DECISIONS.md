@@ -231,7 +231,8 @@ editor, translator and illustrator, so edited anthologies are representable.
 ### D-008 Google Books primary, Open Library fallback
 **Decided:** 2026-10-04
 **Recorded:** 2026-10-04
-**Status:** Accepted
+**Status:** Superseded by D-019 (2026-10-06): Google Books gives no keyless
+quota, so Open Library is primary and Google needs a key.
 **Authors:** Shane Hartley (with Claude, 2026-10-04)
 **Related:** F-012, F-013, F-014, AV-009, AV-010
 
@@ -633,3 +634,85 @@ the spreadsheet's words, to be named or removed in the entry editor.
 **Reversal conditions.** Revisit if an ISFDB bulk import (FEATURES.md,
 Candidates) lands, which would supply series contents wholesale and could
 replace this file for most series.
+
+---
+
+### D-019 Open Library first; Google Books only with a key
+**Decided:** 2026-10-06
+**Recorded:** 2026-10-06
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-06)
+**Related:** D-008, F-012, F-013, F-014, AV-009, AV-010
+
+**Context.** D-008 made Google Books primary on the understanding that it
+allowed roughly a thousand unauthenticated requests a day. Recording test
+fixtures on 2026-10-06 found otherwise: every request made without an API key
+is refused with HTTP 429 and `"quota_limit_value": "0"` for
+`defaultPerDayPerProject`. Keyless, Google Books provides nothing. Open
+Library answered the same lookups without a key.
+
+**Options.**
+- **A. Open Library primary; Google Books as a second opinion when the owner
+  supplies a key.** Chosen.
+- **B. Keep Google primary and require a key.** Rejected: enrichment would do
+  nothing until the owner creates a Google Cloud project, and the first
+  experience of Phase 3 would be a failure.
+- **C. Open Library only.** Rejected for now: Google's categories are cleaner
+  and its descriptions sometimes fuller, and the cost of supporting it behind
+  a key is one client already written.
+
+**Decision.** Option A. Open Library answers ISBN lookups (the Books API for
+the edition, then the edition and work records for a synopsis) and
+title-and-author searches. `GoogleBooksClient` is constructed with a key and
+reports itself unavailable without one; it sends nothing keyless. Where the
+key is kept — application settings or an environment variable — is settled
+when enrichment is wired into the application.
+
+**Consequences.**
+- Enrichment works out of the box.
+- Open Library subjects are noisier than Google categories; stored verbatim
+  all the same (D-009), with their source recorded.
+- An ISBN lookup costs up to three requests rather than one, so the daily
+  budget matters less than politeness: requests are spaced a second apart
+  (D-020).
+
+**Reversal conditions.** Revisit if Open Library's coverage of the owner's
+catalogue proves poor in practice, or if Google restores a keyless quota.
+This entry supersedes D-008.
+
+---
+
+### D-020 The metadata module: Qt Network, one seam, no live network in tests
+**Decided:** 2026-10-06
+**Recorded:** 2026-10-06
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-06)
+**Related:** D-001, D-019, AV-009, ARCHITECTURE.md §2
+
+**Context.** Phase 3 needs HTTP. D-001 named Qt Network among the Qt modules;
+this entry records how the `metadata` module uses it.
+
+**Options.**
+- **A. Qt Network behind a `Fetcher` interface, asynchronous on the UI
+  thread.** Chosen.
+- **B. libcurl.** Rejected: a second HTTP stack beside the Qt one, and
+  blocking calls would need a worker thread for no gain at this scale.
+
+**Decision.** Option A. `NetworkFetcher` is the only code that reaches the
+network; it identifies itself as `Pinax/<version> (personal library
+catalogue)` and sends nothing personal — no owner email or name. Every
+request goes through a `RequestQueue` per provider: at least a second between
+starts, a pause for HTTP 429 or 503 (honouring `Retry-After`, otherwise a
+doubling backoff), retries for other server and network failures, and a
+failure handed back only after a fixed number of attempts. Parsing is pure
+functions over response bytes. Tests replace the fetcher with recorded
+responses (`tests/fixtures/`) and never contact a provider.
+
+**Consequences.**
+- `pinax_metadata` links Qt Core and Network, unlike `db` and `io`.
+- A test can drive the queue's pauses and retries in milliseconds.
+- A recorded response can go stale as a provider changes; the fixtures note
+  when each was recorded.
+
+**Reversal conditions.** Revisit if enrichment ever needs more concurrency
+than one polite request at a time per provider.

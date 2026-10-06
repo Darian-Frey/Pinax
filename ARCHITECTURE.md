@@ -72,10 +72,13 @@ Uses the SQLite C API directly and has no Qt dependency (D-015).
 Retrieval from external providers, and nothing else. No database access —
 results are returned to the caller, which persists them through `db`.
 
-- **Provider clients** — `GoogleBooksClient` primary, `OpenLibraryClient`
-  fallback (D-008). Each maps a provider response onto a `domain::Candidate`.
-- **Rate limiter** — serialises outbound requests and enforces a minimum
-  interval, so batch enrichment stays inside the provider's daily quota.
+- **Fetcher** — the one seam to the network (D-020). `NetworkFetcher` uses
+  Qt Network; tests substitute recorded responses.
+- **Provider clients** — `OpenLibraryClient` primary, `GoogleBooksClient`
+  only with a key (D-019). Each maps provider responses onto
+  `domain::Candidate` through pure parsing functions.
+- **Request queue** — one per provider: serialises requests, spaces them, and
+  pauses and retries on 429 or 503 rather than failing (AV-009).
 - **Cover cache** — downloads an image once, writes it under `covers/`, returns
   the relative path. The database stores that path, never the image.
 

@@ -181,57 +181,81 @@ Hyphens and spaces are stripped before validation. Storage is digits only.
 
 ## 3. Metadata providers
 
-### 3.1 Google Books — primary
+Provider order is D-019: Open Library first, Google Books only with an API
+key. Every request goes through one `RequestQueue` per provider (D-020).
+
+### 3.1 Open Library — primary
+
+No key. An ISBN lookup is up to three requests:
 
 ```
-GET https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn13}
-GET https://www.googleapis.com/books/v1/volumes?q=intitle:{title}+inauthor:{author}
+GET https://openlibrary.org/api/books?bibkeys=ISBN:{isbn13}&format=json&jscmd=data
+GET https://openlibrary.org{edition key}.json       the edition: its work, perhaps a synopsis
+GET https://openlibrary.org{work key}.json          the work: a synopsis, if the edition had none
 ```
 
-Fields consumed from `items[0].volumeInfo`:
+An empty object (`{}`) from the first means the ISBN is not held: a miss,
+not an error. A title-and-author search is one request and returns works:
 
-| Response field | Target |
+```
+GET https://openlibrary.org/search.json?title={title}&author={author}&limit=5
+    &fields=key,title,author_name,first_publish_year,isbn,cover_i,number_of_pages_median,publisher,subject
+```
+
+| Response field (Books API / search) | Target |
 |---|---|
 | `title` | `book.title` |
 | `subtitle` | `book.subtitle` |
-| `authors[]` | `author` rows via `book_author` |
-| `publisher` | `book.publisher` |
-| `publishedDate` | `book.published_year` (leading 4 digits) |
-| `description` | `book.synopsis`, source `google_books` |
-| `pageCount` | `book.page_count` |
-| `categories[]` | `genre` rows via `book_genre`, source `google_books` |
-| `imageLinks.thumbnail` | downloaded to the cover cache, source `google_books` |
-| `industryIdentifiers[]` | `book.isbn13`, `book.isbn10` |
+| `authors[].name` / `author_name[]` | `author` rows via `book_author` |
+| `publishers[0].name` / `publisher[0]` | `book.publisher` |
+| `publish_date` (first four-digit year) | `book.published_year` |
+| `first_publish_year` (search) | first-published year on the confirmation card (F-024) |
+| `number_of_pages` / `number_of_pages_median` | `book.page_count` |
+| `identifiers.isbn_13`, `identifiers.isbn_10` | `book.isbn13`, `book.isbn10`, check digits verified |
+| `subjects[].name` / `subject[]` | `genre` rows, verbatim, source `open_library` |
+| `cover.large` / `cover_i` | the cover cache (§4), source `open_library` |
+| `description` (edition or work) | `book.synopsis`, source `open_library` |
 
-Categories are stored **verbatim** — `Fiction / Science Fiction / Space Opera`
-is one genre row, not three (D-009).
+A `description` is either a string or `{"type": "/type/text", "value": "…"}`;
+both are read. Search results never carry one; the work is fetched for it once
+a candidate is confirmed.
 
-**Quota.** Roughly 1,000 requests per day per IP unauthenticated. Batch
-enrichment must be resumable rather than all-or-nothing (AV-009).
+Covers come from `covers.openlibrary.org/b/id/{cover id}-L.jpg`, by cover id
+rather than by ISBN.
 
-### 3.2 Open Library — fallback
-
-Used when Google Books returns no match, or returns a match with no cover.
+### 3.2 Google Books — with a key only
 
 ```
-GET https://openlibrary.org/api/books?bibkeys=ISBN:{isbn}&format=json&jscmd=data
-GET https://covers.openlibrary.org/b/isbn/{isbn}-L.jpg
+GET https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn13}&key={key}
+GET https://www.googleapis.com/books/v1/volumes?q=intitle:{title}+inauthor:{author}&key={key}
 ```
 
-Cover sizes are `S`, `M`, `L`; request `L`. A missing cover returns a 1-pixel
-placeholder image unless `?default=false` is appended, which returns 404
-instead — always append it, so a miss is detectable.
+Without a key nothing is sent: since at least 2026-10-06 a keyless request
+is refused with HTTP 429 and a daily quota of 0. Fields consumed from
+`items[].volumeInfo`: `title`, `subtitle`, `authors[]`, `publisher`,
+`publishedDate` (leading four digits), `description`, `pageCount`,
+`categories[]` (verbatim, so `Fiction / Science Fiction / Space Opera` is one
+genre row, D-009), `industryIdentifiers[]`, and `imageLinks.thumbnail`
+(requested over https). Source `google_books`.
 
-`subjects[]` may be consumed as genres, source `open_library`, but is noisier
-than Google's categories and is a fallback only.
+### 3.3 Politeness
 
-### 3.3 Matching strategy
+Requests to a provider start at least a second apart. HTTP 429 or 503 pauses
+that provider's queue — for `Retry-After` seconds if given, otherwise 30
+seconds doubling to at most 10 minutes — and the same request is retried.
+Other 5xx answers and network failures are retried on the same backoff. A
+request is given up after five attempts and its failure reported; a 404 is
+reported at once. Requests identify themselves as
+`Pinax/<version> (personal library catalogue)` and carry nothing about the
+owner.
+
+### 3.4 Matching strategy
 
 1. ISBN present → ISBN lookup. A single result is accepted automatically during
    batch enrichment, and shown for confirmation during add-by-ISBN (F-024).
 2. No ISBN → title and author search. **Never** accepted automatically; the
    candidate is queued for manual confirmation. See AV-010.
-3. No result from either provider → `metadata_status = 'failed'`, existing
+3. No result from any provider → `metadata_status = 'failed'`, existing
    content untouched.
 
 ---

@@ -192,7 +192,8 @@ refused by the schema; no entry field yet. ISBN-10 validation exists in
 - A failed lookup marks the book as unmatched and leaves prior content intact.
 - A synopsis edited by hand is marked manual and survives subsequent fetches.
 **Status:** Not started
-**Notes:** D-008 for the provider pair, SPEC.md §3 for the request shapes. See
+**Notes:** D-019 for the provider pair — Open Library first, Google Books only
+with a key, superseding D-008 — and SPEC.md §3 for the request shapes. See
 AV-001 (never overwrite a manual field), AV-009 (quota) and AV-010 (a
 title-and-author match is never auto-accepted).
 
@@ -204,6 +205,8 @@ title-and-author match is never auto-accepted).
 - A book with no cover found displays a placeholder rather than failing.
 - Re-running enrichment does not re-download a cover already cached.
 **Status:** Not started
+**Notes:** From Open Library by cover id; Google as a second source with a key
+(D-019). Cache layout in SPEC.md §4.
 
 ### F-014 Genre from provider categories
 **Priority:** Must

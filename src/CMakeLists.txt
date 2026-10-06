@@ -7,6 +7,7 @@ add_library(pinax_domain STATIC
     domain/book_detail.h
     domain/author.h
     domain/book_summary.h
+    domain/candidate.h
     domain/book_edit.h
     domain/book_filter.h
     domain/credit.h
@@ -93,6 +94,21 @@ add_library(pinax_io STATIC
 target_include_directories(pinax_io PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(pinax_io PUBLIC pinax_db pinax_domain)
 set_target_properties(pinax_io PROPERTIES AUTOMOC OFF)
+
+# metadata: providers over the network (D-019, D-020). Qt Core and Network;
+# no database access — results go back to the caller.
+add_library(pinax_metadata STATIC
+    metadata/google_books.cpp
+    metadata/google_books.h
+    metadata/http.cpp
+    metadata/http.h
+    metadata/open_library.cpp
+    metadata/open_library.h
+    metadata/request_queue.cpp
+    metadata/request_queue.h)
+target_include_directories(pinax_metadata PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(pinax_metadata PUBLIC pinax_domain Qt6::Network)
+target_compile_definitions(pinax_metadata PRIVATE PINAX_VERSION="${PROJECT_VERSION}")
 
 # ui: Qt Widgets panels and item models. Fed domain types; issues no SQL
 # (invariant 8), so it does not link pinax_db.
