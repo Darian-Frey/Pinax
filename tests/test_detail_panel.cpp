@@ -81,6 +81,8 @@ private slots:
     void authorsAreEditedAsText();
     void aNewBookStartsEmptyAndCancelsToNothing();
     void deletionIsConfirmedInThePanel();
+    void placeholdersAreCountedNotNamed_data();
+    void placeholdersAreCountedNotNamed();
 };
 
 void TestDetailPanel::startsEmptyAndShowsSeveral()
@@ -328,6 +330,40 @@ void TestDetailPanel::deletionIsConfirmedInThePanel()
     QTest::mouseClick(child<QPushButton>(panel, QStringLiteral("confirm.delete")), Qt::LeftButton);
     QCOMPARE(confirmed.count(), 1);
     QCOMPARE(confirmed.at(0).at(0).value<QList<qint64>>(), QList<qint64>({5, 6}));
+}
+
+void TestDetailPanel::placeholdersAreCountedNotNamed_data()
+{
+    // IMP-005: missing titles given, then the expected line in the panel.
+    QTest::addColumn<QStringList>("missing");
+    QTest::addColumn<QString>("expected");
+
+    QTest::newRow("all unidentified")
+        << QStringList({"Unidentified volume 1", "Unidentified volume 2", "Unidentified volume 3"})
+        << "Missing 3, not yet identified";
+    QTest::newRow("one unidentified")
+        << QStringList({"Later volumes — unidentified"}) << "Missing one volume, not yet identified";
+    QTest::newRow("named and unidentified")
+        << QStringList({"A Talent for War", "Later volumes — unidentified"})
+        << "Missing 2: A Talent for War, and 1 not yet identified";
+    QTest::newRow("one named")
+        << QStringList({"Consider Phlebas"})
+        << "Missing <b>Consider Phlebas</b> — one volume completes this series";
+}
+
+void TestDetailPanel::placeholdersAreCountedNotNamed()
+{
+    QFETCH(QStringList, missing);
+    QFETCH(QString, expected);
+
+    BookDetail detail = excession();
+    detail.series.front().missing.clear();
+    for (const QString& title : missing)
+        detail.series.front().missing.push_back({std::nullopt, title.toStdString()});
+
+    DetailPanel panel;
+    panel.showBook(detail);
+    QCOMPARE(labelText(*panel.view(), QStringLiteral("series.missing")), expected);
 }
 
 QTEST_MAIN(TestDetailPanel)

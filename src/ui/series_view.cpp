@@ -1,5 +1,7 @@
 #include "ui/series_view.h"
 
+#include "domain/placeholder.h"
+
 #include "ui/style.h"
 
 #include <QFrame>
@@ -198,13 +200,27 @@ void SeriesView::showSeries(const SeriesDetail& detail, const std::optional<doma
                               .arg(volumeName(detail.missing.front())));
     } else if (!detail.missing.empty()) {
         missingHeading_->setText(tr("Missing · %1").arg(detail.missing.size()).toUpper());
+        // Named volumes by name; placeholders counted, since their names say
+        // nothing (IMP-005).
         QStringList names;
-        for (std::size_t i = 0; i < detail.missing.size() && i < shownMissing; ++i)
-            names << volumeName(detail.missing[i]);
-        QString text = names.join(QStringLiteral("<br>"));
-        if (detail.missing.size() > shownMissing)
-            text += QStringLiteral("<br>") + tr("and %1 more").arg(detail.missing.size() - shownMissing);
-        missing_->setText(text);
+        std::size_t named = 0;
+        std::size_t unidentified = 0;
+        for (const auto& volume : detail.missing) {
+            if (domain::isPlaceholderTitle(volume.title)) {
+                ++unidentified;
+                continue;
+            }
+            if (named++ < shownMissing)
+                names << volumeName(volume);
+        }
+        if (named > shownMissing)
+            names << tr("and %1 more").arg(named - shownMissing);
+        if (unidentified > 0) {
+            const QString count = unidentified == 1 ? tr("one volume") : tr("%1 volumes").arg(unidentified);
+            names << (named == 0 ? tr("%1, not yet identified").arg(count)
+                                 : tr("and %1 not yet identified").arg(count));
+        }
+        missing_->setText(names.join(QStringLiteral("<br>")));
     } else {
         missingHeading_->setText(tr("Missing").toUpper());
         if (series.status == "Complete to date")

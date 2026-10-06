@@ -1,5 +1,7 @@
 #include "ui/attach_view.h"
 
+#include "domain/placeholder.h"
+
 #include "ui/style.h"
 
 #include <QHBoxLayout>
@@ -90,7 +92,7 @@ void AttachView::offer(const domain::SeriesRow& volume, const QString& seriesNam
     // Start with the volume's own title, which is what is most likely held —
     // unless nothing matches it, when every candidate is the better start.
     QString start;
-    if (title && title->rfind("Unidentified", 0) != 0 && title->rfind("Later volumes", 0) != 0)
+    if (title && !domain::isPlaceholderTitle(title))
         start = QString::fromStdString(*title);
     search_->setText(start);
     filter(start);

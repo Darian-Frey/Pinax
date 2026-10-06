@@ -16,6 +16,7 @@ add_library(pinax_domain STATIC
     domain/enums.h
     domain/isbn.cpp
     domain/isbn.h
+    domain/placeholder.h
     domain/series_entry.h
     domain/series_detail.h
     domain/series_membership.h

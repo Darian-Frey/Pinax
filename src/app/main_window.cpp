@@ -4,6 +4,7 @@
 #include "ui/book_list_model.h"
 #include "ui/book_list_view.h"
 #include "db/db_error.h"
+#include "domain/placeholder.h"
 #include "ui/detail_panel.h"
 #include "ui/rail_view.h"
 #include "ui/series_page.h"
@@ -325,8 +326,7 @@ void MainWindow::createForEntry(qint64 entryId)
     // The form starts with what the series already knows: the volume's title
     // (unless it is a placeholder) and the authors its other volumes carry.
     domain::BookDetail prefill;
-    if (entry->title && entry->title->rfind("Unidentified", 0) != 0
-        && entry->title->rfind("Later volumes", 0) != 0)
+    if (entry->title && !domain::isPlaceholderTitle(entry->title))
         prefill.book.title = *entry->title;
     prefill.credits = catalogue_->seriesCredits(entry->seriesId);
     pendingAttach_ = entryId;

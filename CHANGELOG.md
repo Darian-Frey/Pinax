@@ -14,6 +14,9 @@ change can be traced to the capability or decision that motivated it.
 Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) in progress.
 
 ### Added
+- IMP-005 applied: the panel counts placeholder volumes instead of naming
+  them — "Missing 14, not yet identified" — through one
+  `domain::isPlaceholderTitle`.
 - IMP-004 applied, schema version 3: a book with no author shows its editors
   in the list — "Mike Ashley (ed.)" — and files under them. Per-author
   counts must still come from author credits, not the list's column.

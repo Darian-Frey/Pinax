@@ -1,6 +1,7 @@
 #include "domain/credit_text.h"
 #include "domain/enums.h"
 #include "domain/isbn.h"
+#include "domain/placeholder.h"
 #include "domain/sort_name.h"
 #include "domain/sort_title.h"
 
@@ -20,6 +21,7 @@ private slots:
     void sortNamePutsSurnameFirst();
     void isbnCheckDigits();
     void creditTextRoundTrips();
+    void placeholdersAreKnownByTitle();
 };
 
 void TestDomain::sortTitleMovesLeadingArticle_data()
@@ -115,6 +117,15 @@ void TestDomain::creditTextRoundTrips()
     QVERIFY(parseCredits("   ").empty());
     QVERIFY_THROWS_EXCEPTION(CreditTextError, parseCredits("Larry Niven & "));
     QVERIFY_THROWS_EXCEPTION(CreditTextError, parseCredits("Somebody (publisher)"));
+}
+
+void TestDomain::placeholdersAreKnownByTitle()
+{
+    QVERIFY(isPlaceholderTitle(std::string_view("Unidentified volume 3")));
+    QVERIFY(isPlaceholderTitle(std::string_view("Later volumes — unidentified")));
+    QVERIFY(!isPlaceholderTitle(std::string_view("Consider Phlebas")));
+    QVERIFY(!isPlaceholderTitle(std::string_view("Later Volumes of the Saga")));
+    QVERIFY(!isPlaceholderTitle(std::optional<std::string>()));
 }
 
 QTEST_APPLESS_MAIN(TestDomain)

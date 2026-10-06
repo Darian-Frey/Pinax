@@ -1,5 +1,7 @@
 #include "ui/book_view.h"
 
+#include "domain/placeholder.h"
+
 #include "ui/rating_bar.h"
 #include "ui/style.h"
 
@@ -150,16 +152,30 @@ QString missingText(const SeriesMembership& series)
             return BookView::tr("Complete");
         return {};
     }
-    if (count == 1) {
-        return BookView::tr("Missing <b>%1</b> — one volume completes this series")
-            .arg(volumeName(series.missing.front()));
+
+    // Placeholders are counted, not named: their names say nothing (IMP-005).
+    QStringList named;
+    std::size_t unidentified = 0;
+    for (const auto& volume : series.missing) {
+        if (domain::isPlaceholderTitle(volume.title))
+            ++unidentified;
+        else
+            named << volumeName(volume);
     }
-    QStringList names;
-    for (std::size_t i = 0; i < std::min<std::size_t>(count, 3); ++i)
-        names << volumeName(series.missing[i]);
-    QString list = names.join(QStringLiteral(", "));
-    if (count > 3)
-        list += BookView::tr(" and %1 more").arg(count - 3);
+
+    if (named.isEmpty()) {
+        return unidentified == 1 ? BookView::tr("Missing one volume, not yet identified")
+                                 : BookView::tr("Missing %1, not yet identified").arg(unidentified);
+    }
+    if (count == 1) {
+        return BookView::tr("Missing <b>%1</b> — one volume completes this series").arg(named.front());
+    }
+
+    QString list = named.mid(0, 3).join(QStringLiteral(", "));
+    if (named.size() > 3)
+        list += BookView::tr(" and %1 more").arg(named.size() - 3);
+    if (unidentified > 0)
+        list += BookView::tr(", and %1 not yet identified").arg(unidentified);
     return BookView::tr("Missing %1: %2").arg(count).arg(list);
 }
 

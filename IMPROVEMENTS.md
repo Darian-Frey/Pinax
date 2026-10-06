@@ -23,9 +23,13 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
+*None.*
+
+## Applied
+
 ### IMP-005 Summarise placeholder volumes in the detail panel
 
-**Status:** suggested
+**Status:** applied (2026-10-06)
 **Found:** 2026-10-05 (Phase 2 step 1, viewing Discworld after the series import)
 **Location:** `src/ui/book_view.cpp`, `missingText`
 **Effort:** trivial
@@ -41,9 +45,15 @@ mark one carries is its title. Either the title pattern becomes a convention
 the code relies on, or entries gain a flag — a schema change for a display
 nicety. A third route is to leave it until the series view (Phase 2 step 3)
 shows placeholders in place, where the repetition matters less.
+**Applied.** As proposed, by the owner's decision, recognising a
+placeholder by its title: `domain::isPlaceholderTitle` is the one place the
+convention is read, and the two copies of the check already in the code (the
+attach search and the new-book prefill) now use it. Discworld reads "Missing
+14, not yet identified" on a book and "14 volumes, not yet identified" on the
+series; a mix names the named and counts the rest. No schema change.
+`tests/test_detail_panel.cpp`, `placeholdersAreCountedNotNamed`;
+`tests/test_series_page.cpp`, `panelCountsPlaceholders`.
 **Notes.** Placeholders were the owner's choice for the seed (D-018).
-
-## Applied
 
 ### IMP-004 Show editors in the list when a book has no author
 

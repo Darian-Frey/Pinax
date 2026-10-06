@@ -83,6 +83,7 @@ private slots:
     void panelDescribesOneVolumeShort();
     void panelListsSeveralMissing();
     void panelNeverClaimsConcluded();
+    void panelCountsPlaceholders();
 };
 
 void TestSeriesPage::missingVolumesSitInPlaceMarked()
@@ -241,6 +242,25 @@ void TestSeriesPage::panelNeverClaimsConcluded()
     detail.series.status = "Complete to date";
     view.showSeries(detail);
     QCOMPARE(labelText(view, QStringLiteral("seriesView.byline")), QStringLiteral("3 volumes · still being written"));
+}
+
+void TestSeriesPage::panelCountsPlaceholders()
+{
+    // IMP-005: Discworld's 14 unnamed gaps are one line, not eight names.
+    SeriesDetail detail;
+    detail.series = culture();
+    for (int i = 1; i <= 14; ++i)
+        detail.missing.push_back({std::nullopt, "Unidentified volume " + std::to_string(i)});
+
+    SeriesView view;
+    view.showSeries(detail);
+    QCOMPARE(labelText(view, QStringLiteral("seriesView.missing")), QStringLiteral("14 volumes, not yet identified"));
+
+    detail.missing.insert(detail.missing.begin(), MissingVolume {std::string("1"), std::string("Consider Phlebas")});
+    view.showSeries(detail);
+    const QString text = labelText(view, QStringLiteral("seriesView.missing"));
+    QVERIFY2(text.startsWith(QStringLiteral("Consider Phlebas")), qPrintable(text));
+    QVERIFY2(text.endsWith(QStringLiteral("<br>and 14 volumes not yet identified")), qPrintable(text));
 }
 
 QTEST_MAIN(TestSeriesPage)
