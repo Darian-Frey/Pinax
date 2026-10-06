@@ -160,6 +160,8 @@ target_link_libraries(pinax_ui PUBLIC pinax_domain Qt6::Widgets)
 
 # app: composition root and window shell.
 add_library(pinax_app STATIC
+    app/batch_enricher.cpp
+    app/batch_enricher.h
     app/catalogue.cpp
     app/catalogue.h
     app/enricher.cpp

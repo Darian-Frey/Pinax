@@ -54,26 +54,23 @@ Enricher::Enricher(metadata::Fetcher& fetcher, const QString& googleKey, metadat
 Enricher::~Enricher() = default;
 
 template <typename T>
-std::function<void(T)> Enricher::guarded(std::function<void(T)> done)
+std::function<void(T)> Enricher::guarded(Channel channel, std::function<void(T)> done)
 {
-    return [this, generation = generation_, done = std::move(done)](T value) {
-        if (generation == generation_)
+    const auto index = static_cast<std::size_t>(channel);
+    return [this, index, generation = generations_[index], done = std::move(done)](T value) {
+        if (generation == generations_[index])
             done(std::move(value));
     };
 }
 
-void Enricher::cancel()
+void Enricher::cancel(Channel channel)
 {
-    ++generation_;
-    openLibraryQueue_.cancelAll();
-    googleQueue_.cancelAll();
-    britishLibraryQueue_.cancelAll();
-    coverQueue_.cancelAll();
+    ++generations_[static_cast<std::size_t>(channel)];
 }
 
-void Enricher::find(const BookDetail& detail, std::function<void(FindResult)> done)
+void Enricher::find(const BookDetail& detail, std::function<void(FindResult)> done, Channel channel)
 {
-    done = guarded(std::move(done));
+    done = guarded(channel, std::move(done));
     if (const auto isbn = isbn13Of(detail.book))
         findByIsbn(*isbn, detail, std::move(done));
     else
@@ -185,9 +182,9 @@ void Enricher::findByTitle(const BookDetail& detail, Asked asked, std::function<
     });
 }
 
-void Enricher::complete(const Candidate& candidate, std::function<void(Candidate)> done)
+void Enricher::complete(const Candidate& candidate, std::function<void(Candidate)> done, Channel channel)
 {
-    done = guarded(std::move(done));
+    done = guarded(channel, std::move(done));
     if (candidate.description || !candidate.workKey || candidate.source != domain::Source::OpenLibrary) {
         done(candidate);
         return;
@@ -207,7 +204,7 @@ void Enricher::fetchCover(std::int64_t bookId, const std::string& url, const std
     // fetches.
     auto cache = std::make_shared<metadata::CoverCache>(coverQueue_, QString::fromStdString(dataDirectory));
     cache->fetch(bookId, QUrl(QString::fromStdString(url)),
-        [cache, done = guarded(std::move(done))](metadata::CoverResult result) { done(std::move(result)); });
+        [cache, done = guarded(Channel::Covers, std::move(done))](metadata::CoverResult result) { done(std::move(result)); });
 }
 
 } // namespace pinax::app

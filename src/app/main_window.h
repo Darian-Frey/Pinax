@@ -1,5 +1,7 @@
 #pragma once
 
+#include "app/batch_enricher.h"
+#include "metadata/cover_cache.h"
 #include "domain/book_edit.h"
 #include "domain/candidate.h"
 #include "domain/book_filter.h"
@@ -13,6 +15,7 @@
 #include <vector>
 
 class QAction;
+class QProgressBar;
 class QSplitter;
 class QStackedWidget;
 class QWidget;
@@ -52,6 +55,9 @@ public:
     ui::RailView* rail() const { return rail_; }
     ui::SeriesPage* seriesPage() const { return seriesPage_; }
     ui::MissingPage* missingPage() const { return missingPage_; }
+    BatchEnricher* batch() const { return batch_; }
+    QAction* fetchAllAction() const { return fetchAll_; }
+    QAction* reviewAction() const { return review_; }
     // True while a series is chosen and the middle panel lists its entries.
     bool showingSeries() const;
     // True while the shopping list is in the middle panel (F-010).
@@ -103,6 +109,15 @@ private:
     void fetchMetadata(qint64 bookId);
     void useCandidate(qint64 bookId, int index);
     void fetchCover(qint64 bookId, const std::string& url, domain::Source source);
+    void coverArrived(qint64 bookId, domain::Source source, const metadata::CoverResult& cover);
+
+    // The batch run (Phase 3 step 5, D-023): Fetch all starts or stops it;
+    // Review walks the matches waiting for the owner, one book at a time.
+    void toggleBatch();
+    void showBatchProgress();
+    void beginReview();
+    void reviewNext();
+    void endReview(const QString& message);
 
     // IMP-002: while the panel holds an edit or a question, the list and Add
     // stand still, so a stray click cannot throw the edit away.
@@ -117,6 +132,16 @@ private:
         bool byIsbn = false;
     };
     std::optional<Offer> offer_;
+    BatchEnricher* batch_ = nullptr;
+    QAction* fetchAll_ = nullptr;
+    QAction* review_ = nullptr;
+    QProgressBar* batchBar_ = nullptr;
+    // The match on show while reviewing, and how many are left this pass
+    // (so Skip cannot go round for ever).
+    std::optional<PendingMatch> reviewing_;
+    int reviewLeft_ = 0;
+    int reviewPlace_ = 0;
+    int reviewTotal_ = 0;
     QAction* addBook_ = nullptr;
     // A new book being added for this missing volume (Mark as owned).
     std::optional<qint64> pendingAttach_;

@@ -24,6 +24,9 @@ public:
 
     // The lookup has started; `how` says what is being asked of whom.
     void begin(const QString& title, const QString& how);
+    // Reviewing a batch run's finds (D-023): `place` says where in the queue
+    // ("3 of 41"), and Not my book and Skip are offered beside Use this.
+    void beginReview(const QString& title, const QString& place);
     void setProgress(const QString& text);
     // `byIsbn`: the candidates answer the book's ISBN, and so describe its
     // edition; otherwise they were found by title and author.
@@ -36,6 +39,9 @@ public:
 signals:
     void chosen(int index);
     void cancelled();
+    // Reviewing: none of the candidates is the book; or not decided now.
+    void rejected();
+    void skipped();
 
 private:
     void choose();
@@ -45,6 +51,10 @@ private:
     QListWidget* list_;
     QPushButton* use_;
     QPushButton* cancel_;
+    QPushButton* reject_;
+    QPushButton* skip_;
+    bool reviewing_ = false;
+    QString place_;
 };
 
 } // namespace pinax::ui

@@ -15,6 +15,14 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- Fetch all metadata and Review matches (Phase 3 step 5, D-023): the toolbar
+  runs a lookup over every book not yet looked up, a second apart, with
+  progress in the status bar and Stop. An ISBN's single answer is taken only
+  if its title agrees with the book's; everything else waits under Review
+  matches, which shows each book's candidates in the panel with Use this,
+  Not my book, Skip and Stop reviewing. Books already matched or not found
+  are skipped, so a stopped run carries on where it left off.
+
 - The British Library as a third provider (D-022): an ISBN lookup asks it
   alongside Open Library over its catalogue's open SRU interface, and its
   record fills what Open Library's lacks — publisher, page count, the
@@ -176,6 +184,10 @@ Phase 3 (metadata enrichment) in progress.
   Attaches to a waiting series entry where one matches, so acquiring a missing
   volume closes the gap rather than creating a parallel record. No schema
   change needed.
+
+### Fixed
+- BUG-004: giving the candidate list focus no longer chooses its first
+  search result; Use this follows a real selection (AV-010).
 
 ### Decided
 - Open Library is the primary provider and Google Books is used only with an

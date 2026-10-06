@@ -178,6 +178,11 @@ module permitted to know about all the others.
   the owner's choice goes to `Catalogue::enrich`, which applies
   `domain::planEnrichment` (SPEC.md §3.5, AV-001) in one transaction, and the
   cover to `Catalogue::setCover`. `cancel` drops every answer still to come.
+- **BatchEnricher** — Fetch all (D-023): every `unmatched` book in turn
+  through the `Enricher`'s batch channel; an ISBN's single, title-agreeing
+  answer is written, others held in a review queue in memory, misses marked
+  `failed`; a provider out of reach stops the run. Resuming is starting
+  again. The window's Review matches walks the queue in the panel.
 - **Provider key** — `findGoogleBooksKey` reads the Google key from the
   environment or a `google-books.key` file, never from the build (D-021).
 - **MainWindow** — a toolbar (Add a book, Ctrl+N), the splitter. While the

@@ -182,9 +182,10 @@ good books `failed` and moves on.
 **Detection.** Partly implemented, 2026-10-06. `tests/test_metadata.cpp`:
 `aQuotaReplyPausesAndRetries` (a 429 pauses the queue and the request is
 retried), `persistentTroubleIsGivenUpOn`, `aMissingRecordIsNotRetried`,
-`requestsAreSpacedApart`, `cancellingDropsWhatIsQueued`. The batch-level test
-— interrupt a run, resume it, and books already `matched` are skipped — is
-owed by Phase 3 step 5.
+`requestsAreSpacedApart`, `cancellingDropsWhatIsQueued`. At batch level
+(D-023), `tests/test_enricher.cpp`, `anInterruptedBatchResumesWhereItLeftOff`:
+a provider out of reach stops the run with the book in hand still
+`unmatched`, and the next run asks nothing already answered.
 **Related decisions.** D-008, D-019, D-020.
 **History.** Identified while specifying Phase 3, 2026-10-04. On 2026-10-06
 Google Books turned out to give a keyless quota of 0 — every request refused
@@ -205,8 +206,10 @@ and a search result never supplies publisher, page count or ISBN (SPEC.md
 §3.5). `tests/test_detail_panel.cpp`, `searchedCandidatesWaitToBeChosen`;
 `tests/test_enricher.cpp`, `fetchingFromThePanelWritesTheChoiceAndItsCover`;
 `tests/test_domain.cpp`, `aSearchedCandidateGivesNoEditionFacts`. Not yet:
-a report of books matched by search rather than ISBN, and the batch pass's
-confirmation queue (Phase 3 step 5). The British Library's index returns
+a report of books matched by search rather than ISBN. The batch run takes
+only an ISBN's single answer whose title agrees (`titlesAgreeAcrossProviderNoise`,
+`aBatchTakesOnlyWhatItMayAndQueuesTheRest`) and queues everything else for
+review; a focused list no longer counts as a choice (BUG-004). The British Library's index returns
 related editions for an ISBN; only records carrying the ISBN asked are kept
 (`britishLibraryDropsRelatedEditions`, D-022).
 **Related decisions.** D-008, D-012.

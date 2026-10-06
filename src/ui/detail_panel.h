@@ -89,6 +89,9 @@ public:
     // "Fetch metadata" for the book on show (F-012): the lookup under way,
     // then its candidates to choose from. Cancel returns to the book.
     void beginFetch(const QString& how);
+    // The same, for a batch run's find under review (D-023): `place` says
+    // where in the queue. Not my book and Skip join Use this.
+    void beginReview(const QString& place);
     void offerCandidates(const std::vector<domain::Candidate>& candidates, bool byIsbn);
     void showFetchProblem(const QString& message);
     void setFetchProgress(const QString& text);
@@ -127,6 +130,9 @@ signals:
     // The lookup was cancelled, or its problem acknowledged; the panel is
     // back on the book.
     void fetchCancelled();
+    // Reviewing: none of the candidates is this book; or decide later.
+    void candidateRejected(qint64 bookId);
+    void candidateSkipped(qint64 bookId);
 
 private:
     void setState(State state);

@@ -24,6 +24,29 @@ detection becomes an entry here.
 
 ## Fixed
 
+### BUG-004 Focusing the candidate list chose its first search result
+
+**Status:** fixed (2026-10-06)
+**Found:** 2026-10-06 (Phase 3 step 5, a live review screen against a catalogue copy)
+**Location:** `src/ui/candidate_view.cpp`, `CandidateView::offer`; `src/ui/detail_panel.cpp`, `offerCandidates`
+**Severity:** medium
+**Description.** Candidates found by title and author are offered with
+none chosen (AV-010). But the panel then gave the list keyboard focus, and a
+list given focus makes its first row current; Use this followed the current
+row, so it was enabled and Enter would take the first result — the
+preselection AV-010 forbids. Introduced with Fetch metadata (step 4). The
+tests did not see it: an offscreen window that is never made active never
+really takes focus.
+**Reproduction (was).** In a shown, active window, fetch a book without an
+ISBN: the first candidate is highlighted and Use this is enabled.
+**Fix.** Use this follows the selection, which focus never changes, rather
+than the current row; a search's candidates leave the focus on Cancel (or
+Skip, when reviewing), and only an ISBN's answer focuses the list.
+`tests/test_detail_panel.cpp`, `searchedCandidatesWaitToBeChosen`, now runs
+in an active window and tabs into the list. Found and fixed in the same
+step because the review queue built there uses the same view; logged here
+for the owner's sight.
+
 ### BUG-003 Editors imported as authors named "ed. …"
 
 **Status:** fixed (2026-10-05)

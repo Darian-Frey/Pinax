@@ -38,4 +38,12 @@ struct EnrichmentPlan {
 EnrichmentPlan planEnrichment(const Book& book, const Candidate& candidate, bool fromIsbnLookup,
     const std::string& fetchedAt);
 
+// Whether a provider's title plausibly names the owner's book, for accepting
+// an ISBN's single answer without asking (SPEC.md §3.4, AV-010). Compared
+// case-blind, ignoring punctuation and a leading article. One may carry more
+// only after a bracket, colon, slash or dash — "Titan (NASA Trilogy)",
+// "Foundation and Empire: Book 2" — never more words: "Dune" does not agree
+// with "The Dune Encyclopedia".
+bool titlesAgree(const std::string& ownTitle, const std::string& providerTitle);
+
 } // namespace pinax::domain

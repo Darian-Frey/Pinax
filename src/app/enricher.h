@@ -42,24 +42,33 @@ class Enricher : public QObject {
     Q_OBJECT
 
 public:
+    // Who is asking, so one can be cancelled without the other: a fetch in
+    // the panel, the batch run, and covers, which are never cancelled once
+    // their book is written. All share the same polite queues.
+    enum class Channel { Interactive, Batch, Covers };
+
     Enricher(metadata::Fetcher& fetcher, const QString& googleKey, metadata::QueuePolicy policy = {},
         QObject* parent = nullptr);
     ~Enricher() override;
 
     bool googleAvailable() const { return google_.available(); }
 
-    void find(const domain::BookDetail& detail, std::function<void(FindResult)> done);
+    void find(const domain::BookDetail& detail, std::function<void(FindResult)> done,
+        Channel channel = Channel::Interactive);
 
     // A candidate found by search carries no synopsis; its work may. Hands
     // the candidate back, filled where it could be.
-    void complete(const domain::Candidate& candidate, std::function<void(domain::Candidate)> done);
+    void complete(const domain::Candidate& candidate, std::function<void(domain::Candidate)> done,
+        Channel channel = Channel::Interactive);
 
     // The cover, into `dataDirectory`/covers (SPEC.md §4).
     void fetchCover(std::int64_t bookId, const std::string& url, const std::string& dataDirectory,
         std::function<void(metadata::CoverResult)> done);
 
-    // Forgets every request not yet answered; their callbacks never run.
-    void cancel();
+    // Forgets the channel's answers still to come; their callbacks never run.
+    // Requests already queued are still sent — at most a few — and their
+    // answers dropped.
+    void cancel(Channel channel = Channel::Interactive);
 
 signals:
     // A provider asked us to wait (AV-009); requests resume in about
@@ -96,9 +105,9 @@ public:
     // secondary ones answer alone.
     static std::vector<domain::Candidate> fillGaps(std::vector<domain::Candidate> primary,
         const std::vector<domain::Candidate>& secondary);
-    // Wraps a callback so it is dropped if cancel() runs first.
+    // Wraps a callback so it is dropped if its channel is cancelled first.
     template <typename T>
-    std::function<void(T)> guarded(std::function<void(T)> done);
+    std::function<void(T)> guarded(Channel channel, std::function<void(T)> done);
 
     metadata::RequestQueue openLibraryQueue_;
     metadata::RequestQueue googleQueue_;
@@ -107,7 +116,7 @@ public:
     metadata::OpenLibraryClient openLibrary_;
     metadata::GoogleBooksClient google_;
     metadata::BritishLibraryClient britishLibrary_;
-    unsigned generation_ = 0;
+    unsigned generations_[3] = {0, 0, 0}; // by Channel
 };
 
 } // namespace pinax::app

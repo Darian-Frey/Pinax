@@ -115,7 +115,8 @@ everything published reports complete to date.
       — 2026-10-06 (D-022), schema version 5
 - [x] On-disk cover cache keyed by book — 2026-10-06, `CoverCache`;
       covers are removed with their book
-- [ ] Batch enrichment with progress, cancellation and resumption
+- [x] Batch enrichment with progress, cancellation and resumption —
+      2026-10-06, Fetch all and Review matches (D-023)
 - [x] Per-field provenance recorded on write — 2026-10-06, where the schema
       has a source column; publisher, year and pages are filled only when
       empty (SPEC.md §3.5)

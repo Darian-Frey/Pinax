@@ -47,7 +47,10 @@ Ctrl+N adds a book by hand. Fetch metadata, in the panel, looks the book up
 on Open Library — by ISBN, or by title and author — and, for an ISBN, in the
 British Library's catalogue too, which fills in UK editions' page counts and
 original years; it shows what it found for you to choose from; the choice brings a synopsis, genres and a cover,
-and fills only what you left empty (AV-001). Google Books is asked as well if
+and fills only what you left empty (AV-001). Fetch all metadata, in the
+toolbar, does the same for every book not yet looked up, taking only an
+ISBN's agreeing answer by itself; what it found by title waits under Review
+matches for you to confirm one book at a time. Google Books is asked as well if
 you have an API key: put it in `google-books.key` beside the catalogue, or in
 the folder Pinax is started from, or in `PINAX_GOOGLE_BOOKS_KEY` (D-021).
 Never commit it; `.gitignore` covers `*.key`. The database is also usable on

@@ -11,6 +11,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSignalSpy>
+#include <QApplication>
 #include <QTest>
 
 using pinax::domain::Binding;
@@ -414,9 +415,13 @@ void TestDetailPanel::searchedCandidatesWaitToBeChosen()
 {
     DetailPanel panel;
     panel.show();
+    // Active, so focus is real: focusing a list makes its first row current.
+    panel.activateWindow();
+    QVERIFY(QTest::qWaitForWindowActive(&panel));
     panel.showBook(excession());
     panel.beginFetch(QStringLiteral("Searching…"));
     panel.offerCandidates(twoEditions(), false);
+    QApplication::processEvents();
 
     auto* list = child<QListWidget>(*panel.candidateView(), QStringLiteral("candidates.list"));
     auto* use = child<QPushButton>(*panel.candidateView(), QStringLiteral("candidates.use"));
@@ -425,6 +430,12 @@ void TestDetailPanel::searchedCandidatesWaitToBeChosen()
     QVERIFY(list->item(1)->text().contains(QStringLiteral("Google Books")));
     QVERIFY(labelText(*panel.candidateView(), QStringLiteral("candidates.status")).contains(QStringLiteral("another edition")));
     QCOMPARE(list->currentRow(), -1);
+    QVERIFY(list->selectedItems().isEmpty());
+    QVERIFY(!use->isEnabled());
+    // Focus is not a choice (BUG-004): into the list by keyboard, still none.
+    list->setFocus(Qt::TabFocusReason);
+    QApplication::processEvents();
+    QVERIFY(list->selectedItems().isEmpty());
     QVERIFY(!use->isEnabled());
 
     QSignalSpy chosen(&panel, &DetailPanel::candidateChosen);

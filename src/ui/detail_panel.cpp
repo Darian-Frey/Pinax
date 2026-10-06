@@ -148,6 +148,14 @@ DetailPanel::DetailPanel(QWidget* parent)
         if (state_ == State::Fetching && shown_)
             emit candidateChosen(shown_->book.id, index);
     });
+    connect(candidateView_, &CandidateView::rejected, this, [this] {
+        if (state_ == State::Fetching && shown_)
+            emit candidateRejected(shown_->book.id);
+    });
+    connect(candidateView_, &CandidateView::skipped, this, [this] {
+        if (state_ == State::Fetching && shown_)
+            emit candidateSkipped(shown_->book.id);
+    });
     connect(candidateView_, &CandidateView::cancelled, this, [this] {
         if (shown_)
             showBook(*shown_);
@@ -275,10 +283,17 @@ void DetailPanel::beginFetch(const QString& how)
     setState(State::Fetching);
 }
 
+void DetailPanel::beginReview(const QString& place)
+{
+    if (state_ != State::Viewing || !shown_)
+        return;
+    candidateView_->beginReview(QString::fromStdString(shown_->book.title), place);
+    setState(State::Fetching);
+}
+
 void DetailPanel::offerCandidates(const std::vector<domain::Candidate>& candidates, bool byIsbn)
 {
-    candidateView_->offer(candidates, byIsbn);
-    candidateView_->focusList();
+    candidateView_->offer(candidates, byIsbn); // and places the focus
 }
 
 void DetailPanel::showFetchProblem(const QString& message)

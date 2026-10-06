@@ -198,7 +198,9 @@ ISBN (an ISBN-10 as its ISBN-13) or else by title and first author, and
 offers the candidates; the one chosen writes its synopsis with its source. A
 lookup that finds nothing records `failed` (SPEC.md §3.4) — "not matched"
 in the sense of the criterion above — and changes nothing else. A manual
-synopsis survives. Batch fetching is Phase 3 step 5.
+synopsis survives. Fetch all runs the same lookup over every unmatched book,
+taking an ISBN's single agreeing answer and queueing the rest for review
+(D-023).
 **Notes:** D-019 for the provider pair — Open Library first, Google Books only
 with a key, superseding D-008 — and D-022 for the British Library, which
 fills edition facts by ISBN but never supplies a synopsis; SPEC.md §3 for the
@@ -217,7 +219,8 @@ title-and-author match is never auto-accepted).
 but a real image, keeps covers beside the database and removes them with
 their book; the panel shows a cached cover or the placeholder. A candidate
 chosen in Fetch metadata brings its cover, unless the book's cover was set by
-hand. The batch pass is Phase 3 step 5.
+hand. Fetch all brings covers with every match it takes or the owner
+confirms; a cover already cached is not fetched again.
 **Notes:** From Open Library by cover id; Google as a second source with a key
 (D-019). Cache layout in SPEC.md §4.
 

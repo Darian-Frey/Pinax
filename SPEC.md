@@ -256,12 +256,17 @@ owner.
 ### 3.4 Matching strategy
 
 1. ISBN present → ISBN lookup. A single result is accepted automatically during
-   batch enrichment, and shown for confirmation during add-by-ISBN (F-024).
+   batch enrichment if its title agrees with the book's (`domain::titlesAgree`,
+   D-023) — otherwise it is queued for review — and shown for confirmation
+   during add-by-ISBN (F-024).
 2. No ISBN → title and author search. **Never** accepted automatically; the
    candidate is queued for manual confirmation. See AV-010.
 3. No result from any provider → `metadata_status = 'failed'`, existing
    content untouched. A provider that could not be reached is not a "no
-   result": the book is left as it was and the problem reported.
+   result": the book is left as it was and the problem reported; a batch run
+   stops there and resumes from it (D-023).
+4. Rejected in review (Not my book) → `metadata_status = 'failed'`, content
+   untouched; later batch runs skip it.
 
 Within each step Open Library is asked first and Google Books, with a key,
 only if Open Library has nothing (D-019); for an ISBN the British Library is

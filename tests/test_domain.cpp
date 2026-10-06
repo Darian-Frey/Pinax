@@ -30,6 +30,7 @@ private slots:
     void aSearchedCandidateGivesNoEditionFacts();
     void aManualStatusStaysManual();
     void filledGapsKeepTheirProvider();
+    void titlesAgreeAcrossProviderNoise();
 };
 
 void TestDomain::sortTitleMovesLeadingArticle_data()
@@ -260,6 +261,19 @@ void TestDomain::filledGapsKeepTheirProvider()
     QVERIFY(planEnrichment(book, candidate, true, "t").genres
         == (std::vector<EnrichmentPlan::Genre> {{"Fiction", Source::OpenLibrary},
             {"Science fiction", Source::BritishLibrary}}));
+}
+
+void TestDomain::titlesAgreeAcrossProviderNoise()
+{
+    QVERIFY(titlesAgree("Titan", "Titan (NASA Trilogy)"));
+    QVERIFY(titlesAgree("Sunstorm", "Sunstorm (Gollancz)"));
+    QVERIFY(titlesAgree("The Long Earth", "Long Earth"));
+    QVERIFY(titlesAgree("Consider Phlebas", "CONSIDER PHLEBAS"));
+    QVERIFY(titlesAgree("Foundation and Empire: Book 2", "Foundation and Empire"));
+    QVERIFY(!titlesAgree("Excession", "Consider Phlebas"));
+    QVERIFY(!titlesAgree("Titan", "Titanic"));          // a whole word, not a prefix
+    QVERIFY(!titlesAgree("Dune", "The Dune Encyclopedia"));
+    QVERIFY(!titlesAgree("", "Dune"));
 }
 
 QTEST_APPLESS_MAIN(TestDomain)

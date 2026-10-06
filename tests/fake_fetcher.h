@@ -3,6 +3,7 @@
 #include "metadata/http.h"
 
 #include <QElapsedTimer>
+#include <QObject>
 #include <QTimer>
 #include <QUrl>
 
@@ -28,7 +29,8 @@ public:
             if (replies.size() > 1)
                 replies.erase(replies.begin());
         }
-        QTimer::singleShot(0, [reply, done] { done(reply); });
+        // Owned by the fetcher, so a reply due after it is gone is dropped.
+        QTimer::singleShot(0, &context_, [reply, done] { done(reply); });
     }
 
     std::vector<QString> requested;
@@ -37,6 +39,7 @@ public:
 
 private:
     std::map<QString, std::vector<HttpReply>> scripts_;
+    QObject context_;
 };
 
 } // namespace pinax::metadata

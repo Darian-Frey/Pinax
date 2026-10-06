@@ -17,7 +17,7 @@ database and exports to SQL, CSV and Excel.
 
 ## 2. Current state
 
-**Phases 1 and 2 closed (2026-10-05, 2026-10-06).** The application opens and upgrades its database, imports books (`--import`) and series contents (`--import-series`), lists and sorts, edits books and credits in the panel (F2), adds (Ctrl+N), deletes (Delete), toggles read (R) and rates (1–9, 0). The rail filters by read state and series; a series has its own page with the volumes not owned in place, an entry editor and Mark as owned; NEEDS ATTENTION is the shopping list. F-001–F-010 Complete. Phase 3 under way: Fetch metadata in the panel looks one book up, offers candidates, and writes the chosen one under SPEC.md §3.5.
+**Phases 1 and 2 closed (2026-10-05, 2026-10-06).** The application opens and upgrades its database, imports books (`--import`) and series contents (`--import-series`), lists and sorts, edits books and credits in the panel (F2), adds (Ctrl+N), deletes (Delete), toggles read (R) and rates (1–9, 0). The rail filters by read state and series; a series has its own page with the volumes not owned in place, an entry editor and Mark as owned; NEEDS ATTENTION is the shopping list. F-001–F-010 Complete. Phase 3 under way: Fetch metadata in the panel looks one book up, offers candidates, and writes the chosen one under SPEC.md §3.5; Fetch all does it for the catalogue, with Review matches for what needs confirming.
 
 | Path | State |
 |---|---|
@@ -27,16 +27,16 @@ database and exports to SQL, CSV and Excel.
 | `src/metadata/` | Qt Network (D-020). `Fetcher`/`NetworkFetcher` (the one network seam), `RequestQueue` (spacing, pause on 429/503, retries), `CoverCache` (covers beside the database), `OpenLibraryClient`, `GoogleBooksClient` (key only, D-019) and `BritishLibraryClient` (SRU by ISBN, MARC 21, D-022) with pure `openlibrary::`/`googlebooks::` parsers. Used by `app::Enricher`. |
 | `src/io/` | Qt-free. `parseCsv` (RFC 4180), `CsvImporter` (SPEC.md §1) and `SeriesImporter` (§1.6), sharing `import_support.h`: one transaction, savepoint per row, failures by line, `deriveSortPosition` (the only code that parses `position`). |
 | `src/ui/` | `BookListModel`, `BookSortProxy` (view keys; missing values last; author then series), `BookListView` (opens sorted by author; emits `selectionChangedTo`). `RailView` (LIBRARY, SERIES and NEEDS ATTENTION sections; emits `BookFilter`). `MissingPage` (the shopping list over `MissingModel`) is the third view in the middle stack. `SeriesPage` (heading, show-missing toggle, `SeriesTable` over `SeriesEntryModel`) replaces the book list in the middle stack while a series is chosen. `SeriesView` is the panel's description of a series, with a card for a selected missing volume. `EntryEditor` and `AttachView` are the panel's forms for an entry and for Mark as owned. `list_keys.h` holds the single-key actions both lists share. `BookListView::showOnly` narrows to a set of ids. `DetailPanel` stacks Empty / Viewing (`BookView`) / Editing (`BookEditor`) / Several / ConfirmingDelete (generic `askToConfirm`) / ViewingSeries (`SeriesView`) / EditingEntry (`EntryEditor`) / Attaching (`AttachView`) / Fetching (`CandidateView`: the lookup, then candidates; busy, and nothing redraws over it). `BookView` lists genres. `RatingBar`, `style.h` (accent, muted, section headings). Links `domain`, not `db`. |
-| `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save(Book)`, `save(BookEdit)` which creates at id 0 and resolves credits, `remove`, `toggleRead`, `setRating`). Also `countWithReadStatus`, `seriesStatuses` (filed as titles), `bookIds(BookFilter)`, `seriesRows`, `seriesDetail`, `entry`, `saveEntry`, `removeEntry`, `attach`, `seriesCredits`, `nextSortPosition`; `save(BookEdit, attachTo)` for Mark as owned; `missingVolumes`, `libraryTotals`; `dataDirectory`, `setCover` (never over a manual cover), `enrich` (a chosen candidate, one transaction, returns the cover URL), `markLookupFailed`. `Enricher` asks the providers (ISBN then title, Open Library then Google with a key; one queue per host), completes a searched candidate's synopsis, fetches covers, and `cancel`s; it writes nothing. `findGoogleBooksKey` (D-021). Toolbar: Add a book. `MainWindow`: splitter of `rail`, `list`, `detail`; rail choice → Catalogue ids → list; selection → panel; panel save → Catalogue → row and rail refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import` and `--import-series`, finds the Google key, builds the `Enricher` over a `NetworkFetcher`, shows the count. |
-| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_rail`, `test_series_page`, `test_entry_editor`, `test_import` and `test_series_import` (their seed tests skip without `seed/`), `test_metadata` (recorded responses only; see `tests/fixtures/README.md`), `test_detail_panel`, `test_catalogue`, `test_enricher` (providers and the panel flow end to end, over `fake_fetcher.h`). Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
+| `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save(Book)`, `save(BookEdit)` which creates at id 0 and resolves credits, `remove`, `toggleRead`, `setRating`). Also `countWithReadStatus`, `seriesStatuses` (filed as titles), `bookIds(BookFilter)`, `seriesRows`, `seriesDetail`, `entry`, `saveEntry`, `removeEntry`, `attach`, `seriesCredits`, `nextSortPosition`; `save(BookEdit, attachTo)` for Mark as owned; `missingVolumes`, `libraryTotals`; `dataDirectory`, `setCover` (never over a manual cover), `enrich` (a chosen candidate, one transaction, returns the cover URL), `markLookupFailed`. `Enricher` asks the providers (ISBN then title, Open Library then Google with a key; one queue per host), completes a searched candidate's synopsis, fetches covers, and `cancel`s; it writes nothing. `findGoogleBooksKey` (D-021). `BatchEnricher` runs Fetch all over unmatched books (D-023): takes an ISBN's single title-agreeing answer, queues the rest in memory for review, marks misses failed, stops on unreachable providers. Toolbar: Add a book, Fetch all metadata, Review matches (n); a progress bar in the status bar. `MainWindow`: splitter of `rail`, `list`, `detail`; rail choice → Catalogue ids → list; selection → panel; panel save → Catalogue → row and rail refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import` and `--import-series`, finds the Google key, builds the `Enricher` over a `NetworkFetcher`, shows the count. |
+| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_rail`, `test_series_page`, `test_entry_editor`, `test_import` and `test_series_import` (their seed tests skip without `seed/`), `test_metadata` (recorded responses only; see `tests/fixtures/README.md`), `test_detail_panel`, `test_catalogue`, `test_enricher` (providers, the panel flow and the batch run end to end, over `fake_fetcher.h`, whose replies die with it). Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
 | `FEATURES.md` | Complete. F-001 to F-025. F-001 to F-010 Complete; F-011, F-012, F-013, F-014, F-015, F-016, F-017 In progress; the rest Not started. |
 | `ROADMAP.md` | Complete. Phases 0–2 done; Phase 3 in progress; Phases 4–5 not started; Phase 5 (webcam scanning) waits on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
-| `DECISIONS.md` | Complete. D-001 to D-022; D-008 superseded by D-019, the rest Accepted. |
+| `DECISIONS.md` | Complete. D-001 to D-023; D-008 superseded by D-019, the rest Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, what a fetch writes (§3.5), cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-013. Detection implemented for AV-001, AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007, AV-010, AV-013; the rest `not implemented`. |
-| `BUGS.md` | No open bugs. BUG-001, BUG-002 and BUG-003 fixed. |
+| `BUGS.md` | No open bugs. BUG-001 to BUG-004 fixed. |
 | `IMPROVEMENTS.md` | IMP-007 suggested (free-text fallback for Google, whose qualified queries return nothing); IMP-008 suggested (leave Open Library's library-service subjects such as "Accessible book" out of genres); IMP-009 suggested (genres differing only in case are one). IMP-001 to IMP-005 applied; IMP-006 deferred. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
@@ -85,9 +85,13 @@ Suggested order:
    has not been fetched into. The British Library was added the same day
    (D-022): asked with Open Library for an ISBN, it fills publisher, pages
    and original years, and its headings become genres (schema version 5).
-5. **Batch enrichment**: progress, cancel, resume after interruption or
+5. ~~**Batch enrichment**: progress, cancel, resume after interruption or
    quota (AV-009), and a queue of title-and-author candidates for the owner
-   to confirm or reject.
+   to confirm or reject.~~ Done 2026-10-06 (D-023): `BatchEnricher`, the
+   toolbar's Fetch all metadata and Review matches. A live 45-second run on
+   a catalogue copy looked up 45 books, queued 40 and found 5 nowhere;
+   the owner's catalogue has not had a full run. BUG-004 (a focused list
+   preselected a search result) found and fixed on the way.
 6. **Add by ISBN** (F-024, D-012): lookup, a confirmation card in the panel,
    duplicate and series checks, attaching to a waiting volume (AV-007). The
    webcam scanner (Phase 5) will feed this.
@@ -211,9 +215,18 @@ Not vectors, but worth knowing:
 - **Authors are removed when nothing credits them** (IMP-003), unless they
   have notes. Anything that changes credits outside `Catalogue::save` or the
   importer must call `AuthorRepository::removeUncredited()` too.
-- **The panel's busy states are four**: Editing, EditingEntry, Attaching and
-  ConfirmingDelete. `isEditing()` (the first three) is what nothing may
-  redraw over; `isBusy()` (all four) is what locks the list and rail.
+- **The panel's busy states are five**: Editing, EditingEntry, Attaching,
+  Fetching and ConfirmingDelete. `isEditing()` (all but ConfirmingDelete)
+  is what nothing may redraw over; `isBusy()` (all five) is what locks the
+  list, the rail and the toolbar's actions. Fetching serves both a single
+  fetch and the review of a batch's finds.
+- **Enricher cancellation is per channel** (Interactive, Batch, Covers).
+  Stopping the batch must not drop the panel's fetch, nor the reverse;
+  covers are never cancelled, so their callbacks guard their owner with a
+  `QPointer`.
+- **Focus is not a choice.** A list given focus makes its first row
+  current; Use this follows the *selection* (BUG-004). Anything new that
+  offers candidates must not enable acceptance from the current row.
 - **A new book for a missing volume** is saved with `attachTo`; the window
   keeps the entry id in `pendingAttach_` between "Add it as a new book" and
   Save, and clears it on any dismissal.

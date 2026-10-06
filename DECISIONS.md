@@ -815,3 +815,51 @@ searches.
 **Reversal conditions.** Revisit if the British Library withdraws open SRU
 access or asks that it not be used this way; if so, fall back to Option B
 with registration, or drop the provider.
+
+---
+
+### D-023 Batch enrichment: resume by status, review held in memory
+**Decided:** 2026-10-06
+**Recorded:** 2026-10-06
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-06)
+**Related:** D-011, D-019, D-022, AV-009, AV-010, SPEC.md §3.4
+
+**Context.** Phase 3 step 5 fetches across the catalogue. A run must
+survive interruption and provider trouble (AV-009) and must not write a
+title-and-author match unasked (AV-010). None of the owner's 443 books has
+an ISBN yet, so nearly every find will need the owner's eye.
+
+**Options.**
+- **A. Resume from `metadata_status`; hold the review queue in memory.**
+  Chosen.
+- **B. A table of pending candidates (schema version 6).** Rejected for now:
+  candidates are provider data in flux, a table for them is a schema change
+  and a serialisation of `Candidate`, and losing the queue costs only one
+  request a book to rebuild.
+- **C. Auto-accept the first title-and-author match.** Rejected: AV-010.
+
+**Decision.** Option A. Fetch all looks up every book whose status is
+`unmatched`, one at a time through the shared polite queues; matched,
+failed and manual books are skipped, which is all resuming needs. An ISBN's
+single answer is written at once only if its title agrees with the book's
+(`domain::titlesAgree`: case and punctuation aside, the provider may add
+only a bracketed or appended part, as in "Titan (NASA Trilogy)"); every
+other find waits in the review queue. Nothing found marks the book
+`failed`. A provider out of reach stops the run, leaving the book in hand
+unmatched. Review walks the queue in the panel: Use this writes as a single
+fetch does; Not my book marks the book `failed`, so later runs leave it and
+Fetch metadata can still try it; Skip sends it to the back; Stop reviewing
+keeps the rest. Cancellation is per channel — the panel's fetch, the batch,
+covers — so stopping one never drops the other's answers.
+
+**Consequences.**
+- Quitting with matches unreviewed loses only the queue: those books are
+  still `unmatched`, and the next run finds them again.
+- `failed` covers both "no provider knew it" and "the owner said none of
+  these"; the distinction is not recorded.
+- A full run over the owner's catalogue is about 440 requests at one a
+  second — some eight minutes — plus one or two more per match taken.
+
+**Reversal conditions.** Revisit with option B if review sessions turn out
+to span many restarts, or if re-finding becomes slow enough to notice.

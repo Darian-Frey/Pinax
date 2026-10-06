@@ -1,5 +1,6 @@
 #include "app/main_window.h"
 
+#include "app/batch_enricher.h"
 #include "app/catalogue.h"
 #include "app/enricher.h"
 #include "ui/book_list_model.h"
@@ -13,6 +14,8 @@
 
 #include <QAction>
 #include <QLabel>
+#include <QPointer>
+#include <QProgressBar>
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QStatusBar>
@@ -88,10 +91,34 @@ MainWindow::MainWindow(QWidget* parent)
     connect(detail_, &ui::DetailPanel::fetchRequested, this, &MainWindow::fetchMetadata);
     connect(detail_, &ui::DetailPanel::candidateChosen, this, &MainWindow::useCandidate);
     connect(detail_, &ui::DetailPanel::fetchCancelled, this, [this] {
+        if (reviewing_) {
+            batch_->putBack(std::move(*reviewing_), true);
+            reviewing_.reset();
+            offer_.reset();
+            endReview(tr("Review stopped"));
+            return;
+        }
         if (enricher_)
             enricher_->cancel();
         offer_.reset();
         refreshPanel();
+    });
+    connect(detail_, &ui::DetailPanel::candidateRejected, this, [this](qint64 bookId) {
+        if (!reviewing_ || reviewing_->bookId != bookId)
+            return;
+        catalogue_->markLookupFailed(bookId);
+        reviewing_.reset();
+        offer_.reset();
+        refreshBooks({bookId});
+        reviewNext();
+    });
+    connect(detail_, &ui::DetailPanel::candidateSkipped, this, [this](qint64 bookId) {
+        if (!reviewing_ || reviewing_->bookId != bookId)
+            return;
+        batch_->putBack(std::move(*reviewing_), false);
+        reviewing_.reset();
+        offer_.reset();
+        reviewNext();
     });
 
     auto* toolbar = addToolBar(tr("Catalogue"));
@@ -101,6 +128,16 @@ MainWindow::MainWindow(QWidget* parent)
     addBook_->setObjectName(QStringLiteral("addBook"));
     addBook_->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_N));
     addBook_->setToolTip(tr("Add a book by hand (Ctrl+N)"));
+    toolbar->addSeparator();
+    fetchAll_ = toolbar->addAction(tr("Fetch all metadata"), this, &MainWindow::toggleBatch);
+    fetchAll_->setObjectName(QStringLiteral("fetchAll"));
+    fetchAll_->setToolTip(tr("Look up every book not yet looked up. An ISBN's single, agreeing "
+                             "answer is taken; everything else waits for you under Review."));
+    fetchAll_->setEnabled(false);
+    review_ = toolbar->addAction(tr("Review matches"), this, &MainWindow::beginReview);
+    review_->setObjectName(QStringLiteral("reviewMatches"));
+    review_->setToolTip(tr("Go through what Fetch all found, one book at a time"));
+    review_->setEnabled(false);
     connect(detail_, &ui::DetailPanel::stateChanged, this, &MainWindow::lockWhileBusy);
 
     splitter_->setChildrenCollapsible(false);
@@ -114,6 +151,12 @@ MainWindow::MainWindow(QWidget* parent)
     auto* keys = new QLabel(tr("R toggles read · 1–9, 0 rate · F2 edits · Del deletes"), this);
     keys->setObjectName(QStringLiteral("keys"));
     keys->setEnabled(false);
+    batchBar_ = new QProgressBar(this);
+    batchBar_->setObjectName(QStringLiteral("batchProgress"));
+    batchBar_->setMaximumWidth(160);
+    batchBar_->setTextVisible(false);
+    batchBar_->hide();
+    statusBar()->addPermanentWidget(batchBar_);
     statusBar()->addPermanentWidget(keys);
 
     resize(railWidth + listWidth + detailWidth, 700);
@@ -129,7 +172,11 @@ void MainWindow::lockWhileBusy()
     missingPage_->setEnabled(!busy);
     rail_->setEnabled(!busy);
     addBook_->setEnabled(!busy);
-    if (detail_->state() == ui::DetailPanel::State::Fetching)
+    if (fetchAll_)
+        showBatchProgress();
+    if (detail_->state() == ui::DetailPanel::State::Fetching && reviewLeft_ > 0)
+        statusBar()->showMessage(tr("Reviewing matches — Esc stops"));
+    else if (detail_->state() == ui::DetailPanel::State::Fetching)
         statusBar()->showMessage(tr("Fetching metadata — Esc cancels"));
     else if (detail_->isEditing())
         statusBar()->showMessage(tr("Editing — Ctrl+Enter saves, Esc cancels"));
@@ -144,6 +191,8 @@ void MainWindow::setCatalogue(Catalogue* catalogue)
     catalogue_ = catalogue;
     list_->setBooks(catalogue_ ? catalogue_->summaries() : std::vector<domain::BookSummary> {});
     refreshRail();
+    // The batch run belongs to a catalogue; make it afresh for this one.
+    setEnricher(enricher_);
 }
 
 void MainWindow::setEnricher(Enricher* enricher)
@@ -151,8 +200,26 @@ void MainWindow::setEnricher(Enricher* enricher)
     if (enricher_)
         disconnect(enricher_, nullptr, this, nullptr);
     enricher_ = enricher;
-    if (!enricher_)
+    if (batch_)
+        batch_->stop();
+    delete batch_;
+    batch_ = nullptr;
+    showBatchProgress();
+    if (!enricher_ || !catalogue_)
         return;
+    batch_ = new BatchEnricher(*catalogue_, *enricher_, this);
+    connect(batch_, &BatchEnricher::progressed, this, &MainWindow::showBatchProgress);
+    connect(batch_, &BatchEnricher::bookChanged, this, [this](qint64 id) { refreshBooks({id}); });
+    connect(batch_, &BatchEnricher::finished, this, [this](const QString& problem) {
+        const auto& progress = batch_->progress();
+        const QString summary = tr("Fetch all: %1 looked up, %2 taken, %3 to review, %4 not found")
+                                    .arg(progress.done)
+                                    .arg(progress.matched)
+                                    .arg(progress.toReview)
+                                    .arg(progress.notFound);
+        statusBar()->showMessage(problem.isEmpty() ? summary : summary + QStringLiteral(" — ") + problem);
+    });
+    showBatchProgress();
     connect(enricher_, &Enricher::waiting, this, [this](const QString& provider, int seconds) {
         const QString text = tr("%1 asked us to wait; trying again in about %2 s.").arg(provider).arg(seconds);
         if (detail_->state() == ui::DetailPanel::State::Fetching)
@@ -222,11 +289,17 @@ void MainWindow::useCandidate(qint64 bookId, int index)
             return;
         }
         detail_->showNothing(); // out of Fetching, so the refresh may redraw
+        if (result.coverUrl)
+            fetchCover(bookId, *result.coverUrl, filled.source);
+        if (reviewing_) {
+            reviewing_.reset();
+            refreshBooks({bookId});
+            reviewNext();
+            return;
+        }
         refreshBooks({bookId});
         refreshRail();
         statusBar()->showMessage(tr("Details fetched for “%1”").arg(titleOf(bookId)), 4000);
-        if (result.coverUrl)
-            fetchCover(bookId, *result.coverUrl, filled.source);
     });
 }
 
@@ -235,21 +308,122 @@ void MainWindow::fetchCover(qint64 bookId, const std::string& url, domain::Sourc
     const auto directory = catalogue_->dataDirectory();
     if (!directory)
         return;
-    enricher_->fetchCover(bookId, url, *directory, [this, bookId, source](metadata::CoverResult cover) {
-        if (!cover.relativePath) {
-            // A missing cover is common and harmless; say so and move on.
+    enricher_->fetchCover(bookId, url, *directory, [self = QPointer(this), bookId, source](metadata::CoverResult cover) {
+        // Covers are never cancelled, so the window may be gone.
+        if (!self)
+            return;
+        self->coverArrived(bookId, source, cover);
+    });
+}
+
+void MainWindow::coverArrived(qint64 bookId, domain::Source source, const metadata::CoverResult& cover)
+{
+    // While reviewing, the panel has moved on; say nothing over it.
+    if (!cover.relativePath) {
+        // A missing cover is common and harmless; say so and move on.
+        if (!reviewing_) {
             statusBar()->showMessage(tr("No cover for “%1”: %2")
                                          .arg(titleOf(bookId), QString::fromStdString(cover.error.value_or(""))),
                 6000);
-            return;
         }
-        if (const auto problem = catalogue_->setCover(bookId, *cover.relativePath, source)) {
+        return;
+    }
+    if (const auto problem = catalogue_->setCover(bookId, *cover.relativePath, source)) {
+        if (!reviewing_)
             statusBar()->showMessage(QString::fromStdString(*problem), 6000);
-            return;
-        }
-        refreshBooks({bookId});
+        return;
+    }
+    refreshBooks({bookId});
+    if (!reviewing_)
         statusBar()->showMessage(tr("Cover saved for “%1”").arg(titleOf(bookId)), 4000);
-    });
+}
+
+void MainWindow::toggleBatch()
+{
+    if (!batch_)
+        return;
+    if (batch_->running())
+        batch_->stop();
+    else
+        batch_->start();
+}
+
+void MainWindow::showBatchProgress()
+{
+    const bool busy = detail_->isBusy();
+    if (!batch_) {
+        fetchAll_->setEnabled(false);
+        review_->setEnabled(false);
+        batchBar_->hide();
+        return;
+    }
+    const auto& progress = batch_->progress();
+    fetchAll_->setText(batch_->running() ? tr("Stop fetching") : tr("Fetch all metadata"));
+    fetchAll_->setEnabled(batch_->running() || !busy);
+    const int waiting = batch_->pendingCount();
+    review_->setText(waiting > 0 ? tr("Review matches (%1)").arg(waiting) : tr("Review matches"));
+    review_->setEnabled(waiting > 0 && !busy);
+    batchBar_->setVisible(batch_->running());
+    if (batch_->running()) {
+        batchBar_->setRange(0, std::max(progress.total, 1));
+        batchBar_->setValue(progress.done);
+        if (!busy) {
+            statusBar()->showMessage(tr("Fetching metadata: %1 of %2 · %3 taken · %4 to review · %5 not found")
+                                         .arg(progress.done)
+                                         .arg(progress.total)
+                                         .arg(progress.matched)
+                                         .arg(waiting)
+                                         .arg(progress.notFound));
+        }
+    }
+}
+
+void MainWindow::beginReview()
+{
+    if (!batch_ || batch_->pendingCount() == 0 || detail_->isBusy())
+        return;
+    // The book list, so the book under review can be shown selected.
+    rail_->chooseFilter({});
+    reviewLeft_ = batch_->pendingCount();
+    reviewTotal_ = reviewLeft_;
+    reviewPlace_ = 0;
+    reviewNext();
+}
+
+void MainWindow::reviewNext()
+{
+    while (reviewLeft_ > 0) {
+        auto match = batch_->takePending();
+        if (!match)
+            break;
+        --reviewLeft_;
+        ++reviewPlace_;
+        // Fetched or edited since it was found: nothing to decide.
+        const auto detail = catalogue_->detail(match->bookId);
+        if (!detail || detail->book.metadataStatus != domain::MetadataStatus::Unmatched)
+            continue;
+
+        detail_->showNothing();
+        list_->selectBook(match->bookId);
+        detail_->showBook(*detail);
+        detail_->beginReview(tr("%1 of %2 to review").arg(reviewPlace_).arg(reviewTotal_));
+        offer_ = Offer {match->bookId, match->candidates, match->byIsbn};
+        detail_->offerCandidates(match->candidates, match->byIsbn);
+        reviewing_ = std::move(match);
+        return;
+    }
+    endReview(batch_->pendingCount() > 0 ? tr("Review done; %1 skipped for later").arg(batch_->pendingCount())
+                                         : tr("Review done"));
+}
+
+void MainWindow::endReview(const QString& message)
+{
+    reviewLeft_ = 0;
+    if (detail_->state() == ui::DetailPanel::State::Fetching)
+        detail_->showNothing();
+    refreshPanel();
+    showBatchProgress();
+    statusBar()->showMessage(message, 6000);
 }
 
 void MainWindow::refreshRail()
