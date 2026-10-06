@@ -23,7 +23,34 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
-*None.*
+### IMP-006 Keep placeholder-only gaps out of "one volume short"
+
+**Status:** suggested
+**Found:** 2026-10-06 (Phase 2 step 5, viewing the shopping list against the owner's catalogue)
+**Location:** `db/schema.sql` (`v_series_status`, `known - held = 1`); `src/db/series_repository.cpp`, `libraryTotals`; `src/app/catalogue.cpp`, `missingVolumes`
+**Effort:** small
+**Description.** "One volume short" counts series lacking exactly one
+entry. Three of the 28 in the owner's catalogue — Darkover, Exodus, Known
+Space — lack exactly one *placeholder*, "Later volumes — unidentified",
+which stands for an unknown number of books (D-018). They are not one
+purchase from complete, yet they sit in the shopping list beside The
+Culture's Consider Phlebas.
+**Proposal.** Leave those series out of "one volume short" — the rail's
+count, the panel's "Series one volume short" and the list — while keeping
+them under "Missing volumes". The test is the placeholder title, through
+`domain::isPlaceholderTitle`.
+**Trade-offs.** The count lives in SQL (`libraryTotals`, from the views);
+the placeholder test lives in C++. Either the SQL learns the title
+convention, a second place reading it (against IMP-005's one-place rule),
+or the count moves out of SQL into C++ over `missingEverywhere()`, which
+recomputes a derived figure outside the views (ARCHITECTURE.md §2, AV-011).
+A third way is a column marking placeholders, a schema change D-018 chose
+not to make. Leaving it as it is keeps every count derived in one place, at
+the cost of three misleading rows.
+**Notes.** The spreadsheet's own "one book completes" list had 14 entries;
+the mechanical count of 28 differs mostly for other reasons — single-volume
+holdings of two-book series count too — which is correct by the
+definition and not part of this entry.
 
 ## Applied
 

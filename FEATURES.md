@@ -159,11 +159,13 @@ AV-007 for the failure this avoids.
 - A series with no known entries recorded reports as unknown, not complete.
 - The missing-volume list is ordered so that series needing one book appear
   before series needing several.
-**Status:** In progress — every criterion holds in `v_series_status` and
-`v_missing_entries`; a chosen series shows its entries with the missing ones in
-place, and the panel shows held against known, read and unread, what is
-missing and the library-wide totals. All 144 seeded statuses match the
-spreadsheet. The missing-volumes view, fewest needed first, is Phase 2 step 5.
+**Status:** Complete (2026-10-06). Derived in `v_series_status` and
+`v_missing_entries`, never stored; ongoing series report complete to date,
+series with nothing recorded report unknown. A series' page and the panel
+show held against known and what is missing; the rail's NEEDS ATTENTION lists
+every missing volume, fewest needed first, or only the series one volume
+short. All 144 seeded statuses match the spreadsheet. See IMP-006 on
+placeholder-only gaps.
 **Notes:** D-004. Views `v_series_status`, `v_missing_entries`. Do not add a
 stored status column — that is the staleness the views exist to prevent.
 

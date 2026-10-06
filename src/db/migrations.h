@@ -7,7 +7,7 @@ class Connection;
 // The schema version this build writes. Must equal the highest version
 // db/schema.sql inserts into `schema_version` and the last migration step's;
 // migrate() checks the result and the tests hold them together.
-inline constexpr int latestSchemaVersion = 3;
+inline constexpr int latestSchemaVersion = 4;
 
 // The database's schema version, or 0 for a database with no schema yet.
 int schemaVersion(Connection& connection);

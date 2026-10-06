@@ -32,6 +32,8 @@ RailContents contents()
     c.series = {series(7, "The Culture", 9, 10, "Incomplete"),
         series(3, "Agent Cormac", 5, 5, "Complete"),
         series(4, "A Song of Ice and Fire", 7, 7, "Complete to date")};
+    c.oneVolumeShort = 28;
+    c.missingVolumes = 287;
     return c;
 }
 
@@ -75,7 +77,7 @@ void TestRail::showsLibraryAndSeriesWithCounts()
     rail.setContents(contents());
     const QAbstractItemModel* model = rail.model();
 
-    QCOMPARE(model->rowCount(), 2);
+    QCOMPARE(model->rowCount(), 3);
     QCOMPARE(model->index(0, 0).data().toString(), QStringLiteral("LIBRARY"));
     QCOMPARE(cell(rail, 0, 0, 0), QStringLiteral("All books"));
     QCOMPARE(cell(rail, 0, 0, 1), QStringLiteral("443"));
@@ -91,6 +93,12 @@ void TestRail::showsLibraryAndSeriesWithCounts()
         QStringLiteral("Incomplete — one volume missing"));
     QCOMPARE(model->index(2, 1, model->index(1, 0)).data(Qt::ToolTipRole).toString(),
         QStringLiteral("Complete to date — still being written"));
+
+    QCOMPARE(model->index(2, 0).data().toString(), QStringLiteral("NEEDS ATTENTION"));
+    QCOMPARE(cell(rail, 2, 0, 0), QStringLiteral("One volume short"));
+    QCOMPARE(cell(rail, 2, 0, 1), QStringLiteral("28"));
+    QCOMPARE(cell(rail, 2, 1, 0), QStringLiteral("Missing volumes"));
+    QCOMPARE(cell(rail, 2, 1, 1), QStringLiteral("287"));
 }
 
 void TestRail::headingsCannotBeChosen()

@@ -6,10 +6,11 @@
 
 namespace pinax::domain {
 
-// What the rail asks the list to show (D-010, F-017): everything, the books
-// in one read state, or the books in one series.
+// What the rail asks the middle panel to show (D-010, F-017): everything, the
+// books in one read state, one series, or the volumes series are missing —
+// all of them, or only where a series is one volume short (F-010).
 struct BookFilter {
-    enum class Kind { All, ReadState, Series };
+    enum class Kind { All, ReadState, Series, MissingVolumes, OneVolumeShort };
 
     Kind kind = Kind::All;
     ReadStatus readStatus = ReadStatus::Unread; // when kind is ReadState

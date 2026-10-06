@@ -65,7 +65,9 @@ bool sameEntry(const BookFilter& a, const BookFilter& b)
     switch (a.kind) {
     case BookFilter::Kind::ReadState: return a.readStatus == b.readStatus;
     case BookFilter::Kind::Series: return a.seriesId == b.seriesId;
-    case BookFilter::Kind::All: break;
+    case BookFilter::Kind::All:
+    case BookFilter::Kind::MissingVolumes:
+    case BookFilter::Kind::OneVolumeShort: break;
     }
     return true;
 }
@@ -141,6 +143,15 @@ void RailView::setContents(const RailContents& contents)
         series->appendRow(row);
     }
     model_->appendRow({series, new QStandardItem});
+
+    auto* attention = makeHeading(tr("Needs attention"), this);
+    attention->appendRow(makeEntry(tr("One volume short"), QString::number(contents.oneVolumeShort),
+        {BookFilter::Kind::OneVolumeShort, ReadStatus::Unread, 0}, this));
+    attention->appendRow(makeEntry(tr("Missing volumes"), QString::number(contents.missingVolumes),
+        {BookFilter::Kind::MissingVolumes, ReadStatus::Unread, 0}, this));
+    attention->child(0, 0)->setToolTip(tr("Series one volume from complete, and the volume each needs"));
+    attention->child(1, 0)->setToolTip(tr("Every volume a series is known to contain and the shelf does not"));
+    model_->appendRow({attention, new QStandardItem});
 
     for (int row = 0; row < model_->rowCount(); ++row)
         model_->item(row, 1)->setFlags(Qt::NoItemFlags);

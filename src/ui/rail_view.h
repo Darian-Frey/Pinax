@@ -21,10 +21,13 @@ struct RailContents {
     std::int64_t reading = 0;
     std::int64_t read = 0;
     std::vector<domain::SeriesStatus> series;
+    int oneVolumeShort = 0; // series lacking exactly one volume
+    int missingVolumes = 0; // volumes lacking across every series
 };
 
 // The left-hand filter rail of the mock-up (D-010): LIBRARY, then
-// SERIES · n with held/known counts. Choosing an entry emits the filter;
+// SERIES · n with held/known counts, then NEEDS ATTENTION with the shopping
+// list (F-010). Choosing an entry emits the filter;
 // the list narrows in response. Section headings cannot be chosen.
 class RailView : public QTreeView {
     Q_OBJECT

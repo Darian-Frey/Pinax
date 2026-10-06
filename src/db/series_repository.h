@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/series_entry.h"
+#include "domain/missing_row.h"
 #include "domain/series_detail.h"
 #include "domain/series_membership.h"
 #include "domain/series_row.h"
@@ -62,6 +63,10 @@ public:
 
     // The volumes it is known to lack, in series order (v_missing_entries).
     std::vector<domain::MissingVolume> missing(std::int64_t seriesId);
+
+    // Every volume missing from every series, from v_missing_entries: fewest
+    // needed first, then by series name and sort number, unnumbered last.
+    std::vector<domain::MissingRow> missingEverywhere();
 
     // Completeness across every series, from v_series_status.
     domain::LibrarySeriesTotals libraryTotals();

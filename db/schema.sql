@@ -1,5 +1,5 @@
 -- Pinax — physical library catalogue
--- SQLite schema, version 3
+-- SQLite schema, version 4
 --
 -- This file is always the latest full schema, applied whole to an empty
 -- database. Older files are carried forward by db/migrations/NNN_*.sql, one
@@ -35,6 +35,7 @@ CREATE TABLE schema_version (
 INSERT INTO schema_version (version, note) VALUES (1, 'Initial schema');
 INSERT INTO schema_version (version, note) VALUES (2, 'v_book_display: sort keys, series label, ordered credits');
 INSERT INTO schema_version (version, note) VALUES (3, 'v_book_display: editors stand in when a book has no author');
+INSERT INTO schema_version (version, note) VALUES (4, 'v_missing_entries: entry_id');
 
 
 -- ---------------------------------------------------------------------------
@@ -323,7 +324,8 @@ LEFT JOIN book b          ON b.id = se.book_id
 GROUP BY s.id, s.name, s.ongoing;
 
 
--- The shopping list: known entries not on the shelf.
+-- The shopping list: known entries not on the shelf. entry_id identifies the
+-- volume for anything that acts on it, such as marking it owned (version 4).
 CREATE VIEW v_missing_entries AS
 SELECT
     s.id          AS series_id,
@@ -332,7 +334,8 @@ SELECT
     se.sort_position,
     se.title,
     (SELECT COUNT(*) FROM series_entry x
-      WHERE x.series_id = s.id AND x.book_id IS NULL)  AS missing_in_series
+      WHERE x.series_id = s.id AND x.book_id IS NULL)  AS missing_in_series,
+    se.id         AS entry_id
 FROM series_entry se
 JOIN series s ON s.id = se.series_id
 WHERE se.book_id IS NULL

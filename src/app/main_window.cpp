@@ -7,6 +7,7 @@
 #include "domain/placeholder.h"
 #include "ui/detail_panel.h"
 #include "ui/rail_view.h"
+#include "ui/missing_page.h"
 #include "ui/series_page.h"
 
 #include <QAction>
@@ -36,6 +37,7 @@ MainWindow::MainWindow(QWidget* parent)
     , rail_(new ui::RailView(splitter_))
     , centre_(new QStackedWidget(splitter_))
     , seriesPage_(new ui::SeriesPage(centre_))
+    , missingPage_(new ui::MissingPage(centre_))
     , list_(new ui::BookListView(centre_))
     , detail_(new ui::DetailPanel(splitter_))
 {
@@ -46,6 +48,12 @@ MainWindow::MainWindow(QWidget* parent)
     seriesPage_->setObjectName(QStringLiteral("seriesPage"));
     centre_->addWidget(list_);
     centre_->addWidget(seriesPage_);
+    missingPage_->setObjectName(QStringLiteral("missingPage"));
+    centre_->addWidget(missingPage_);
+    connect(missingPage_, &ui::MissingPage::selectionChangedTo, this, &MainWindow::showMissingSelection);
+    connect(missingPage_, &ui::MissingPage::openSeriesRequested, this, [this](qint64 seriesId) {
+        rail_->chooseFilter({domain::BookFilter::Kind::Series, domain::ReadStatus::Unread, seriesId});
+    });
 
     // A series' list answers the same keys, through the same handlers.
     connect(seriesPage_, &ui::SeriesPage::selectionChangedTo, this, &MainWindow::showSeriesSelection);
@@ -109,6 +117,7 @@ void MainWindow::lockWhileBusy()
         return;
     list_->setEnabled(!busy);
     seriesPage_->setEnabled(!busy);
+    missingPage_->setEnabled(!busy);
     rail_->setEnabled(!busy);
     addBook_->setEnabled(!busy);
     if (detail_->isEditing())
@@ -135,6 +144,9 @@ void MainWindow::refreshRail()
         contents.reading = catalogue_->countWithReadStatus(domain::ReadStatus::Reading);
         contents.read = catalogue_->countWithReadStatus(domain::ReadStatus::Read);
         contents.series = catalogue_->seriesStatuses();
+        const auto totals = catalogue_->libraryTotals();
+        contents.oneVolumeShort = totals.oneVolumeShort;
+        contents.missingVolumes = totals.volumesNotOwned;
     }
     rail_->setContents(contents);
 }
@@ -143,6 +155,18 @@ void MainWindow::applyFilter(const domain::BookFilter& filter, const QString& la
 {
     if (!catalogue_)
         return;
+    if (filter.kind == domain::BookFilter::Kind::MissingVolumes
+        || filter.kind == domain::BookFilter::Kind::OneVolumeShort) {
+        // The shopping list (F-010).
+        centre_->setCurrentWidget(missingPage_);
+        showMissingPage(filter.kind == domain::BookFilter::Kind::OneVolumeShort);
+        missingPage_->table()->clearSelection();
+        missingPage_->table()->setCurrentIndex({});
+        detail_->showNothing();
+        missingPage_->table()->setFocus();
+        statusBar()->showMessage(label);
+        return;
+    }
     if (filter.kind == domain::BookFilter::Kind::Series) {
         // A series has a page of its own: its entries in order, the volumes
         // not owned among them (D-006, D-010).
@@ -168,6 +192,33 @@ void MainWindow::applyFilter(const domain::BookFilter& filter, const QString& la
 bool MainWindow::showingSeries() const
 {
     return centre_->currentWidget() == seriesPage_;
+}
+
+bool MainWindow::showingMissing() const
+{
+    return centre_->currentWidget() == missingPage_;
+}
+
+void MainWindow::showMissingPage(bool oneVolumeShort)
+{
+    missingPage_->showRows(catalogue_->missingVolumes(oneVolumeShort), oneVolumeShort);
+}
+
+void MainWindow::showMissingSelection(const std::optional<domain::MissingRow>& volume)
+{
+    if (!catalogue_ || !showingMissing())
+        return;
+    if (!volume) {
+        detail_->showNothing();
+        return;
+    }
+    domain::SeriesRow row;
+    row.entryId = volume->entryId;
+    row.position = volume->position;
+    row.sortPosition = volume->sortPosition;
+    row.entryTitle = volume->title;
+    if (const auto detail = catalogue_->seriesDetail(volume->seriesId))
+        detail_->showSeries(*detail, row);
 }
 
 void MainWindow::showSeriesSelection(const QList<qint64>& bookIds, int missing)
@@ -208,6 +259,8 @@ void MainWindow::refreshPanel()
         return;
     if (showingSeries())
         showSeriesSelection(seriesPage_->selectedBooks(), seriesPage_->table()->selectedMissing());
+    else if (showingMissing())
+        showMissingSelection(missingPage_->selectedVolume());
     else
         showSelection(list_->selectedBooks());
 }
@@ -283,9 +336,14 @@ void MainWindow::askToRemoveEntry(qint64 entryId)
 
 void MainWindow::beginMarkOwned(qint64 entryId)
 {
-    if (!catalogue_ || !showingSeries())
+    if (!catalogue_)
         return;
-    const auto rows = catalogue_->seriesRows(seriesPage_->seriesId());
+    // From the series' page or the shopping list alike: the volume knows its
+    // series.
+    const auto entry = catalogue_->entry(entryId);
+    if (!entry)
+        return;
+    const auto rows = catalogue_->seriesRows(entry->seriesId);
     const auto volume = std::find_if(rows.begin(), rows.end(),
         [entryId](const domain::SeriesRow& row) { return row.entryId == entryId; });
     if (volume == rows.end() || volume->owned())
@@ -300,7 +358,7 @@ void MainWindow::beginMarkOwned(qint64 entryId)
             candidates.push_back(std::move(book));
     }
     detail_->beginAttach(*volume,
-        QString::fromStdString(catalogue_->seriesName(seriesPage_->seriesId()).value_or("")), candidates);
+        QString::fromStdString(catalogue_->seriesName(entry->seriesId).value_or("")), candidates);
 }
 
 void MainWindow::attachBook(qint64 entryId, qint64 bookId)
@@ -342,6 +400,11 @@ void MainWindow::afterSeriesChange(std::optional<qint64> selectBook)
         if (selectBook)
             seriesPage_->selectBook(*selectBook);
         seriesPage_->table()->setFocus();
+    }
+    if (showingMissing()) {
+        // A volume marked owned drops off the list; the list stays put.
+        showMissingPage(missingPage_->oneVolumeShort());
+        missingPage_->table()->setFocus();
     }
     refreshPanel();
 }

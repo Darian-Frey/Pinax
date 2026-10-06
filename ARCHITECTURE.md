@@ -103,7 +103,8 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
 
 - **Rail** — `RailView`, a `QTreeView` of sections: LIBRARY (all books and
   each read state, with counts) and SERIES (each with held/known from
-  `v_series_status`, filed as titles are). Choosing an entry emits a
+  `v_series_status`, filed as titles are), and NEEDS ATTENTION (one volume
+  short, missing volumes, with counts). Choosing an entry emits a
   `domain::BookFilter`; the composition root asks the Catalogue for the
   matching ids and the list shows only those. The set holds until the next
   choice, so a book does not vanish while the owner works on it; counts
@@ -115,6 +116,12 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
   place, italic and marked (D-006, D-010). It answers the list's single keys
   for owned volumes through the shared `listKeyAction`. "+ Add volume" and
   "Edit entry" open the panel's entry editor.
+- **Missing page** — while NEEDS ATTENTION is chosen, the middle panel is a
+  `MissingPage` over `MissingModel`: every missing volume from
+  `v_missing_entries` (series, position, title, how many the series needs),
+  fewest needed first, or only the series one volume short. Selecting a
+  volume shows its series with the volume's card; activating it opens the
+  series' page.
 - **List** — `BookListView`, a `QTableView` over `BookListModel` (a
   `QAbstractTableModel` of `domain::BookSummary`) through `BookSortProxy`. The
   composition root reads summaries from `BookRepository` and hands them over;

@@ -81,7 +81,9 @@ genre links, and leaves its series entries as missing volumes.
       in the detail panel
 - [x] Entry editor accepting non-numeric positions — 2026-10-06; add, edit,
       remove, and Mark as owned with a new or existing book (AV-007)
-- [ ] Missing-volumes report backed by `v_missing_entries`
+- [x] Missing-volumes report backed by `v_missing_entries` — 2026-10-06, the
+      rail's NEEDS ATTENTION: one volume short, and every missing volume,
+      fewest needed first (schema version 4 adds `entry_id`)
 **Acceptance:** A series with every published volume held reports complete;
 one short of a volume reports incomplete and names it; an ongoing series with
 everything published reports complete to date.

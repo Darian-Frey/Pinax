@@ -16,6 +16,7 @@ add_library(pinax_domain STATIC
     domain/enums.h
     domain/isbn.cpp
     domain/isbn.h
+    domain/missing_row.h
     domain/placeholder.h
     domain/series_entry.h
     domain/series_detail.h
@@ -114,6 +115,8 @@ add_library(pinax_ui STATIC
     ui/entry_editor.h
     ui/list_keys.cpp
     ui/list_keys.h
+    ui/missing_page.cpp
+    ui/missing_page.h
     ui/rail_view.cpp
     ui/rail_view.h
     ui/rating_bar.cpp

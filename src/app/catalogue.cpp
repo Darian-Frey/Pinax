@@ -130,6 +130,35 @@ std::optional<domain::SeriesDetail> Catalogue::seriesDetail(std::int64_t seriesI
     return detail;
 }
 
+std::vector<domain::MissingRow> Catalogue::missingVolumes(bool oneVolumeShortOnly)
+{
+    auto rows = db::SeriesRepository(connection_).missingEverywhere();
+    if (oneVolumeShortOnly) {
+        rows.erase(std::remove_if(rows.begin(), rows.end(),
+                       [](const domain::MissingRow& row) { return row.missingInSeries != 1; }),
+            rows.end());
+    }
+    // Within each need, series filed as the rail files them (F-016); the
+    // view's order is kept inside a series.
+    auto filed = [](const std::string& name) {
+        std::string key = domain::makeSortTitle(name);
+        for (char& c : key)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return key;
+    };
+    std::stable_sort(rows.begin(), rows.end(), [&](const auto& a, const auto& b) {
+        if (a.missingInSeries != b.missingInSeries)
+            return a.missingInSeries < b.missingInSeries;
+        return filed(a.seriesName) < filed(b.seriesName);
+    });
+    return rows;
+}
+
+domain::LibrarySeriesTotals Catalogue::libraryTotals()
+{
+    return db::SeriesRepository(connection_).libraryTotals();
+}
+
 std::optional<std::vector<std::int64_t>> Catalogue::bookIds(const domain::BookFilter& filter)
 {
     switch (filter.kind) {
@@ -138,6 +167,8 @@ std::optional<std::vector<std::int64_t>> Catalogue::bookIds(const domain::BookFi
     case domain::BookFilter::Kind::Series:
         return db::SeriesRepository(connection_).bookIds(filter.seriesId);
     case domain::BookFilter::Kind::All:
+    case domain::BookFilter::Kind::MissingVolumes:
+    case domain::BookFilter::Kind::OneVolumeShort:
         break;
     }
     return std::nullopt;

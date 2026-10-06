@@ -5,6 +5,7 @@
 #include "domain/book_edit.h"
 #include "domain/book_filter.h"
 #include "domain/book_summary.h"
+#include "domain/missing_row.h"
 #include "domain/series_detail.h"
 #include "domain/series_entry.h"
 #include "domain/series_row.h"
@@ -44,6 +45,12 @@ public:
     // the panel says about it; nullopt if there is no such series.
     std::vector<domain::SeriesRow> seriesRows(std::int64_t seriesId);
     std::optional<domain::SeriesDetail> seriesDetail(std::int64_t seriesId);
+
+    // The shopping list (F-010): every missing volume, series needing fewest
+    // first and filed as titles are within that; or only the series one
+    // volume short.
+    std::vector<domain::MissingRow> missingVolumes(bool oneVolumeShortOnly = false);
+    domain::LibrarySeriesTotals libraryTotals();
 
     // The books a filter selects; nullopt for "all of them".
     std::optional<std::vector<std::int64_t>> bookIds(const domain::BookFilter& filter);

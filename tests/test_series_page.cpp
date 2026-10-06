@@ -1,10 +1,12 @@
 #include "ui/series_entry_model.h"
 #include "ui/series_page.h"
 #include "ui/series_view.h"
+#include "ui/missing_page.h"
 
 #include <QLabel>
 #include <QSignalSpy>
 #include <QTest>
+#include <QTableView>
 #include <QToolButton>
 
 using pinax::domain::MissingVolume;
@@ -84,6 +86,7 @@ private slots:
     void panelListsSeveralMissing();
     void panelNeverClaimsConcluded();
     void panelCountsPlaceholders();
+    void missingPageListsAndOpens();
 };
 
 void TestSeriesPage::missingVolumesSitInPlaceMarked()
@@ -261,6 +264,49 @@ void TestSeriesPage::panelCountsPlaceholders()
     const QString text = labelText(view, QStringLiteral("seriesView.missing"));
     QVERIFY2(text.startsWith(QStringLiteral("Consider Phlebas")), qPrintable(text));
     QVERIFY2(text.endsWith(QStringLiteral("<br>and 14 volumes not yet identified")), qPrintable(text));
+}
+
+void TestSeriesPage::missingPageListsAndOpens()
+{
+    auto volume = [](std::int64_t entry, std::int64_t series, std::string name, std::optional<std::string> title,
+                      int needs) {
+        pinax::domain::MissingRow row;
+        row.entryId = entry;
+        row.seriesId = series;
+        row.seriesName = std::move(name);
+        row.position = std::string("1");
+        row.title = std::move(title);
+        row.missingInSeries = needs;
+        return row;
+    };
+    pinax::ui::MissingPage page;
+    page.showRows({volume(10, 1, "The Culture", "Consider Phlebas", 1),
+                      volume(20, 2, "Discworld", "Unidentified volume 1", 2),
+                      volume(21, 2, "Discworld", "Unidentified volume 2", 2)},
+        false);
+
+    QCOMPARE(labelText(page, QStringLiteral("missing.heading")),
+        QStringLiteral("<b>Missing volumes</b>&nbsp;&nbsp;3 across 2 series, fewest needed first"));
+    const auto* model = page.missingModel();
+    QCOMPARE(model->index(0, pinax::ui::MissingModel::TitleColumn).data().toString(), QStringLiteral("Consider Phlebas"));
+    QCOMPARE(model->index(1, pinax::ui::MissingModel::NeedsColumn).data().toString(), QStringLiteral("2"));
+
+    std::optional<pinax::domain::MissingRow> selected;
+    connect(&page, &pinax::ui::MissingPage::selectionChangedTo, this,
+        [&](const std::optional<pinax::domain::MissingRow>& row) { selected = row; });
+    page.table()->selectRow(0);
+    QVERIFY(selected);
+    QCOMPARE(selected->entryId, std::int64_t(10));
+
+    QSignalSpy open(&page, &pinax::ui::MissingPage::openSeriesRequested);
+    emit page.table()->activated(model->index(1, 0));
+    QCOMPARE(open.at(0).at(0).toLongLong(), qint64(2));
+
+    // A refresh keeps the volume selected while it is still missing.
+    page.showRows({volume(10, 1, "The Culture", "Consider Phlebas", 1)}, true);
+    QCOMPARE(page.selectedVolume()->entryId, std::int64_t(10));
+    QCOMPARE(labelText(page, QStringLiteral("missing.heading")),
+        QStringLiteral("<b>One volume short</b>&nbsp;&nbsp;1 series, each needing one"));
 }
 
 QTEST_MAIN(TestSeriesPage)

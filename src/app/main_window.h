@@ -2,6 +2,7 @@
 
 #include "domain/book_edit.h"
 #include "domain/book_filter.h"
+#include "domain/missing_row.h"
 #include "domain/series_entry.h"
 
 #include <QList>
@@ -17,6 +18,7 @@ class QWidget;
 namespace pinax::ui {
 class BookListView;
 class DetailPanel;
+class MissingPage;
 class RailView;
 class SeriesPage;
 }
@@ -43,8 +45,11 @@ public:
     ui::DetailPanel* detailPanel() const { return detail_; }
     ui::RailView* rail() const { return rail_; }
     ui::SeriesPage* seriesPage() const { return seriesPage_; }
+    ui::MissingPage* missingPage() const { return missingPage_; }
     // True while a series is chosen and the middle panel lists its entries.
     bool showingSeries() const;
+    // True while the shopping list is in the middle panel (F-010).
+    bool showingMissing() const;
 
 private:
     void showSelection(const QList<qint64>& ids);
@@ -53,6 +58,10 @@ private:
     // Shows the series in the middle panel and, unless the panel is busy or
     // something is selected, in the detail panel too.
     void showSeriesPage(std::int64_t seriesId);
+    void showMissingPage(bool oneVolumeShort);
+    // The shopping list's selection: its series in the panel, with the
+    // volume's card.
+    void showMissingSelection(const std::optional<domain::MissingRow>& volume);
     // Redraws the panel for whatever the middle panel has selected, unless a
     // form is open.
     void refreshPanel();
@@ -95,6 +104,7 @@ private:
     ui::RailView* rail_;
     QStackedWidget* centre_;
     ui::SeriesPage* seriesPage_;
+    ui::MissingPage* missingPage_;
     ui::BookListView* list_;
     ui::DetailPanel* detail_;
 };

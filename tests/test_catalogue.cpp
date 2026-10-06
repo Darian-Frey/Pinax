@@ -16,6 +16,7 @@
 #include "ui/attach_view.h"
 #include "ui/entry_editor.h"
 #include "ui/series_view.h"
+#include "ui/missing_page.h"
 
 #include <QAction>
 #include <QLabel>
@@ -113,6 +114,9 @@ private slots:
     void addVolumeThroughTheSeriesPage();
     void markOwnedWithABookAlreadyHeld();
     void markOwnedWithANewBook();
+    // Phase 2 step 5: the shopping list
+    void missingVolumesRunFewestNeededFirst();
+    void theShoppingListActsInPlace();
 };
 
 void TestCatalogue::detailCarriesSeriesCompleteness()
@@ -1081,6 +1085,66 @@ void TestCatalogue::markOwnedWithANewBook()
     QCOMPARE(catalogue.seriesRows(culture).size(), std::size_t(4)); // no second entry
     QVERIFY(window.showingSeries());
     QCOMPARE(window.seriesPage()->selectedBooks(), QList<qint64>({book}));
+}
+
+void TestCatalogue::missingVolumesRunFewestNeededFirst()
+{
+    // The Culture needs 2 (Consider Phlebas, a placeholder); Agent Cormac 1.
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+    pinax::io::CsvImporter(catalogue.connection()).importText(
+        "title,series,position\nGridlinked,Agent Cormac,1\n");
+    pinax::io::SeriesImporter(catalogue.connection()).importText(
+        "series,position,title\nAgent Cormac,2,The Line of Polity\n");
+
+    const auto all = catalogue.missingVolumes();
+    QCOMPARE(all.size(), std::size_t(3));
+    QCOMPARE(*all[0].title, std::string("The Line of Polity"));
+    QCOMPARE(all[0].missingInSeries, 1);
+    QCOMPARE(*all[1].title, std::string("Consider Phlebas"));   // numbered first
+    QCOMPARE(*all[2].title, std::string("Unidentified volume 1")); // unnumbered last
+    QVERIFY(all[1].entryId > 0);
+
+    const auto one = catalogue.missingVolumes(true);
+    QCOMPARE(one.size(), std::size_t(1));
+    QCOMPARE(one.front().seriesName, std::string("Agent Cormac"));
+    QCOMPARE(catalogue.libraryTotals().oneVolumeShort, 1);
+}
+
+void TestCatalogue::theShoppingListActsInPlace()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+    pinax::domain::BookEdit edit;
+    edit.book.title = "Consider Phlebas";
+    const std::int64_t book = catalogue.save(edit).id;
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    window.rail()->chooseFilter({pinax::domain::BookFilter::Kind::MissingVolumes, ReadStatus::Unread, 0});
+    QVERIFY(window.showingMissing());
+    QCOMPARE(window.missingPage()->missingModel()->rowCount(), 2);
+
+    // Selecting a volume shows its series with the volume's card.
+    window.missingPage()->table()->selectRow(0);
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::ViewingSeries);
+    window.detailPanel()->seriesView()->findChild<QPushButton*>(QStringLiteral("seriesView.markOwned"))->click();
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::Attaching);
+    window.detailPanel()->attachView()->findChild<QPushButton*>(QStringLiteral("attach.attach"))->click();
+
+    // Owned now: off the list, the list still showing, the rail recounted.
+    QVERIFY(window.showingMissing());
+    QCOMPARE(window.missingPage()->missingModel()->rowCount(), 1);
+    QCOMPARE(catalogue.detail(book)->series.size(), std::size_t(1));
+    const QModelIndex attention = window.rail()->model()->index(2, 0);
+    QCOMPARE(window.rail()->model()->index(1, 1, attention).data().toString(), QStringLiteral("1"));
+
+    // Opening the remaining volume's series goes to its own page.
+    emit window.missingPage()->table()->activated(window.missingPage()->missingModel()->index(0, 0));
+    QVERIFY(window.showingSeries());
+    QCOMPARE(window.rail()->currentFilter().seriesId, seriesId(catalogue, "The Culture"));
 }
 
 QTEST_MAIN(TestCatalogue)

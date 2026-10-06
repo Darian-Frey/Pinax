@@ -11,9 +11,16 @@ change can be traced to the capability or decision that motivated it.
 
 ## [Unreleased]
 
-Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) in progress.
+Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series): every step built 2026-10-06.
 
 ### Added
+- The shopping list (Phase 2 step 5, F-010): the rail's NEEDS ATTENTION, with
+  "One volume short" and "Missing volumes" and their counts. Each shows every
+  volume a series lacks — series, position, title, how many the series
+  needs — fewest needed first; selecting one shows its series with Mark as
+  owned and Edit entry, and opening it goes to the series' page. Schema
+  version 4 gives `v_missing_entries` an `entry_id` so the list acts through
+  the view.
 - IMP-005 applied: the panel counts placeholder volumes instead of naming
   them — "Missing 14, not yet identified" — through one
   `domain::isPlaceholderTitle`.
@@ -175,6 +182,7 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) in progress.
   after the habit of silent fixing has set in.
 
 ### Notes
+- IMP-006 suggested: keep placeholder-only gaps out of "one volume short".
 - IMP-005 suggested: summarise placeholder volumes in the detail panel.
 - BUG-003 found and fixed: three editors in the seed had been imported as
   authors named "ed. …". The converter now reads "ed." as an editor credit;

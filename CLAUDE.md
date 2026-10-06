@@ -17,26 +17,26 @@ database and exports to SQL, CSV and Excel.
 
 ## 2. Current state
 
-**Phase 1 built: open, import (`--import`, and `--import-series` for known volumes), list and sort, view and edit in the panel (F2) including credits, add (Ctrl+N), delete (Delete, confirmed in the panel), toggle read (R), rate (1–9, 0). F-001–F-003 and F-005–F-007 Complete; F-004's no-overwrite rule waits on enrichment. Phase 1 closed 2026-10-05. Phase 2 steps 1 (missing volumes from the seed), 2 (the filter rail), 3 (a series' own page and panel) and 4 (the entry editor and Mark as owned) done.**
+**Phase 1 built: open, import (`--import`, and `--import-series` for known volumes), list and sort, view and edit in the panel (F2) including credits, add (Ctrl+N), delete (Delete, confirmed in the panel), toggle read (R), rate (1–9, 0). F-001–F-003 and F-005–F-007 Complete; F-004's no-overwrite rule waits on enrichment. Phase 1 closed 2026-10-05. Phase 2 steps 1 (missing volumes from the seed), 2 (the filter rail), 3 (a series' own page and panel), 4 (the entry editor and Mark as owned) and 5 (the shopping list) done — every Phase 2 deliverable is built; closing Phase 2 is the owner's call.**
 
 | Path | State |
 |---|---|
-| `db/schema.sql`, `db/migrations/` | Version 3. `schema.sql` is the latest full schema; `002_book_display_sort_keys.sql` and `003_book_display_editors.sql` carry older files forward. The last step's `CREATE VIEW` must stay byte-identical to `schema.sql`'s — `migratingVersion1MatchesFreshSchema` fails otherwise. |
+| `db/schema.sql`, `db/migrations/` | Version 4. `schema.sql` is the latest full schema; `002_book_display_sort_keys.sql`, `003_book_display_editors.sql` and `004_missing_entries_entry_id.sql` carry older files forward. The last step's `CREATE VIEW` must stay byte-identical to `schema.sql`'s — `migratingVersion1MatchesFreshSchema` fails otherwise. |
 | `src/domain/` | Value types (`Book`, `BookSummary`, `BookDetail`, `BookEdit`, `BookFilter`, `Author`, `Credit`, `SeriesEntry`, `SeriesMembership`, `SeriesStatus`), enums with schema strings, `makeSortTitle`, `makeSortName`, ISBN check digits, `parseCredits`/`formatCredits`, `isPlaceholderTitle`. No Qt, no SQL. |
 | `src/db/` | SQLite C API, no Qt (D-015). `Connection` (FK on + verified, WAL), `Statement` (named binds), `Transaction` (RAII), `Savepoint`, `migrate()` with schema and migrations compiled in, and `BookRepository`, `AuthorRepository`, `SeriesRepository`. Errors throw `DbError` with the extended result code; `isConstraintViolation()` tells the data's fault from the database's. |
 | `src/io/` | Qt-free. `parseCsv` (RFC 4180), `CsvImporter` (SPEC.md §1) and `SeriesImporter` (§1.6), sharing `import_support.h`: one transaction, savepoint per row, failures by line, `deriveSortPosition` (the only code that parses `position`). |
-| `src/ui/` | `BookListModel`, `BookSortProxy` (view keys; missing values last; author then series), `BookListView` (opens sorted by author; emits `selectionChangedTo`). `RailView` (LIBRARY and SERIES sections; emits `BookFilter`). `SeriesPage` (heading, show-missing toggle, `SeriesTable` over `SeriesEntryModel`) replaces the book list in the middle stack while a series is chosen. `SeriesView` is the panel's description of a series, with a card for a selected missing volume. `EntryEditor` and `AttachView` are the panel's forms for an entry and for Mark as owned. `list_keys.h` holds the single-key actions both lists share. `BookListView::showOnly` narrows to a set of ids. `DetailPanel` stacks Empty / Viewing (`BookView`) / Editing (`BookEditor`) / Several / ConfirmingDelete (generic `askToConfirm`) / ViewingSeries (`SeriesView`) / EditingEntry (`EntryEditor`) / Attaching (`AttachView`). `RatingBar`, `style.h` (accent, muted, section headings). Links `domain`, not `db`. |
-| `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save(Book)`, `save(BookEdit)` which creates at id 0 and resolves credits, `remove`, `toggleRead`, `setRating`). Also `countWithReadStatus`, `seriesStatuses` (filed as titles), `bookIds(BookFilter)`, `seriesRows`, `seriesDetail`, `entry`, `saveEntry`, `removeEntry`, `attach`, `seriesCredits`, `nextSortPosition`; `save(BookEdit, attachTo)` for Mark as owned. Toolbar: Add a book. `MainWindow`: splitter of `rail`, `list`, `detail`; rail choice → Catalogue ids → list; selection → panel; panel save → Catalogue → row and rail refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import` and `--import-series`, shows the count. |
+| `src/ui/` | `BookListModel`, `BookSortProxy` (view keys; missing values last; author then series), `BookListView` (opens sorted by author; emits `selectionChangedTo`). `RailView` (LIBRARY, SERIES and NEEDS ATTENTION sections; emits `BookFilter`). `MissingPage` (the shopping list over `MissingModel`) is the third view in the middle stack. `SeriesPage` (heading, show-missing toggle, `SeriesTable` over `SeriesEntryModel`) replaces the book list in the middle stack while a series is chosen. `SeriesView` is the panel's description of a series, with a card for a selected missing volume. `EntryEditor` and `AttachView` are the panel's forms for an entry and for Mark as owned. `list_keys.h` holds the single-key actions both lists share. `BookListView::showOnly` narrows to a set of ids. `DetailPanel` stacks Empty / Viewing (`BookView`) / Editing (`BookEditor`) / Several / ConfirmingDelete (generic `askToConfirm`) / ViewingSeries (`SeriesView`) / EditingEntry (`EntryEditor`) / Attaching (`AttachView`). `RatingBar`, `style.h` (accent, muted, section headings). Links `domain`, not `db`. |
+| `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save(Book)`, `save(BookEdit)` which creates at id 0 and resolves credits, `remove`, `toggleRead`, `setRating`). Also `countWithReadStatus`, `seriesStatuses` (filed as titles), `bookIds(BookFilter)`, `seriesRows`, `seriesDetail`, `entry`, `saveEntry`, `removeEntry`, `attach`, `seriesCredits`, `nextSortPosition`; `save(BookEdit, attachTo)` for Mark as owned; `missingVolumes`, `libraryTotals`. Toolbar: Add a book. `MainWindow`: splitter of `rail`, `list`, `detail`; rail choice → Catalogue ids → list; selection → panel; panel save → Catalogue → row and rail refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import` and `--import-series`, shows the count. |
 | `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_rail`, `test_series_page`, `test_entry_editor`, `test_import` and `test_series_import` (their seed tests skip without `seed/`), `test_detail_panel`, `test_catalogue`. Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
-| `FEATURES.md` | Complete. F-001 to F-025. F-001, F-002, F-003, F-005, F-006, F-007 Complete; F-004, F-008, F-009, F-010, F-011, F-016, F-017 In progress; the rest Not started. |
+| `FEATURES.md` | Complete. F-001 to F-025. F-001, F-002, F-003, F-005, F-006, F-007, F-008, F-009, F-010 Complete; F-004, F-011, F-016, F-017 In progress; the rest Not started. |
 | `ROADMAP.md` | Complete. Phases 0 and 1 done; Phase 2 in progress; Phases 3–5 not started; Phase 5 (webcam scanning) waits on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
 | `DECISIONS.md` | Complete. D-001 to D-018, all Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-013. Detection implemented for AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007, AV-013; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001, BUG-002 and BUG-003 fixed. |
-| `IMPROVEMENTS.md` | None suggested. IMP-001 to IMP-005 applied. |
+| `IMPROVEMENTS.md` | IMP-006 suggested (placeholder-only gaps in "one volume short"); owner to decide. IMP-001 to IMP-005 applied. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
@@ -81,9 +81,11 @@ Suggested order:
    as owned" attaching a book (AV-007).~~ Done 2026-10-06. The sort number is
    typed beside the position, never derived from it in the application
    (AV-006).
-5. Missing-volumes view from `v_missing_entries`, fewest-needed first.
+5. ~~Missing-volumes view from `v_missing_entries`, fewest-needed first.~~
+   Done 2026-10-06: NEEDS ATTENTION in the rail. Mark as owned now finds a
+   volume's series from the volume, so it works from the list as well.
 
-Nothing is open with the owner.
+Open with the owner: IMP-006, and whether to close Phase 2.
 
 The seed: `seed/library.csv` and `seed/series.csv`, made by
 `seed/convert_catalogue.py` from the spreadsheet (all git-ignored). The converter fixes two credits the ` & `
@@ -207,8 +209,9 @@ Not vectors, but worth knowing:
 - **A new book for a missing volume** is saved with `attachTo`; the window
   keeps the entry id in `pendingAttach_` between "Add it as a new book" and
   Save, and clears it on any dismissal.
-- **The middle panel is a stack.** `MainWindow::showingSeries()` says which
-  view is live; selection, refresh and focus go through `refreshPanel()` and
+- **The middle panel is a stack** of three: the book list, a series' page and
+  the shopping list. `showingSeries()` and `showingMissing()` say which is
+  live; selection, refresh and focus go through `refreshPanel()` and
   `showSeriesPage()` so both views stay in step. `refreshPanel()` never
   redraws over an open form, but does redraw over a pending delete question —
   that is how Keep returns.

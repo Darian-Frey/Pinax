@@ -228,6 +228,28 @@ std::vector<domain::MissingVolume> SeriesRepository::missing(std::int64_t series
     return result;
 }
 
+std::vector<domain::MissingRow> SeriesRepository::missingEverywhere()
+{
+    Statement select(connection_, R"(
+        SELECT entry_id, series_id, series_name, position, sort_position, title, missing_in_series
+          FROM v_missing_entries
+         ORDER BY missing_in_series, series_name COLLATE NOCASE, series_id,
+                  sort_position IS NULL, sort_position, position, entry_id)");
+    std::vector<domain::MissingRow> result;
+    while (select.step()) {
+        domain::MissingRow row;
+        row.entryId = select.columnInt(0);
+        row.seriesId = select.columnInt(1);
+        row.seriesName = select.columnText(2);
+        row.position = select.columnOptionalText(3);
+        row.sortPosition = select.columnOptionalDouble(4);
+        row.title = select.columnOptionalText(5);
+        row.missingInSeries = static_cast<int>(select.columnInt(6));
+        result.push_back(std::move(row));
+    }
+    return result;
+}
+
 domain::LibrarySeriesTotals SeriesRepository::libraryTotals()
 {
     Statement select(connection_, R"(
