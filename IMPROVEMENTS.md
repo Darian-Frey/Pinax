@@ -23,28 +23,6 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
-### IMP-004 Show editors in the list when a book has no author
-
-**Status:** suggested
-**Found:** 2026-10-05 (fixing BUG-003)
-**Location:** `db/schema.sql`, view `v_book_display`, columns `authors` and `author_sort`
-**Effort:** small
-**Description.** The list's Author column and its sort key come from credits
-with the role `author` only. An anthology credited only to its editor — the
-three BUG-003 corrected — shows an empty Author cell and sorts after every
-authored book, though the spreadsheet showed the editor there and a reader
-looks for an anthology under its editor.
-**Proposal.** Schema version 3: when a book has no `author` credit, fall back
-to its editors for `authors` (shown as "Mike Ashley (ed.)") and `author_sort`
-("Ashley, Mike"). One migration file, the frozen-fixture test extended to
-version 2, and a test in `test_db`.
-**Trade-offs.** "Author" then means "author, or editor when there is none",
-which a per-author count (F-017's filter) must not inherit — counts should
-stay on the `author` role, or Mike Ashley would appear to have written two
-books. Translators and illustrators are not proposed as fallbacks.
-**Notes.** The detail panel already shows every credit via the edit form; only
-the list and its sort are affected.
-
 ### IMP-005 Summarise placeholder volumes in the detail panel
 
 **Status:** suggested
@@ -66,6 +44,36 @@ shows placeholders in place, where the repetition matters less.
 **Notes.** Placeholders were the owner's choice for the seed (D-018).
 
 ## Applied
+
+### IMP-004 Show editors in the list when a book has no author
+
+**Status:** applied (2026-10-06)
+**Found:** 2026-10-05 (fixing BUG-003)
+**Location:** `db/schema.sql`, view `v_book_display`, columns `authors` and `author_sort`
+**Effort:** small
+**Description.** The list's Author column and its sort key come from credits
+with the role `author` only. An anthology credited only to its editor — the
+three BUG-003 corrected — shows an empty Author cell and sorts after every
+authored book, though the spreadsheet showed the editor there and a reader
+looks for an anthology under its editor.
+**Proposal.** Schema version 3: when a book has no `author` credit, fall back
+to its editors for `authors` (shown as "Mike Ashley (ed.)") and `author_sort`
+("Ashley, Mike"). One migration file, the frozen-fixture test extended to
+version 2, and a test in `test_db`.
+**Trade-offs.** "Author" then means "author, or editor when there is none",
+which a per-author count (F-017's filter) must not inherit — counts should
+stay on the `author` role, or Mike Ashley would appear to have written two
+books. Translators and illustrators are not proposed as fallbacks.
+**Applied.** As proposed, by the owner's decision: schema version 3
+(`db/migrations/003_book_display_editors.sql`). A book with no author credit
+shows its editors — "Mike Ashley (ed.)", "A & B (eds.)" — and files under the
+first. The trade-off is recorded where it will be met: the view's comment and
+F-017 both say per-author counts come from role 'author' in `book_author`,
+never from this view. `tests/test_db.cpp`,
+`editorsStandInWhenThereIsNoAuthor`; the migration test now runs v1 to v3.
+In the owner's catalogue no book is left with a blank Author cell.
+**Notes.** The detail panel already shows every credit via the edit form; only
+the list and its sort are affected.
 
 ### IMP-002 Keep unsaved edits when the selection moves
 

@@ -21,7 +21,7 @@ database and exports to SQL, CSV and Excel.
 
 | Path | State |
 |---|---|
-| `db/schema.sql`, `db/migrations/` | Version 2. `schema.sql` is the latest full schema; `002_book_display_sort_keys.sql` carries a version 1 file forward. Its `CREATE VIEW` must stay byte-identical to `schema.sql`'s — `migratingVersion1MatchesFreshSchema` fails otherwise. |
+| `db/schema.sql`, `db/migrations/` | Version 3. `schema.sql` is the latest full schema; `002_book_display_sort_keys.sql` and `003_book_display_editors.sql` carry older files forward. The last step's `CREATE VIEW` must stay byte-identical to `schema.sql`'s — `migratingVersion1MatchesFreshSchema` fails otherwise. |
 | `src/domain/` | Value types (`Book`, `BookSummary`, `BookDetail`, `BookEdit`, `BookFilter`, `Author`, `Credit`, `SeriesEntry`, `SeriesMembership`, `SeriesStatus`), enums with schema strings, `makeSortTitle`, `makeSortName`, ISBN check digits, `parseCredits`/`formatCredits`. No Qt, no SQL. |
 | `src/db/` | SQLite C API, no Qt (D-015). `Connection` (FK on + verified, WAL), `Statement` (named binds), `Transaction` (RAII), `Savepoint`, `migrate()` with schema and migrations compiled in, and `BookRepository`, `AuthorRepository`, `SeriesRepository`. Errors throw `DbError` with the extended result code; `isConstraintViolation()` tells the data's fault from the database's. |
 | `src/io/` | Qt-free. `parseCsv` (RFC 4180), `CsvImporter` (SPEC.md §1) and `SeriesImporter` (§1.6), sharing `import_support.h`: one transaction, savepoint per row, failures by line, `deriveSortPosition` (the only code that parses `position`). |
@@ -36,7 +36,7 @@ database and exports to SQL, CSV and Excel.
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-013. Detection implemented for AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007, AV-013; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001, BUG-002 and BUG-003 fixed. |
-| `IMPROVEMENTS.md` | IMP-004 (show editors in the list when there is no author) and IMP-005 (summarise placeholder volumes in the panel) suggested; owner to decide. IMP-001, IMP-002, IMP-003 applied. |
+| `IMPROVEMENTS.md` | IMP-005 (summarise placeholder volumes in the panel) suggested; owner to decide. IMP-001 to IMP-004 applied. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
@@ -83,7 +83,7 @@ Suggested order:
    (AV-006).
 5. Missing-volumes view from `v_missing_entries`, fewest-needed first.
 
-Open with the owner: IMP-004, IMP-005.
+Open with the owner: IMP-005.
 
 The seed: `seed/library.csv` and `seed/series.csv`, made by
 `seed/convert_catalogue.py` from the spreadsheet (all git-ignored). The converter fixes two credits the ` & `
@@ -212,6 +212,9 @@ Not vectors, but worth knowing:
   `showSeriesPage()` so both views stay in step. `refreshPanel()` never
   redraws over an open form, but does redraw over a pending delete question —
   that is how Keep returns.
+- **`v_book_display.authors` is not an author list.** Where a book has no
+  author it shows the editors, "(ed.)" and all (IMP-004). Count or filter
+  authors from role 'author' rows in `book_author`.
 - **Placeholder volumes are ordinary entries.** "Unidentified volume n" and
   "Later volumes — unidentified" are titles, nothing more; no column marks
   them (D-018, IMP-005). Matching on re-import relies on those titles staying

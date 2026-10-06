@@ -1,5 +1,5 @@
 -- Pinax — physical library catalogue
--- SQLite schema, version 2
+-- SQLite schema, version 3
 --
 -- This file is always the latest full schema, applied whole to an empty
 -- database. Older files are carried forward by db/migrations/NNN_*.sql, one
@@ -34,6 +34,7 @@ CREATE TABLE schema_version (
 -- history.
 INSERT INTO schema_version (version, note) VALUES (1, 'Initial schema');
 INSERT INTO schema_version (version, note) VALUES (2, 'v_book_display: sort keys, series label, ordered credits');
+INSERT INTO schema_version (version, note) VALUES (3, 'v_book_display: editors stand in when a book has no author');
 
 
 -- ---------------------------------------------------------------------------
@@ -203,9 +204,16 @@ CREATE INDEX idx_book_genre_genre ON book_genre (genre_id);
 
 -- One row per book, flattened for the list view.
 --
---   authors               credited authors in cover order, joined ' & '
+--   authors               credited authors in cover order, joined ' & ';
+--                         for a book with no author, its editors, marked
+--                         'Mike Ashley (ed.)' or 'A & B (eds.)' (IMP-004)
 --   author_sort           filing form of the first-billed author, so
---                         'Iain M. Banks' sorts under B
+--                         'Iain M. Banks' sorts under B; else of the first
+--                         editor
+--
+-- These two columns are for display and sorting only. Anything that counts
+-- books per author must count role 'author' credits in book_author, never
+-- this view, or an editor would be credited with writing an anthology.
 --   series, positions     every series the book is in, by series name, with
 --                         positions in step ('' where none is printed)
 --   series_label          'The Culture · 5', joined '; ' for several series
@@ -221,18 +229,35 @@ SELECT
     b.id,
     b.title,
     b.sort_title,
-    (SELECT group_concat(name, ' & ') FROM (
-        SELECT a.name
-          FROM book_author ba
-          JOIN author a ON a.id = ba.author_id
-         WHERE ba.book_id = b.id AND ba.role = 'author'
-         ORDER BY ba.ordinal, a.sort_name))                 AS authors,
-    (SELECT a.sort_name
-       FROM book_author ba
-       JOIN author a ON a.id = ba.author_id
-      WHERE ba.book_id = b.id AND ba.role = 'author'
-      ORDER BY ba.ordinal, a.sort_name
-      LIMIT 1)                                              AS author_sort,
+    COALESCE(
+        (SELECT group_concat(name, ' & ') FROM (
+            SELECT a.name
+              FROM book_author ba
+              JOIN author a ON a.id = ba.author_id
+             WHERE ba.book_id = b.id AND ba.role = 'author'
+             ORDER BY ba.ordinal, a.sort_name)),
+        (SELECT group_concat(name, ' & ')
+                || CASE WHEN COUNT(*) = 1 THEN ' (ed.)' ELSE ' (eds.)' END
+           FROM (
+            SELECT a.name
+              FROM book_author ba
+              JOIN author a ON a.id = ba.author_id
+             WHERE ba.book_id = b.id AND ba.role = 'editor'
+             ORDER BY ba.ordinal, a.sort_name)
+         HAVING COUNT(*) > 0))                              AS authors,
+    COALESCE(
+        (SELECT a.sort_name
+           FROM book_author ba
+           JOIN author a ON a.id = ba.author_id
+          WHERE ba.book_id = b.id AND ba.role = 'author'
+          ORDER BY ba.ordinal, a.sort_name
+          LIMIT 1),
+        (SELECT a.sort_name
+           FROM book_author ba
+           JOIN author a ON a.id = ba.author_id
+          WHERE ba.book_id = b.id AND ba.role = 'editor'
+          ORDER BY ba.ordinal, a.sort_name
+          LIMIT 1))                                         AS author_sort,
     (SELECT group_concat(name, '; ') FROM (
         SELECT s.name
           FROM series_entry se

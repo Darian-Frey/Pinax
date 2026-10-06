@@ -14,6 +14,9 @@ change can be traced to the capability or decision that motivated it.
 Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) in progress.
 
 ### Added
+- IMP-004 applied, schema version 3: a book with no author shows its editors
+  in the list — "Mike Ashley (ed.)" — and files under them. Per-author
+  counts must still come from author credits, not the list's column.
 - The entry editor (Phase 2 step 4, F-008, F-009): on a series' page,
   "+ Add volume" and "Edit entry" open a form in the panel for a volume's
   position, sort number, title and notes, with Remove from series — a missing

@@ -289,6 +289,9 @@ last in both directions; within an author, by series then position
 - Filters combine, and the active filter set is visible and clearable in one action.
 **Status:** In progress — the rail filters by read state and by series. Rating,
 genre and author filters, and combining filters, are not built.
+**Notes:** An author filter and its counts must use role 'author' credits
+in `book_author`, not `v_book_display.authors`, which shows editors where a
+book has no author (IMP-004).
 
 ### F-018 Group
 **Priority:** Should

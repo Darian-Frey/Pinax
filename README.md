@@ -80,7 +80,7 @@ Packages, verified versions and troubleshooting are in [`BUILD.md`](BUILD.md).
 ```
 pinax/
 ├── db/
-│   ├── schema.sql        schema version 2, always the latest in full
+│   ├── schema.sql        schema version 3, always the latest in full
 │   └── migrations/       NNN_*.sql, one step per version, for older files
 ├── CMakeLists.txt
 ├── src/                  one directory per module, per ARCHITECTURE.md §2

@@ -100,6 +100,7 @@ private slots:
     void authorsJoinInCoverOrder();
     void summariesCarrySeriesSortKeys();
     void severalSeriesJoinInStableOrder();
+    void editorsStandInWhenThereIsNoAuthor();
 };
 
 void TestDb::migrateCreatesSchemaOnEmptyDatabase()
@@ -438,6 +439,37 @@ void TestDb::severalSeriesJoinInStableOrder()
     QCOMPARE(rows[0].seriesSort, std::optional<std::string>("Chasm City Sequence"));
     QCOMPARE(scalarText(connection, "SELECT positions FROM v_book_display"),
         std::string("; companion"));
+}
+
+void TestDb::editorsStandInWhenThereIsNoAuthor()
+{
+    // IMP-004: an anthology shows and files under its editor; a book with an
+    // author never shows its editor there.
+    Connection connection(":memory:");
+    pinax::db::migrate(connection);
+    BookRepository books(connection);
+
+    const std::string mars = std::to_string(books.create(titled("Lost Mars")));
+    const std::string pair = std::to_string(books.create(titled("Engineering Infinity")));
+    const std::string both = std::to_string(books.create(titled("Excession")));
+    connection.exec(
+        "INSERT INTO author (id, name, sort_name) VALUES (1, 'Mike Ashley', 'Ashley, Mike'),"
+        " (2, 'Jonathan Strahan', 'Strahan, Jonathan'), (3, 'Iain M. Banks', 'Banks, Iain M.');"
+        "INSERT INTO book_author (book_id, author_id, ordinal, role) VALUES"
+        " (" + mars + ", 1, 0, 'editor'),"
+        " (" + pair + ", 2, 0, 'editor'), (" + pair + ", 1, 1, 'editor'),"
+        " (" + both + ", 3, 0, 'author'), (" + both + ", 1, 1, 'editor');");
+
+    auto row = [&](const std::string& id) {
+        return scalarText(connection, "SELECT authors || ' / ' || author_sort FROM v_book_display WHERE id = " + id);
+    };
+    QCOMPARE(row(mars), std::string("Mike Ashley (ed.) / Ashley, Mike"));
+    QCOMPARE(row(pair), std::string("Jonathan Strahan & Mike Ashley (eds.) / Strahan, Jonathan"));
+    QCOMPARE(row(both), std::string("Iain M. Banks / Banks, Iain M."));
+
+    // No credit of any kind stays empty.
+    const std::string none = std::to_string(books.create(titled("Practical Algebra")));
+    QCOMPARE(scalar(connection, "SELECT authors IS NULL AND author_sort IS NULL FROM v_book_display WHERE id = " + none), 1);
 }
 
 QTEST_APPLESS_MAIN(TestDb)
