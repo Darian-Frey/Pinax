@@ -2,6 +2,7 @@
 
 #include "domain/book_detail.h"
 #include "domain/candidate.h"
+#include "metadata/british_library.h"
 #include "metadata/cover_cache.h"
 #include "metadata/google_books.h"
 #include "metadata/open_library.h"
@@ -32,10 +33,11 @@ struct FindResult {
 // §3.4). Writes nothing: the owner chooses a candidate and the Catalogue
 // writes it.
 //
-// By ISBN first, Open Library then Google; if neither knows the ISBN, by
-// title and first author the same way. Google is asked only with a key
-// (D-019). One request queue per host keeps each provider at its own pace
-// (AV-009).
+// By ISBN first: Open Library and the British Library together, the
+// British Library filling the gaps in Open Library's answer or answering
+// alone (D-022); then Google. If none knows the ISBN, by title and first
+// author, Open Library then Google. Google is asked only with a key (D-019).
+// One request queue per host keeps each provider at its own pace (AV-009).
 class Enricher : public QObject {
     Q_OBJECT
 
@@ -83,16 +85,28 @@ private:
 
     void findByIsbn(const std::string& isbn13, const domain::BookDetail& detail,
         std::function<void(FindResult)> done);
+    void askGoogleByIsbn(const std::string& isbn13, const domain::BookDetail& detail, Asked asked,
+        std::function<void(FindResult)> done);
     void findByTitle(const domain::BookDetail& detail, Asked asked, std::function<void(FindResult)> done);
+
+public:
+    // Fills each primary candidate's empty publisher, pages, years and
+    // subtitle from the first secondary one, which answered the same ISBN,
+    // and carries its categories (D-022). With no primary candidates, the
+    // secondary ones answer alone.
+    static std::vector<domain::Candidate> fillGaps(std::vector<domain::Candidate> primary,
+        const std::vector<domain::Candidate>& secondary);
     // Wraps a callback so it is dropped if cancel() runs first.
     template <typename T>
     std::function<void(T)> guarded(std::function<void(T)> done);
 
     metadata::RequestQueue openLibraryQueue_;
     metadata::RequestQueue googleQueue_;
+    metadata::RequestQueue britishLibraryQueue_;
     metadata::RequestQueue coverQueue_;
     metadata::OpenLibraryClient openLibrary_;
     metadata::GoogleBooksClient google_;
+    metadata::BritishLibraryClient britishLibrary_;
     unsigned generation_ = 0;
 };
 

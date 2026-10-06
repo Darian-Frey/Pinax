@@ -27,8 +27,14 @@ struct Candidate {
     std::optional<std::string> isbn13;
     std::optional<std::string> isbn10;
     std::optional<std::string> description;
-    std::vector<std::string> categories; // verbatim (D-009)
+    std::vector<std::string> categories; // verbatim (D-009), from `source`
     std::optional<std::string> coverUrl;
+
+    // A second provider that filled this candidate's gaps — publisher,
+    // pages, years — for the same ISBN, and the categories it gave, which
+    // are recorded with its name (D-022).
+    std::optional<Source> filledFrom;
+    std::vector<std::string> filledCategories;
 
     bool operator==(const Candidate&) const = default;
 };

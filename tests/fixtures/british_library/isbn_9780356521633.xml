@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><searchRetrieveResponse xmlns="http://www.loc.gov/zing/srw/">
+  <version>1.2</version>
+  <numberOfRecords>1</numberOfRecords>
+  <records>
+    <record>
+      <recordSchema>marcxml</recordSchema>
+      <recordPacking>xml</recordPacking>
+      <recordData>
+        <record xmlns="http://www.loc.gov/MARC21/slim">
+          <leader>     nam a22002298i 4500</leader>
+          <controlfield tag="001">990211976950109251</controlfield>
+          <controlfield tag="005">20230905170138.0</controlfield>
+          <controlfield tag="007">t|</controlfield>
+          <controlfield tag="008">230629r20231987enk           000|f|eng|d</controlfield>
+          <datafield ind1=" " ind2=" " tag="015">
+            <subfield code="a">GBC3G7638</subfield>
+            <subfield code="2">bnb</subfield>
+          </datafield>
+          <datafield ind1="7" ind2=" " tag="016">
+            <subfield code="a">021197695</subfield>
+            <subfield code="2">Uk</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="020">
+            <subfield code="a">9780356521633</subfield>
+            <subfield code="q">paperback</subfield>
+            <subfield code="c">£9.99</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="035">
+            <subfield code="a">(Uk)021197695</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="035">
+            <subfield code="a">(Uk)021197695BLL01-Aleph</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="040">
+            <subfield code="a">StDuBDS</subfield>
+            <subfield code="b">eng</subfield>
+            <subfield code="c">StDuBDS</subfield>
+            <subfield code="e">rda</subfield>
+          </datafield>
+          <datafield ind1="0" ind2="4" tag="082">
+            <subfield code="a">823.914</subfield>
+            <subfield code="2">23</subfield>
+          </datafield>
+          <datafield ind1="1" ind2=" " tag="100">
+            <subfield code="a">Banks, Iain,</subfield>
+            <subfield code="d">1954-2013,</subfield>
+            <subfield code="e">author.</subfield>
+            <subfield code="1">https://isni.org/isni/0000000120285224</subfield>
+          </datafield>
+          <datafield ind1="1" ind2="0" tag="245">
+            <subfield code="a">Consider Phlebas /</subfield>
+            <subfield code="c">Iain M. Banks.</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="263">
+            <subfield code="a">202311</subfield>
+          </datafield>
+          <datafield ind1=" " ind2="1" tag="264">
+            <subfield code="a">London :</subfield>
+            <subfield code="b">Orbit,</subfield>
+            <subfield code="c">2023.</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="300">
+            <subfield code="a">480 pages ;</subfield>
+            <subfield code="c">20 cm.</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="336">
+            <subfield code="a">text</subfield>
+            <subfield code="2">rdacontent</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="337">
+            <subfield code="a">unmediated</subfield>
+            <subfield code="2">rdamedia</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="338">
+            <subfield code="a">volume</subfield>
+            <subfield code="2">rdacarrier</subfield>
+          </datafield>
+          <datafield ind1="0" ind2=" " tag="490">
+            <subfield code="a">A Culture novel ;</subfield>
+            <subfield code="v">1</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="500">
+            <subfield code="a">Originally published: London: Macmillan, 1987.</subfield>
+          </datafield>
+          <datafield ind1=" " ind2="0" tag="655">
+            <subfield code="a">Science fiction.</subfield>
+          </datafield>
+        </record>
+      </recordData>
+      <recordIdentifier>990211976950109251</recordIdentifier>
+      <recordPosition>1</recordPosition>
+    </record>
+  </records>
+  <extraResponseData xmlns:xb="http://www.exlibris.com/repository/search/xmlbeans/">
+    <xb:exact>true</xb:exact>
+    <xb:responseDate>2026-10-06T22:59:32+0100</xb:responseDate>
+  </extraResponseData>
+</searchRetrieveResponse>

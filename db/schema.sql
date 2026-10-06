@@ -1,5 +1,5 @@
 -- Pinax — physical library catalogue
--- SQLite schema, version 4
+-- SQLite schema, version 5
 --
 -- This file is always the latest full schema, applied whole to an empty
 -- database. Older files are carried forward by db/migrations/NNN_*.sql, one
@@ -36,6 +36,7 @@ INSERT INTO schema_version (version, note) VALUES (1, 'Initial schema');
 INSERT INTO schema_version (version, note) VALUES (2, 'v_book_display: sort keys, series label, ordered credits');
 INSERT INTO schema_version (version, note) VALUES (3, 'v_book_display: editors stand in when a book has no author');
 INSERT INTO schema_version (version, note) VALUES (4, 'v_missing_entries: entry_id');
+INSERT INTO schema_version (version, note) VALUES (5, 'book_genre.source: british_library');
 
 
 -- ---------------------------------------------------------------------------
@@ -188,11 +189,13 @@ CREATE TABLE genre (
     name    TEXT    NOT NULL UNIQUE
 );
 
+-- A genre's source may be the British Library (D-022), unlike the book's
+-- synopsis and cover sources: it supplies neither.
 CREATE TABLE book_genre (
     book_id     INTEGER NOT NULL REFERENCES book(id)  ON DELETE CASCADE,
     genre_id    INTEGER NOT NULL REFERENCES genre(id) ON DELETE CASCADE,
     source      TEXT    NOT NULL DEFAULT 'google_books'
-                  CHECK (source IN ('google_books','open_library','manual')),
+                  CHECK (source IN ('google_books','open_library','british_library','manual')),
     PRIMARY KEY (book_id, genre_id)
 );
 

@@ -13,7 +13,10 @@ enum class MetadataStatus { Unmatched, Matched, Manual, Failed };
 
 // Who supplied a value: a provider, or the owner by hand (F-015). A `Manual`
 // value is never overwritten by enrichment (AV-001).
-enum class Source { GoogleBooks, OpenLibrary, Manual };
+// BritishLibrary appears only as a genre's source: the British Library
+// supplies no synopsis or cover (D-022), and the book's source columns do
+// not accept it.
+enum class Source { GoogleBooks, OpenLibrary, BritishLibrary, Manual };
 
 // What a credited person did for a book (`book_author.role`).
 enum class CreditRole { Author, Editor, Translator, Illustrator };

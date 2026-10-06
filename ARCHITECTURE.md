@@ -75,7 +75,8 @@ results are returned to the caller, which persists them through `db`.
 - **Fetcher** — the one seam to the network (D-020). `NetworkFetcher` uses
   Qt Network; tests substitute recorded responses.
 - **Provider clients** — `OpenLibraryClient` primary, `GoogleBooksClient`
-  only with a key (D-019). Each maps provider responses onto
+  only with a key (D-019), `BritishLibraryClient` by ISBN over SRU, reading
+  MARC 21 with `QXmlStreamReader` (D-022). Each maps provider responses onto
   `domain::Candidate` through pure parsing functions.
 - **Request queue** — one per provider: serialises requests, spaces them, and
   pauses and retries on 429 or 503 rather than failing (AV-009).
@@ -170,7 +171,9 @@ module permitted to know about all the others.
   sentence for the owner.
 - **Enricher** — asks the providers about one book for Fetch metadata
   (F-012): by ISBN, then by title and first author, Open Library before
-  Google (D-019), each through its own `RequestQueue`; completes a searched
+  Google (D-019), each through its own `RequestQueue`; for an ISBN the
+  British Library is asked alongside Open Library and `fillGaps` merges its
+  edition facts into Open Library's candidate (D-022); completes a searched
   candidate's synopsis from its work, and fetches covers. It writes nothing:
   the owner's choice goes to `Catalogue::enrich`, which applies
   `domain::planEnrichment` (SPEC.md §3.5, AV-001) in one transaction, and the

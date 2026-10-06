@@ -1,3 +1,4 @@
+#include "metadata/british_library.h"
 #include "metadata/cover_cache.h"
 #include "metadata/google_books.h"
 #include "metadata/http.h"
@@ -11,6 +12,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QUrlQuery>
 #include <QTimer>
 
 #include <map>
@@ -81,6 +83,12 @@ private slots:
     void aMissingCoverIsReportedNotWritten();
     void anythingButAnImageIsRefused();
     void forgettingRemovesTheFile();
+
+    // British Library (D-022)
+    void britishLibraryReadsAReprint();
+    void britishLibraryMatchesAnIsbn10Record();
+    void britishLibraryDropsRelatedEditions();
+    void britishLibraryLookupGoesThroughTheQueue();
 };
 
 void TestMetadata::booksApiReadsTheEdition()
@@ -409,6 +417,67 @@ void TestMetadata::forgettingRemovesTheFile()
 
     cache.forget(12);
     QVERIFY(!cache.cached(12));
+}
+
+void TestMetadata::britishLibraryReadsAReprint()
+{
+    const auto candidates = britishlibrary::parseSru(fixture("british_library/isbn_9780356521633.xml"), "9780356521633");
+    QCOMPARE(candidates.size(), std::size_t(1));
+    const Candidate& book = candidates.front();
+    QVERIFY(book.source == pinax::domain::Source::BritishLibrary);
+    QCOMPARE(book.title, std::string("Consider Phlebas"));
+    QCOMPARE(book.authors, std::vector<std::string>({"Iain Banks"}));
+    QVERIFY(book.publisher == std::optional<std::string>("Orbit"));
+    QVERIFY(book.publishedYear == 2023);
+    QVERIFY(book.firstPublishedYear == 1987); // the reprint's original (008 type r)
+    QVERIFY(book.pageCount == 480);
+    QVERIFY(std::find(book.categories.begin(), book.categories.end(), "Science fiction") != book.categories.end());
+    // Never a synopsis or a cover: the book's source columns could not hold them.
+    QVERIFY(!book.description);
+    QVERIFY(!book.coverUrl);
+}
+
+void TestMetadata::britishLibraryMatchesAnIsbn10Record()
+{
+    // The 1988 Futura paperback records only its ISBN-10; asked as ISBN-13.
+    const auto candidates = britishlibrary::parseSru(fixture("british_library/isbn_9780708837078.xml"), "9780708837078");
+    QCOMPARE(candidates.size(), std::size_t(1));
+    QVERIFY(candidates.front().publishedYear == 1988);
+    QVERIFY(candidates.front().firstPublishedYear == 1987);
+    QVERIFY(candidates.front().publisher);
+}
+
+void TestMetadata::britishLibraryDropsRelatedEditions()
+{
+    // The index returns related editions too; only the ISBN asked for counts.
+    QVERIFY(britishlibrary::parseSru(fixture("british_library/isbn_9780356521633.xml"), "9780708837078").empty());
+    QVERIFY(britishlibrary::parseSru(fixture("british_library/isbn_9780316005388.xml"), "9780316005388").empty());
+    QVERIFY(!britishlibrary::parseDiagnostic(fixture("british_library/isbn_9780316005388.xml")));
+    QVERIFY(britishlibrary::parseSru("not xml", "9780316005388").empty());
+}
+
+void TestMetadata::britishLibraryLookupGoesThroughTheQueue()
+{
+    FakeFetcher fetcher;
+    RequestQueue queue(fetcher, fast());
+    BritishLibraryClient client(queue);
+    const QUrl url = BritishLibraryClient::isbnUrl("9780356521633");
+    QCOMPARE(url.host(), QStringLiteral("bl.alma.exlibrisgroup.com"));
+    QCOMPARE(QUrlQuery(url).queryItemValue(QStringLiteral("query"), QUrl::FullyDecoded),
+        QStringLiteral("alma.isbn=9780356521633"));
+    fetcher.script(url, {ok(fixture("british_library/isbn_9780356521633.xml"))});
+
+    std::optional<LookupResult> result;
+    client.lookupIsbn("9780356521633", [&](LookupResult r) { result = std::move(r); });
+    QTRY_VERIFY(result);
+    QCOMPARE(result->candidates.size(), std::size_t(1));
+
+    // A miss is an empty answer; a failure is an error.
+    std::optional<LookupResult> miss;
+    fetcher.script(BritishLibraryClient::isbnUrl("9780316005388"), {ok(fixture("british_library/isbn_9780316005388.xml"))});
+    client.lookupIsbn("9780316005388", [&](LookupResult r) { miss = std::move(r); });
+    QTRY_VERIFY(miss);
+    QVERIFY(miss->candidates.empty() && !miss->error);
 }
 
 QTEST_MAIN(TestMetadata)

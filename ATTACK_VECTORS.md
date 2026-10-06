@@ -206,7 +206,9 @@ and a search result never supplies publisher, page count or ISBN (SPEC.md
 `tests/test_enricher.cpp`, `fetchingFromThePanelWritesTheChoiceAndItsCover`;
 `tests/test_domain.cpp`, `aSearchedCandidateGivesNoEditionFacts`. Not yet:
 a report of books matched by search rather than ISBN, and the batch pass's
-confirmation queue (Phase 3 step 5).
+confirmation queue (Phase 3 step 5). The British Library's index returns
+related editions for an ISBN; only records carrying the ISBN asked are kept
+(`britishLibraryDropsRelatedEditions`, D-022).
 **Related decisions.** D-008, D-012.
 **History.** Identified while specifying the matching strategy in SPEC.md §3.3,
 2026-10-04. A live instance, 2026-10-06: ISBN 9780000000002, chosen for a test

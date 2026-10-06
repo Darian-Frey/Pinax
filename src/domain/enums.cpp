@@ -32,9 +32,10 @@ constexpr NameTable<MetadataStatus, 4> metadataStatusNames{{
     {MetadataStatus::Failed, "failed"},
 }};
 
-constexpr NameTable<Source, 3> sourceNames{{
+constexpr NameTable<Source, 4> sourceNames{{
     {Source::GoogleBooks, "google_books"},
     {Source::OpenLibrary, "open_library"},
+    {Source::BritishLibrary, "british_library"},
     {Source::Manual, "manual"},
 }};
 

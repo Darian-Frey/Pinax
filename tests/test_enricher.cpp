@@ -3,6 +3,7 @@
 #include "app/main_window.h"
 #include "app/provider_key.h"
 #include "fake_fetcher.h"
+#include "metadata/british_library.h"
 #include "metadata/cover_cache.h"
 #include "metadata/google_books.h"
 #include "metadata/open_library.h"
@@ -107,6 +108,8 @@ private slots:
     void providersUnreachableIsAProblemNotANotFound();
     void aSearchedCandidateIsCompletedFromItsWork();
     void cancellingDropsTheAnswer();
+    void theBritishLibraryFillsOpenLibrarysGaps();
+    void theBritishLibraryAnswersAlone();
     void theKeyIsFoundInOrder();
 
     // Through the window
@@ -218,6 +221,48 @@ void TestEnricher::aSearchedCandidateIsCompletedFromItsWork()
     QVERIFY(filled);
     QVERIFY(filled->description == std::optional<std::string>("Already here."));
     QCOMPARE(fetcher.requested.size(), asked);
+}
+
+void TestEnricher::theBritishLibraryFillsOpenLibrarysGaps()
+{
+    FakeFetcher fetcher;
+    Enricher enricher(fetcher, {}, fast());
+    fetcher.script(OpenLibraryClient::booksApiUrl(phlebasIsbn), {ok(fixture("open_library/isbn_9780316005388.json"))});
+    fetcher.script(OpenLibraryClient::recordUrl("/books/OL9759601M"), {ok(fixture("open_library/edition_9780316005388.json"))});
+    // Constructed: the Orbit 2023 record, given the US edition's ISBN so the
+    // two providers answer the same one.
+    QByteArray record = fixture("british_library/isbn_9780356521633.xml");
+    record.replace("9780356521633", phlebasIsbn.c_str());
+    fetcher.script(BritishLibraryClient::isbnUrl(phlebasIsbn), {ok(record)});
+
+    std::optional<FindResult> result;
+    enricher.find(book("Consider Phlebas", phlebasIsbn), [&](FindResult r) { result = std::move(r); });
+    QTRY_VERIFY(result);
+    QCOMPARE(result->candidates.size(), std::size_t(1));
+    const Candidate& candidate = result->candidates.front();
+    QVERIFY(candidate.source == Source::OpenLibrary);         // Open Library's answer stands
+    QVERIFY(candidate.publisher == std::optional<std::string>("Orbit"));
+    QVERIFY(candidate.publishedYear == 2008);                  // Open Library had it; kept
+    QVERIFY(candidate.firstPublishedYear == 1987);             // a gap, filled
+    QVERIFY(candidate.description);                            // Open Library's synopsis
+    QVERIFY(candidate.filledFrom == Source::BritishLibrary);
+    QCOMPARE(candidate.filledCategories, std::vector<std::string>({"Science fiction"}));
+}
+
+void TestEnricher::theBritishLibraryAnswersAlone()
+{
+    FakeFetcher fetcher;
+    Enricher enricher(fetcher, {}, fast());
+    fetcher.script(OpenLibraryClient::booksApiUrl("9780356521633"), {ok("{}")});
+    fetcher.script(BritishLibraryClient::isbnUrl("9780356521633"), {ok(fixture("british_library/isbn_9780356521633.xml"))});
+
+    std::optional<FindResult> result;
+    enricher.find(book("Consider Phlebas", "9780356521633"), [&](FindResult r) { result = std::move(r); });
+    QTRY_VERIFY(result);
+    QVERIFY(result->byIsbn);
+    QCOMPARE(result->candidates.size(), std::size_t(1));
+    QVERIFY(result->candidates.front().source == Source::BritishLibrary);
+    QVERIFY(!result->candidates.front().filledFrom);
 }
 
 void TestEnricher::cancellingDropsTheAnswer()

@@ -757,3 +757,61 @@ written into a fixture.
 
 **Reversal conditions.** Revisit when a settings screen exists, or if the key
 ever guards anything that costs money.
+
+---
+
+### D-022 The British Library as a third provider, filling gaps by ISBN
+**Decided:** 2026-10-06
+**Recorded:** 2026-10-06
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-06)
+**Related:** D-009, D-019, D-020, AV-009, AV-010
+
+**Context.** Open Library knew six of eight ISBNs tried from the owner's
+shelf but often lacked page counts and gave a reprint's year rather than the
+original's; Google, even with a key, knew none (IMP-007). The owner's
+library is largely UK editions, which the British Library catalogues as the
+legal deposit library. Its published metadata services are Z39.50 for
+registered libraries, for non-commercial use; its Alma catalogue also
+answers SRU over plain HTTPS with no key
+(`bl.alma.exlibrisgroup.com/view/sru/44BL_MAIN`), which is not advertised
+on its metadata services page. Jisc Library Hub Discover, which includes
+British Library holdings, sits behind a browser challenge and cannot be
+used by an application.
+
+**Options.**
+- **A. SRU over HTTP, by ISBN, filling the gaps in Open Library's answer.**
+  Chosen.
+- **B. Z39.50.** Rejected: a registered login meant for libraries, and a new
+  dependency (YAZ) for a binary protocol.
+- **C. The British Library as a separate candidate.** Rejected by the owner:
+  one fetch could not then take Open Library's synopsis with the British
+  Library's page count.
+
+**Decision.** Option A. An ISBN lookup asks Open Library and the British
+Library at once, each through its own polite queue. Where both answer, Open
+Library's candidate stands and the British Library fills only what it lacks
+— publisher, page count, publication and first-published years, subtitle —
+and adds its subject headings as genres under its own name. Where only the
+British Library answers, its record is the candidate. Records whose own ISBN
+is not the one asked are dropped, since the index returns related editions.
+The British Library supplies no synopsis or cover, so it is never the source
+of either; schema version 5 lets `book_genre.source` be `british_library`
+and leaves the book's source columns as they were. Not asked for title
+searches.
+
+**Consequences.**
+- Edition facts for UK books improve markedly: on 2026-10-06 it filled page
+  counts for *Firstborn* and *Titan* and original years for four of five.
+- Open Library's publisher stays where it has one, so the group name
+  ("HarperCollins Publishers") can stand where the British Library names the
+  imprint ("Harper Voyager").
+- Genre names differ in case between providers ("Science fiction",
+  "Science Fiction") and are stored as distinct genres (IMP-009).
+- The endpoint is used lightly — one request per ISBN, a second apart — for
+  a personal, non-commercial catalogue. Its terms are not published; asking
+  metadata@bl.uk would settle them.
+
+**Reversal conditions.** Revisit if the British Library withdraws open SRU
+access or asks that it not be used this way; if so, fall back to Option B
+with registration, or drop the provider.

@@ -111,6 +111,8 @@ everything published reports complete to date.
       rules of SPEC.md §3.5 — 2026-10-06; the Google key is read as D-021
 - [x] Covers from Open Library, Google as a second source — 2026-10-06,
       with a chosen candidate
+- [x] The British Library by ISBN, filling the gaps in Open Library's answer
+      — 2026-10-06 (D-022), schema version 5
 - [x] On-disk cover cache keyed by book — 2026-10-06, `CoverCache`;
       covers are removed with their book
 - [ ] Batch enrichment with progress, cancellation and resumption

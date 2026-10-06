@@ -200,7 +200,9 @@ lookup that finds nothing records `failed` (SPEC.md §3.4) — "not matched"
 in the sense of the criterion above — and changes nothing else. A manual
 synopsis survives. Batch fetching is Phase 3 step 5.
 **Notes:** D-019 for the provider pair — Open Library first, Google Books only
-with a key, superseding D-008 — and SPEC.md §3 for the request shapes. See
+with a key, superseding D-008 — and D-022 for the British Library, which
+fills edition facts by ISBN but never supplies a synopsis; SPEC.md §3 for the
+request shapes. See
 AV-001 (never overwrite a manual field), AV-009 (quota) and AV-010 (a
 title-and-author match is never auto-accepted).
 
@@ -231,7 +233,8 @@ hand. The batch pass is Phase 3 step 5.
 **Status:** In progress — a chosen candidate's categories are stored verbatim
 in `genre`/`book_genre` with their source, beside any the owner added, which
 keep theirs; the panel lists a book's genres. Filtering and grouping by
-genre wait for Phase 4 (F-017, F-018).
+genre wait for Phase 4 (F-017, F-018). The British Library's subject
+headings arrive as genres under its own name (D-022, schema version 5).
 **Notes:** Subgenre classification at the level of hard SF versus space opera
 is explicitly out of scope at this version — see below.
 

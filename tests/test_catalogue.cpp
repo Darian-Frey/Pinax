@@ -1287,9 +1287,20 @@ void TestCatalogue::enrichingWritesTheCandidateAndItsGenres()
     pinax::db::GenreRepository genres(catalogue.connection());
     QVERIFY(genres.forBook(id).front().source == pinax::domain::Source::OpenLibrary);
 
-    // Fetching again changes nothing more and duplicates nothing.
+    // A genre from the provider that filled the gaps is recorded as its own
+    // (schema version 5).
+    auto filled = phlebas();
+    filled.filledFrom = pinax::domain::Source::BritishLibrary;
+    filled.filledCategories = {"Science fiction"};
+    QVERIFY(!catalogue.enrich(id, filled, true).problem);
+    const auto links = genres.forBook(id);
+    QVERIFY(std::find(links.begin(), links.end(),
+                pinax::db::GenreLink {"Science fiction", pinax::domain::Source::BritishLibrary})
+        != links.end());
+
+    // Fetching again duplicates nothing.
     QVERIFY(!catalogue.enrich(id, phlebas(), true).problem);
-    QCOMPARE(catalogue.detail(id)->genres.size(), std::size_t(2));
+    QCOMPARE(catalogue.detail(id)->genres.size(), std::size_t(3));
 }
 
 void TestCatalogue::enrichingNeverOverwritesTheOwnersWork()

@@ -182,7 +182,8 @@ Hyphens and spaces are stripped before validation. Storage is digits only.
 ## 3. Metadata providers
 
 Provider order is D-019: Open Library first, Google Books only with an API
-key. Every request goes through one `RequestQueue` per provider (D-020).
+key; the British Library fills the gaps in an ISBN answer (D-022, §3.6).
+Every request goes through one `RequestQueue` per provider (D-020).
 
 ### 3.1 Open Library — primary
 
@@ -263,7 +264,8 @@ owner.
    result": the book is left as it was and the problem reported.
 
 Within each step Open Library is asked first and Google Books, with a key,
-only if Open Library has nothing (D-019); an ISBN neither knows falls through
+only if Open Library has nothing (D-019); for an ISBN the British Library is
+asked alongside Open Library (§3.6); an ISBN neither knows falls through
 to step 2. An ISBN-10 is asked as its ISBN-13. Fetch metadata in the panel
 (F-012) always shows the candidates and writes nothing until one is chosen —
 even for an ISBN, which can name another book (AV-010); an ISBN's answer is
@@ -282,13 +284,44 @@ offered ready to accept, a search's never is.
 | `title`, `subtitle`, credits, series | never |
 | edition and condition notes, acquisition, notes | never |
 | read state, `times_read`, rating | never |
-| genres | each category added verbatim with the provider as source; a genre already linked keeps its source, so the owner's stay `manual` |
+| genres | each category added verbatim with the provider as source — those from a gap-filling provider under its own name; a genre already linked keeps its source, so the owner's stay `manual` |
 | cover | fetched into the cache (§4) unless `cover_source` is `manual` |
 | `metadata_status`, `metadata_fetched_at` | `matched` and the time, UTC; a status of `manual` stays |
 
 Publisher, year and page count have no source column, so an existing value
 may be the owner's and is never replaced. The writes happen in one
 transaction; the cover follows when it has downloaded.
+
+### 3.6 British Library — UK editions, by ISBN
+
+No key. One SRU request per ISBN to the British Library's Alma catalogue:
+
+```
+GET https://bl.alma.exlibrisgroup.com/view/sru/44BL_MAIN?version=1.2
+    &operation=searchRetrieve&recordSchema=marcxml&maximumRecords=5
+    &query=alma.isbn={isbn13}
+```
+
+`numberOfRecords` 0 is a miss, not an error; an SRU diagnostic is an error.
+An ISBN-13 query also finds records that give only the ISBN-10. The index
+returns related editions too (an ebook beside a paperback), so a record is
+kept only if one of its own `020 $a` ISBNs — the digits before any
+qualifier, an ISBN-10 converted — is the one asked.
+
+| MARC 21 field | Target |
+|---|---|
+| `245 $a`, `$b` | title and subtitle on the card, closing punctuation (` /`, ` :`) removed |
+| `100`, `700 $a` with no `$e` or `$e` author | authors on the card, "Baxter, Stephen," as "Stephen Baxter" |
+| `264` (second indicator 1) or `260 $b` | publisher |
+| `008/07-10` | publication year |
+| `008/11-14` when `008/06` is `r` | first-published year: a reprint's original |
+| `300 $a`, the number before "pages" or "p." | page count |
+| `650 $a`, `655 $a` | genres, verbatim but for MARC's closing full stop; source `british_library` |
+
+No synopsis and no cover. Where Open Library also answers the ISBN, its
+candidate stands and these fill only its empty publisher, page count, years
+and subtitle; the British Library's genres are added beside Open Library's
+(D-022). The candidate card names both providers.
 
 ---
 

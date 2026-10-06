@@ -23,7 +23,13 @@ QString text(const std::string& value)
 
 QString providerName(Source source)
 {
-    return source == Source::GoogleBooks ? CandidateView::tr("Google Books") : CandidateView::tr("Open Library");
+    switch (source) {
+    case Source::GoogleBooks: return CandidateView::tr("Google Books");
+    case Source::BritishLibrary: return CandidateView::tr("British Library");
+    case Source::OpenLibrary:
+    case Source::Manual: break;
+    }
+    return CandidateView::tr("Open Library");
 }
 
 // Three lines: title, who and when, and what else is known.
@@ -54,7 +60,10 @@ QString describe(const Candidate& candidate)
         more << CandidateView::tr("synopsis");
     if (candidate.coverUrl)
         more << CandidateView::tr("cover");
-    more << providerName(candidate.source);
+    QString from = providerName(candidate.source);
+    if (candidate.filledFrom)
+        from += QStringLiteral(" + ") + providerName(*candidate.filledFrom);
+    more << from;
 
     QString line2 = who.join(QStringLiteral(" · "));
     if (line2.isEmpty())

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><searchRetrieveResponse xmlns="http://www.loc.gov/zing/srw/">
+  <version>1.2</version>
+  <numberOfRecords>1</numberOfRecords>
+  <records>
+    <record>
+      <recordSchema>marcxml</recordSchema>
+      <recordPacking>xml</recordPacking>
+      <recordData>
+        <record xmlns="http://www.loc.gov/MARC21/slim">
+          <leader>      am a2200217ua 4500</leader>
+          <controlfield tag="001">990126345550109251</controlfield>
+          <controlfield tag="008">880824r19881987enk    ||     000 1|eng^^</controlfield>
+          <datafield ind1=" " ind2=" " tag="015">
+            <subfield code="a">GB8853568</subfield>
+            <subfield code="2">bnb</subfield>
+          </datafield>
+          <datafield ind1="y" ind2=" " tag="019">
+            <subfield code="a">b8853568</subfield>
+          </datafield>
+          <datafield ind1="9" ind2=" " tag="019">
+            <subfield code="a">0708837077</subfield>
+          </datafield>
+          <datafield ind1="1" ind2=" " tag="019">
+            <subfield code="a">0708837077</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="020">
+            <subfield code="a">0708837077 (pbk) :</subfield>
+            <subfield code="c">£4.95</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="035">
+            <subfield code="a">(Uk)012634555BLL01-Aleph</subfield>
+          </datafield>
+          <datafield ind1="0" ind2=" " tag="039">
+            <subfield code="a">2003</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="040">
+            <subfield code="a">Uk</subfield>
+            <subfield code="c">Uk</subfield>
+          </datafield>
+          <datafield ind1="0" ind2="4" tag="082">
+            <subfield code="a">823/.914</subfield>
+            <subfield code="2">19</subfield>
+          </datafield>
+          <datafield ind1="1" ind2=" " tag="100">
+            <subfield code="a">Banks, Iain,</subfield>
+            <subfield code="d">1954-2013.</subfield>
+          </datafield>
+          <datafield ind1="1" ind2="0" tag="245">
+            <subfield code="a">Consider Phlebas.</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="260">
+            <subfield code="b">Futura,</subfield>
+            <subfield code="c">1988.</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="300">
+            <subfield code="a">471p.</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="336">
+            <subfield code="a">text</subfield>
+            <subfield code="2">rdacontent</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="337">
+            <subfield code="a">unmediated</subfield>
+            <subfield code="2">rdamedia</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="338">
+            <subfield code="a">volume</subfield>
+            <subfield code="2">rdacarrier</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="653">
+            <subfield code="a">Fiction in English</subfield>
+            <subfield code="a">1945-</subfield>
+            <subfield code="a">Texts</subfield>
+          </datafield>
+          <datafield ind1="2" ind2=" " tag="886">
+            <subfield code="2">ukmarc</subfield>
+            <subfield code="a">900</subfield>
+            <subfield code="b">10</subfield>
+            <subfield code="a">Banks</subfield>
+            <subfield code="h">Iain M.</subfield>
+            <subfield code="x">See</subfield>
+            <subfield code="a">Banks, Iain,</subfield>
+            <subfield code="x">1954-</subfield>
+            <subfield code="z">100</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="913">
+            <subfield code="a">Y</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="920">
+            <subfield code="a">MP5.0001121001</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="920">
+            <subfield code="a">MP13.0001807553</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="930">
+            <subfield code="a">BNB03</subfield>
+            <subfield code="b">bibmp5.200404.2.ab</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="930">
+            <subfield code="a">HSS01</subfield>
+            <subfield code="b">bibmp13.200404.2.ad</subfield>
+          </datafield>
+          <datafield ind1=" " ind2=" " tag="AVA">
+            <subfield code="0">990126345550109251</subfield>
+            <subfield code="8">222248106690009251</subfield>
+            <subfield code="a">44BL_MAIN</subfield>
+            <subfield code="b">PHYS</subfield>
+            <subfield code="c">Stored at St Pancras - London (&lt;b&gt;Delivery time: London 70min, Boston Spa 48hrs&lt;/b&gt;)</subfield>
+            <subfield code="d">YC.1988.a.10511</subfield>
+            <subfield code="e">available</subfield>
+            <subfield code="f">1</subfield>
+            <subfield code="g">0</subfield>
+            <subfield code="i">PHYSRR</subfield>
+            <subfield code="j">B3GEN</subfield>
+            <subfield code="p">1</subfield>
+            <subfield code="q">Physical Collections</subfield>
+          </datafield>
+        </record>
+      </recordData>
+      <recordIdentifier>990126345550109251</recordIdentifier>
+      <recordPosition>1</recordPosition>
+    </record>
+  </records>
+  <extraResponseData xmlns:xb="http://www.exlibris.com/repository/search/xmlbeans/">
+    <xb:exact>true</xb:exact>
+    <xb:responseDate>2026-10-06T22:59:34+0100</xb:responseDate>
+  </extraResponseData>
+</searchRetrieveResponse>

@@ -402,8 +402,8 @@ Catalogue::EnrichResult Catalogue::enrich(std::int64_t bookId, const domain::Can
         db::Transaction transaction(connection_);
         books.update(plan.book);
         db::GenreRepository genres(connection_);
-        for (const auto& category : plan.categories)
-            genres.addToBook(bookId, category, candidate.source);
+        for (const auto& genre : plan.genres)
+            genres.addToBook(bookId, genre.name, genre.source);
         transaction.commit();
         return {plan.coverUrl, std::nullopt};
     } catch (const db::DbError& error) {

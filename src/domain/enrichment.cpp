@@ -26,7 +26,12 @@ EnrichmentPlan planEnrichment(const Book& book, const Candidate& candidate, bool
             updated.pageCount = candidate.pageCount;
     }
 
-    plan.categories = candidate.categories;
+    for (const auto& name : candidate.categories)
+        plan.genres.push_back({name, candidate.source});
+    if (candidate.filledFrom) {
+        for (const auto& name : candidate.filledCategories)
+            plan.genres.push_back({name, *candidate.filledFrom});
+    }
     if (candidate.coverUrl && book.coverSource != Source::Manual)
         plan.coverUrl = candidate.coverUrl;
 

@@ -29,6 +29,7 @@ private slots:
     void enrichmentNeverTouchesWhatTheOwnerWrote();
     void aSearchedCandidateGivesNoEditionFacts();
     void aManualStatusStaysManual();
+    void filledGapsKeepTheirProvider();
 };
 
 void TestDomain::sortTitleMovesLeadingArticle_data()
@@ -181,7 +182,8 @@ void TestDomain::enrichmentFillsWhatIsEmpty()
     QVERIFY(plan.book.pageCount == 480);
     QVERIFY(plan.book.metadataStatus == MetadataStatus::Matched);
     QVERIFY(plan.book.metadataFetchedAt == std::optional<std::string>("2026-10-06T21:00:00Z"));
-    QCOMPARE(plan.categories, (std::vector<std::string> {"Science Fiction", "Space opera"}));
+    QVERIFY(plan.genres
+        == (std::vector<EnrichmentPlan::Genre> {{"Science Fiction", Source::OpenLibrary}, {"Space opera", Source::OpenLibrary}}));
     QVERIFY(plan.coverUrl == everything().coverUrl);
 
     // Never the title, never the ISBN, even onto a book without one (AV-010).
@@ -222,7 +224,7 @@ void TestDomain::enrichmentNeverTouchesWhatTheOwnerWrote()
     QVERIFY(plan.book == expected);
     QVERIFY(!plan.coverUrl);
     // Genres are added beside the owner's, never in place of them.
-    QCOMPARE(plan.categories.size(), std::size_t(2));
+    QCOMPARE(plan.genres.size(), std::size_t(2));
 }
 
 void TestDomain::aSearchedCandidateGivesNoEditionFacts()
@@ -245,6 +247,19 @@ void TestDomain::aManualStatusStaysManual()
     book.title = "Consider Phlebas";
     book.metadataStatus = MetadataStatus::Manual;
     QVERIFY(planEnrichment(book, everything(), true, "t").book.metadataStatus == MetadataStatus::Manual);
+}
+
+void TestDomain::filledGapsKeepTheirProvider()
+{
+    Book book;
+    book.title = "Titan";
+    Candidate candidate = everything();
+    candidate.categories = {"Fiction"};
+    candidate.filledFrom = Source::BritishLibrary;
+    candidate.filledCategories = {"Science fiction"};
+    QVERIFY(planEnrichment(book, candidate, true, "t").genres
+        == (std::vector<EnrichmentPlan::Genre> {{"Fiction", Source::OpenLibrary},
+            {"Science fiction", Source::BritishLibrary}}));
 }
 
 QTEST_APPLESS_MAIN(TestDomain)

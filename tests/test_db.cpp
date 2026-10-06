@@ -85,6 +85,7 @@ private slots:
     void failedMigrationLeavesNothingBehind();
     void foreignKeysEnforcedOnEveryConnection();
     void migratingVersion1MatchesFreshSchema();
+    void genreLinksSurviveTheVersion5Rebuild();
 
     // BookRepository
     void bookRoundTripsEveryField();
@@ -165,6 +166,27 @@ void TestDb::foreignKeysEnforcedOnEveryConnection()
     QVERIFY(throwsWithCode(
         [&] { second.exec("INSERT INTO book_author (book_id, author_id) VALUES (999, 999)"); },
         SQLITE_CONSTRAINT));
+}
+
+void TestDb::genreLinksSurviveTheVersion5Rebuild()
+{
+    QFile fixture(QStringLiteral(PINAX_TEST_FIXTURES "/schema_v1.sql"));
+    QVERIFY(fixture.open(QIODevice::ReadOnly));
+    Connection connection(":memory:");
+    connection.exec(fixture.readAll().toStdString());
+    connection.exec("INSERT INTO book (id, title, sort_title) VALUES (1, 'Titan', 'Titan');"
+                    "INSERT INTO genre (id, name) VALUES (1, 'Science fiction'), (2, 'Space opera');"
+                    "INSERT INTO book_genre (book_id, genre_id, source) VALUES (1, 1, 'open_library'), (1, 2, 'manual');");
+    pinax::db::migrate(connection);
+
+    QCOMPARE(scalar(connection, "SELECT COUNT(*) FROM book_genre"), 2);
+    QCOMPARE(scalar(connection, "SELECT COUNT(*) FROM book_genre WHERE source = 'manual'"), 1);
+    connection.exec("INSERT INTO book_genre (book_id, genre_id, source) VALUES (1, 1, 'british_library') "
+                    "ON CONFLICT DO UPDATE SET source = excluded.source");
+    QCOMPARE(scalar(connection, "SELECT COUNT(*) FROM book_genre WHERE source = 'british_library'"), 1);
+    // Still cascades with its book.
+    connection.exec("DELETE FROM book WHERE id = 1");
+    QCOMPARE(scalar(connection, "SELECT COUNT(*) FROM book_genre"), 0);
 }
 
 void TestDb::migratingVersion1MatchesFreshSchema()

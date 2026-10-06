@@ -79,6 +79,27 @@ verbatim but hides the problem rather than solving it.
 **Notes.** The owner's first fetch, *Surface Detail* by search, brought five
 clean subjects; the noise shows on ISBN lookups more than on searches.
 
+### IMP-009 Treat genre names that differ only in case as one genre
+
+**Status:** suggested
+**Found:** 2026-10-06 (adding the British Library, D-022)
+**Location:** `db/schema.sql`, table `genre` (`name TEXT NOT NULL UNIQUE`); `src/db/genre_repository.cpp`, `findOrCreate`
+**Effort:** small
+**Description.** The British Library heads a subject "Science fiction";
+Open Library and Google say "Science Fiction". `genre.name` is unique as
+written, so one fetch of *Titan* links the book to both, and the genre
+filter (F-017) would list two entries for one idea.
+**Proposal.** Match genres case-insensitively in `findOrCreate` (`WHERE name =
+:name COLLATE NOCASE`), keeping the first spelling stored; in the next
+schema change, declare the column `COLLATE NOCASE` so the unique index
+agrees. The names stay verbatim apart from case (D-009).
+**Trade-offs.** Whichever spelling arrives first is the one shown, so the
+display depends on fetch order. A migration that merges existing
+case-variants must repoint `book_genre` rows, which is more than a column
+change. Leaving it means duplicate genres to tidy by hand later.
+**Notes.** Only exact case variants; "Fiction, science fiction, general" and
+"Science fiction" remain different genres, as D-009 intends.
+
 ## Applied
 
 ### IMP-005 Summarise placeholder volumes in the detail panel

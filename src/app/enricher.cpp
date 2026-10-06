@@ -35,10 +35,14 @@ Enricher::Enricher(metadata::Fetcher& fetcher, const QString& googleKey, metadat
     : QObject(parent)
     , openLibraryQueue_(fetcher, policy)
     , googleQueue_(fetcher, policy)
+    , britishLibraryQueue_(fetcher, policy)
     , coverQueue_(fetcher, policy)
     , openLibrary_(openLibraryQueue_)
     , google_(googleQueue_, googleKey)
+    , britishLibrary_(britishLibraryQueue_)
 {
+    connect(&britishLibraryQueue_, &metadata::RequestQueue::paused, this,
+        [this](int seconds) { emit waiting(QStringLiteral("The British Library"), seconds); });
     connect(&openLibraryQueue_, &metadata::RequestQueue::paused, this,
         [this](int seconds) { emit waiting(QStringLiteral("Open Library"), seconds); });
     connect(&googleQueue_, &metadata::RequestQueue::paused, this,
@@ -63,6 +67,7 @@ void Enricher::cancel()
     ++generation_;
     openLibraryQueue_.cancelAll();
     googleQueue_.cancelAll();
+    britishLibraryQueue_.cancelAll();
     coverQueue_.cancelAll();
 }
 
@@ -78,25 +83,80 @@ void Enricher::find(const BookDetail& detail, std::function<void(FindResult)> do
 void Enricher::findByIsbn(const std::string& isbn13, const BookDetail& detail,
     std::function<void(FindResult)> done)
 {
-    openLibrary_.lookupIsbn(isbn13, [this, isbn13, detail, done](LookupResult openLibrary) {
-        if (!openLibrary.candidates.empty()) {
-            done({std::move(openLibrary.candidates), true, std::nullopt});
+    // Both at once, each on its own queue; combined when both have answered.
+    struct Answers {
+        std::optional<LookupResult> openLibrary;
+        std::optional<LookupResult> britishLibrary;
+    };
+    auto answers = std::make_shared<Answers>();
+    auto combine = [this, isbn13, detail, done, answers] {
+        if (!answers->openLibrary || !answers->britishLibrary)
+            return;
+        auto candidates = fillGaps(std::move(answers->openLibrary->candidates), answers->britishLibrary->candidates);
+        if (!candidates.empty()) {
+            done({std::move(candidates), true, std::nullopt});
             return;
         }
         Asked asked;
-        asked.note(openLibrary);
-        if (!google_.available()) {
-            findByTitle(detail, std::move(asked), done);
+        asked.note(*answers->openLibrary);
+        asked.note(*answers->britishLibrary);
+        askGoogleByIsbn(isbn13, detail, std::move(asked), done);
+    };
+    openLibrary_.lookupIsbn(isbn13, [answers, combine](LookupResult result) {
+        answers->openLibrary = std::move(result);
+        combine();
+    });
+    britishLibrary_.lookupIsbn(isbn13, [answers, combine](LookupResult result) {
+        answers->britishLibrary = std::move(result);
+        combine();
+    });
+}
+
+std::vector<Candidate> Enricher::fillGaps(std::vector<Candidate> primary, const std::vector<Candidate>& secondary)
+{
+    if (primary.empty())
+        return secondary;
+    if (secondary.empty())
+        return primary;
+    // The same ISBN, so the same edition: the first record stands for it.
+    const Candidate& filler = secondary.front();
+    for (Candidate& candidate : primary) {
+        bool filled = false;
+        auto fill = [&filled](auto& field, const auto& value) {
+            if (!field && value) {
+                field = value;
+                filled = true;
+            }
+        };
+        fill(candidate.publisher, filler.publisher);
+        fill(candidate.pageCount, filler.pageCount);
+        fill(candidate.publishedYear, filler.publishedYear);
+        fill(candidate.firstPublishedYear, filler.firstPublishedYear);
+        fill(candidate.subtitle, filler.subtitle);
+        if (!filler.categories.empty())
+            filled = true;
+        if (filled) {
+            candidate.filledFrom = filler.source;
+            candidate.filledCategories = filler.categories;
+        }
+    }
+    return primary;
+}
+
+void Enricher::askGoogleByIsbn(const std::string& isbn13, const BookDetail& detail, Asked asked,
+    std::function<void(FindResult)> done)
+{
+    if (!google_.available()) {
+        findByTitle(detail, std::move(asked), done);
+        return;
+    }
+    google_.lookupIsbn(isbn13, [this, detail, done, asked](LookupResult google) mutable {
+        if (!google.candidates.empty()) {
+            done({std::move(google.candidates), true, std::nullopt});
             return;
         }
-        google_.lookupIsbn(isbn13, [this, detail, done, asked](LookupResult google) mutable {
-            if (!google.candidates.empty()) {
-                done({std::move(google.candidates), true, std::nullopt});
-                return;
-            }
-            asked.note(google);
-            findByTitle(detail, std::move(asked), done);
-        });
+        asked.note(google);
+        findByTitle(detail, std::move(asked), done);
     });
 }
 

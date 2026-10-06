@@ -44,8 +44,9 @@ it in the detail panel; F2 or Edit opens its fields for editing in place. In
 the list, R toggles read, 1–9 or 0 rate and Delete deletes (after asking in
 the panel) the selected books; the panel's rating squares are clickable.
 Ctrl+N adds a book by hand. Fetch metadata, in the panel, looks the book up
-on Open Library — by ISBN, or by title and author — and shows what it found
-for you to choose from; the choice brings a synopsis, genres and a cover,
+on Open Library — by ISBN, or by title and author — and, for an ISBN, in the
+British Library's catalogue too, which fills in UK editions' page counts and
+original years; it shows what it found for you to choose from; the choice brings a synopsis, genres and a cover,
 and fills only what you left empty (AV-001). Google Books is asked as well if
 you have an API key: put it in `google-books.key` beside the catalogue, or in
 the folder Pinax is started from, or in `PINAX_GOOGLE_BOOKS_KEY` (D-021).

@@ -117,6 +117,7 @@ QString sourceName(const std::optional<Source>& source)
     switch (*source) {
     case Source::GoogleBooks: return BookView::tr("Google Books");
     case Source::OpenLibrary: return BookView::tr("Open Library");
+    case Source::BritishLibrary: return BookView::tr("British Library");
     case Source::Manual: break;
     }
     return BookView::tr("entered by hand");

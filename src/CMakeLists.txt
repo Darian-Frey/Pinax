@@ -102,6 +102,8 @@ set_target_properties(pinax_io PROPERTIES AUTOMOC OFF)
 # metadata: providers over the network (D-019, D-020). Qt Core and Network;
 # no database access — results go back to the caller.
 add_library(pinax_metadata STATIC
+    metadata/british_library.cpp
+    metadata/british_library.h
     metadata/cover_cache.cpp
     metadata/cover_cache.h
     metadata/google_books.cpp

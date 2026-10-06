@@ -15,6 +15,13 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- The British Library as a third provider (D-022): an ISBN lookup asks it
+  alongside Open Library over its catalogue's open SRU interface, and its
+  record fills what Open Library's lacks — publisher, page count, the
+  original year behind a reprint — and adds its subject headings as genres,
+  or answers alone where Open Library does not know the ISBN. Schema version
+  5 lets a genre's source be `british_library`. No synopsis or cover comes
+  from it.
 - Fetch metadata (Phase 3 step 4, F-012 to F-015): the panel's button looks
   the book up — by ISBN, or by title and author when it has none — on Open
   Library, and on Google Books too with a key, and lists what it found. Only

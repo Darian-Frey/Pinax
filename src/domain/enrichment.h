@@ -2,6 +2,7 @@
 
 #include "domain/book.h"
 #include "domain/candidate.h"
+#include "domain/enums.h"
 
 #include <optional>
 #include <string>
@@ -13,7 +14,12 @@ namespace pinax::domain {
 // SPEC.md §3.5). Pure: the caller writes it.
 struct EnrichmentPlan {
     Book book;                           // the book with the candidate's facts applied
-    std::vector<std::string> categories; // to add as genres, verbatim (D-009)
+    struct Genre {
+        std::string name;
+        Source source;
+        bool operator==(const Genre&) const = default;
+    };
+    std::vector<Genre> genres;           // to add, verbatim (D-009), each with its provider
     std::optional<std::string> coverUrl; // to fetch, unless the cover is the owner's
 };
 
