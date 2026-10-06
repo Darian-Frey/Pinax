@@ -1,4 +1,5 @@
 #include "domain/credit_text.h"
+#include "domain/enrichment.h"
 #include "domain/enums.h"
 #include "domain/isbn.h"
 #include "domain/placeholder.h"
@@ -22,6 +23,12 @@ private slots:
     void isbnCheckDigits();
     void creditTextRoundTrips();
     void placeholdersAreKnownByTitle();
+    void isbn10ConvertsTo13();
+    // F-012 to F-015, AV-001, AV-010
+    void enrichmentFillsWhatIsEmpty();
+    void enrichmentNeverTouchesWhatTheOwnerWrote();
+    void aSearchedCandidateGivesNoEditionFacts();
+    void aManualStatusStaysManual();
 };
 
 void TestDomain::sortTitleMovesLeadingArticle_data()
@@ -126,6 +133,118 @@ void TestDomain::placeholdersAreKnownByTitle()
     QVERIFY(!isPlaceholderTitle(std::string_view("Consider Phlebas")));
     QVERIFY(!isPlaceholderTitle(std::string_view("Later Volumes of the Saga")));
     QVERIFY(!isPlaceholderTitle(std::optional<std::string>()));
+}
+
+void TestDomain::isbn10ConvertsTo13()
+{
+    QVERIFY(isValidIsbn10("031600538X"));
+    QCOMPARE(isbn10To13("031600538X"), std::string("9780316005388"));
+    QCOMPARE(isbn10To13("0575049723"), std::string("9780575049727"));
+    QVERIFY(isValidIsbn13(isbn10To13("0575049723")));
+}
+
+namespace {
+
+Candidate everything()
+{
+    Candidate candidate;
+    candidate.source = Source::OpenLibrary;
+    candidate.providerKey = "/books/OL9759601M";
+    candidate.workKey = "/works/OL8368432W";
+    candidate.title = "Consider Phlebas (Fetched)";
+    candidate.authors = {"Iain Banks"};
+    candidate.publisher = "Orbit";
+    candidate.publishedYear = 2008;
+    candidate.firstPublishedYear = 1987;
+    candidate.pageCount = 480;
+    candidate.isbn13 = "9780316005388";
+    candidate.isbn10 = "031600538X";
+    candidate.description = "The war raged across the galaxy.";
+    candidate.categories = {"Science Fiction", "Space opera"};
+    candidate.coverUrl = "https://covers.openlibrary.org/b/id/1174792-L.jpg";
+    return candidate;
+}
+
+} // namespace
+
+void TestDomain::enrichmentFillsWhatIsEmpty()
+{
+    Book book;
+    book.id = 7;
+    book.title = "Consider Phlebas";
+
+    const auto plan = planEnrichment(book, everything(), true, "2026-10-06T21:00:00Z");
+    QVERIFY(plan.book.synopsis == std::optional<std::string>("The war raged across the galaxy."));
+    QVERIFY(plan.book.synopsisSource == Source::OpenLibrary);
+    QVERIFY(plan.book.publisher == std::optional<std::string>("Orbit"));
+    QVERIFY(plan.book.publishedYear == 1987); // first published, as the panel labels it
+    QVERIFY(plan.book.pageCount == 480);
+    QVERIFY(plan.book.metadataStatus == MetadataStatus::Matched);
+    QVERIFY(plan.book.metadataFetchedAt == std::optional<std::string>("2026-10-06T21:00:00Z"));
+    QCOMPARE(plan.categories, (std::vector<std::string> {"Science Fiction", "Space opera"}));
+    QVERIFY(plan.coverUrl == everything().coverUrl);
+
+    // Never the title, never the ISBN, even onto a book without one (AV-010).
+    QCOMPARE(plan.book.title, std::string("Consider Phlebas"));
+    QVERIFY(!plan.book.isbn13 && !plan.book.isbn10);
+
+    // A fetched synopsis replaces an earlier fetched one.
+    book.synopsis = "Old words.";
+    book.synopsisSource = Source::GoogleBooks;
+    QVERIFY(planEnrichment(book, everything(), true, "t").book.synopsisSource == Source::OpenLibrary);
+}
+
+void TestDomain::enrichmentNeverTouchesWhatTheOwnerWrote()
+{
+    // AV-001.
+    Book book;
+    book.id = 7;
+    book.title = "Consider Phlebas";
+    book.synopsis = "My own words.";
+    book.synopsisSource = Source::Manual;
+    book.coverPath = "covers/mine.png";
+    book.coverSource = Source::Manual;
+    book.publisher = "Macmillan";
+    book.publishedYear = 1987;
+    book.pageCount = 471;
+    book.isbn13 = "9780333447055";
+    book.editionNote = "First edition";
+    book.conditionNote = "Foxed";
+    book.notes = "Signed.";
+    book.rating = 9;
+    book.readStatus = ReadStatus::Read;
+    book.timesRead = 2;
+
+    const auto plan = planEnrichment(book, everything(), true, "2026-10-06T21:00:00Z");
+    Book expected = book;
+    expected.metadataStatus = MetadataStatus::Matched;
+    expected.metadataFetchedAt = "2026-10-06T21:00:00Z";
+    QVERIFY(plan.book == expected);
+    QVERIFY(!plan.coverUrl);
+    // Genres are added beside the owner's, never in place of them.
+    QCOMPARE(plan.categories.size(), std::size_t(2));
+}
+
+void TestDomain::aSearchedCandidateGivesNoEditionFacts()
+{
+    // A title search may describe another edition: its publisher and page
+    // count are not this copy's (AV-010). The work's facts still apply.
+    Book book;
+    book.title = "Consider Phlebas";
+    const auto plan = planEnrichment(book, everything(), false, "t");
+    QVERIFY(!plan.book.publisher);
+    QVERIFY(!plan.book.pageCount);
+    QVERIFY(plan.book.publishedYear == 1987);
+    QVERIFY(plan.book.synopsis);
+    QVERIFY(plan.coverUrl);
+}
+
+void TestDomain::aManualStatusStaysManual()
+{
+    Book book;
+    book.title = "Consider Phlebas";
+    book.metadataStatus = MetadataStatus::Manual;
+    QVERIFY(planEnrichment(book, everything(), true, "t").book.metadataStatus == MetadataStatus::Manual);
 }
 
 QTEST_APPLESS_MAIN(TestDomain)

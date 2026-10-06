@@ -1,12 +1,17 @@
 #include "app/catalogue.h"
+#include "app/enricher.h"
 #include "app/main_window.h"
+#include "app/provider_key.h"
 #include "db/db_error.h"
 #include "io/csv_importer.h"
 #include "io/series_importer.h"
+#include "metadata/http.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
+#include <QFileInfo>
+#include <QNetworkAccessManager>
 #include <QStandardPaths>
 #include <QStatusBar>
 
@@ -115,8 +120,17 @@ int main(int argc, char* argv[])
         status = QObject::tr("Could not open %1: %2").arg(path, QString::fromUtf8(error.what()));
     }
 
+    // The Google Books key, if the owner has one (D-021): beside the
+    // catalogue, or in the folder Pinax was started from.
+    const QString googleKey = pinax::app::findGoogleBooksKey(
+        {QFileInfo(path).absolutePath(), QDir::currentPath()});
+    QNetworkAccessManager network;
+    pinax::metadata::NetworkFetcher fetcher(network);
+    pinax::app::Enricher enricher(fetcher, googleKey);
+
     pinax::app::MainWindow window;
     window.setCatalogue(catalogue.get());
+    window.setEnricher(&enricher);
     window.statusBar()->showMessage(status);
 
     window.show();

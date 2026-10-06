@@ -29,6 +29,7 @@ signals:
     void deleteRequested();
     // From the rating squares: 1-10, or 0 to clear (F-007).
     void ratingChosen(int rating);
+    void fetchRequested();
 
 private:
     void showSeries(const std::vector<domain::SeriesMembership>& series);
@@ -48,6 +49,7 @@ private:
 
     QLabel* synopsisSource_;
     QLabel* synopsis_;
+    QLabel* genres_;
     QPushButton* fetch_;
 
     QLabel* publisher_;

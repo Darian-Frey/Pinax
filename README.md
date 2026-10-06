@@ -5,7 +5,8 @@
 > **Last reviewed:** 2026-10-06
 > **Why this status:** Phases 1 and 2 complete — the catalogue is imported,
 > listed, sorted, viewed and edited, with reading state, ratings, and series
-> that know what they lack. Phase 3, metadata enrichment, is next. Toolchain
+> that know what they lack. Phase 3, metadata enrichment, is under way:
+> one book at a time from the panel. Toolchain
 > fixed by D-001. `LICENSE` is deliberately absent — see Licence.
 
 A Linux desktop catalogue for a personal physical library. Pinax tracks what is
@@ -42,8 +43,14 @@ first. Selecting a book shows
 it in the detail panel; F2 or Edit opens its fields for editing in place. In
 the list, R toggles read, 1–9 or 0 rate and Delete deletes (after asking in
 the panel) the selected books; the panel's rating squares are clickable.
-Ctrl+N adds a book by hand. The
-filter rail is still empty. The database is also usable on its own:
+Ctrl+N adds a book by hand. Fetch metadata, in the panel, looks the book up
+on Open Library — by ISBN, or by title and author — and shows what it found
+for you to choose from; the choice brings a synopsis, genres and a cover,
+and fills only what you left empty (AV-001). Google Books is asked as well if
+you have an API key: put it in `google-books.key` beside the catalogue, or in
+the folder Pinax is started from, or in `PINAX_GOOGLE_BOOKS_KEY` (D-021).
+Never commit it; `.gitignore` covers `*.key`. The database is also usable on
+its own:
 
 ```sh
 # create the catalogue

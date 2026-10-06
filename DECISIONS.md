@@ -716,3 +716,44 @@ responses (`tests/fixtures/`) and never contact a provider.
 
 **Reversal conditions.** Revisit if enrichment ever needs more concurrency
 than one polite request at a time per provider.
+
+---
+
+### D-021 Where the Google Books key is read from
+**Decided:** 2026-10-06
+**Recorded:** 2026-10-06
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-06)
+**Related:** D-019, D-013
+
+**Context.** D-019 asks Google Books only with an API key. The owner has one
+and asked that it never reach GitHub; it was kept in `google-books.key` in
+the project root, git-ignored. The running application needs to find it
+without the key ever being compiled in, and an installed Pinax will not run
+from the project.
+
+**Options.**
+- **A. An environment variable, then a file beside the catalogue, then a file
+  in the working directory.** Chosen.
+- **B. A settings entry (QSettings).** Rejected for now: no settings screen
+  exists, and a key in `~/.config` is no safer than one beside the database.
+- **C. The desktop keyring (libsecret).** Rejected: a new dependency for a
+  key whose worst case is someone else spending a free quota.
+
+**Decision.** Option A. `app::findGoogleBooksKey` reads
+`PINAX_GOOGLE_BOOKS_KEY` if set; otherwise the first non-empty
+`google-books.key` in the catalogue's folder, then in the folder Pinax was
+started from — which covers `build/src/pinax` run from the project, where the
+owner's key now lives. Surrounding whitespace is dropped. With no key, Google
+is not asked and the panel says Open Library alone. The key travels only in
+the request URL to Google; it is never logged, stored in the database, or
+written into a fixture.
+
+**Consequences.**
+- `.gitignore` carries `/google-books.key` and `*.key`.
+- A key beside the catalogue moves with it, as covers do (SPEC.md §4).
+- A backup of the data folder includes the key; that is acceptable for a
+  personal key and noted here so it is not a surprise.
+
+**Reversal conditions.** Revisit when a settings screen exists, or if the key
+ever guards anything that costs money.

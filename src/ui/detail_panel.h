@@ -6,6 +6,7 @@
 #include "domain/series_entry.h"
 #include "domain/series_row.h"
 #include "domain/book_summary.h"
+#include "domain/candidate.h"
 
 #include <QList>
 #include <QWidget>
@@ -22,6 +23,7 @@ namespace pinax::ui {
 
 class AttachView;
 class BookEditor;
+class CandidateView;
 class BookView;
 class EntryEditor;
 class SeriesView;
@@ -34,7 +36,7 @@ class DetailPanel : public QWidget {
     Q_OBJECT
 
 public:
-    enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete, ViewingSeries, EditingEntry, Attaching };
+    enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete, ViewingSeries, EditingEntry, Attaching, Fetching };
     Q_ENUM(State)
 
     // True while the panel holds something the owner must finish — a form, a
@@ -43,12 +45,14 @@ public:
     bool isBusy() const
     {
         return state_ == State::Editing || state_ == State::ConfirmingDelete
-            || state_ == State::EditingEntry || state_ == State::Attaching;
+            || state_ == State::EditingEntry || state_ == State::Attaching || state_ == State::Fetching;
     }
-    // True while a form is open, which nothing may redraw over.
+    // True while a form is open, or a lookup the owner is waiting on, which
+    // nothing may redraw over.
     bool isEditing() const
     {
-        return state_ == State::Editing || state_ == State::EditingEntry || state_ == State::Attaching;
+        return state_ == State::Editing || state_ == State::EditingEntry || state_ == State::Attaching
+            || state_ == State::Fetching;
     }
 
     explicit DetailPanel(QWidget* parent = nullptr);
@@ -82,12 +86,22 @@ public:
     void askToDelete(const QList<qint64>& ids, const QString& question);
     void showSaveError(const QString& message);
 
+    // "Fetch metadata" for the book on show (F-012): the lookup under way,
+    // then its candidates to choose from. Cancel returns to the book.
+    void beginFetch(const QString& how);
+    void offerCandidates(const std::vector<domain::Candidate>& candidates, bool byIsbn);
+    void showFetchProblem(const QString& message);
+    void setFetchProgress(const QString& text);
+    // The book being looked up, while Fetching.
+    std::optional<qint64> fetchingBookId() const;
+
     State state() const { return state_; }
     BookView* view() const { return view_; }
     BookEditor* editor() const { return editor_; }
     SeriesView* seriesView() const { return seriesView_; }
     EntryEditor* entryEditor() const { return entryEditor_; }
     AttachView* attachView() const { return attachView_; }
+    CandidateView* candidateView() const { return candidateView_; }
 
 signals:
     void saveRequested(const domain::BookEdit& edit);
@@ -106,6 +120,13 @@ signals:
     void stateChanged(pinax::ui::DetailPanel::State state);
     // The shown book's rating squares were clicked: 1-10, or 0 to clear.
     void ratingRequested(qint64 bookId, int rating);
+    // "Fetch metadata" pressed for the book on show.
+    void fetchRequested(qint64 bookId);
+    // The owner chose this of the candidates offered.
+    void candidateChosen(qint64 bookId, int index);
+    // The lookup was cancelled, or its problem acknowledged; the panel is
+    // back on the book.
+    void fetchCancelled();
 
 private:
     void setState(State state);
@@ -122,6 +143,7 @@ private:
     SeriesView* seriesView_;
     EntryEditor* entryEditor_;
     AttachView* attachView_;
+    CandidateView* candidateView_;
     std::function<void()> pendingConfirm_;
 
     std::optional<domain::BookDetail> shown_;

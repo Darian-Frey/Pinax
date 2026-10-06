@@ -13,6 +13,8 @@ add_library(pinax_domain STATIC
     domain/credit.h
     domain/credit_text.cpp
     domain/credit_text.h
+    domain/enrichment.cpp
+    domain/enrichment.h
     domain/enums.cpp
     domain/enums.h
     domain/isbn.cpp
@@ -63,6 +65,8 @@ add_library(pinax_db STATIC
     db/connection.cpp
     db/connection.h
     db/db_error.h
+    db/genre_repository.cpp
+    db/genre_repository.h
     db/migrations.cpp
     db/migrations.h
     db/savepoint.cpp
@@ -117,6 +121,8 @@ target_compile_definitions(pinax_metadata PRIVATE PINAX_VERSION="${PROJECT_VERSI
 add_library(pinax_ui STATIC
     ui/attach_view.cpp
     ui/attach_view.h
+    ui/candidate_view.cpp
+    ui/candidate_view.h
     ui/book_editor.cpp
     ui/book_editor.h
     ui/book_list_model.cpp
@@ -154,10 +160,14 @@ target_link_libraries(pinax_ui PUBLIC pinax_domain Qt6::Widgets)
 add_library(pinax_app STATIC
     app/catalogue.cpp
     app/catalogue.h
+    app/enricher.cpp
+    app/enricher.h
     app/main_window.cpp
-    app/main_window.h)
+    app/main_window.h
+    app/provider_key.cpp
+    app/provider_key.h)
 target_include_directories(pinax_app PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(pinax_app PUBLIC pinax_ui pinax_db Qt6::Widgets)
+target_link_libraries(pinax_app PUBLIC pinax_ui pinax_db pinax_metadata Qt6::Widgets)
 
 qt_add_executable(pinax main.cpp)
 target_link_libraries(pinax PRIVATE pinax_app pinax_db pinax_io)

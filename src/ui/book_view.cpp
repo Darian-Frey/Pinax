@@ -276,10 +276,13 @@ BookView::BookView(QWidget* parent)
     layout->addLayout(synopsisHeading);
     synopsis_ = makeValue(QStringLiteral("synopsis"), this);
     layout->addWidget(synopsis_);
+    genres_ = makeValue(QStringLiteral("genres"), this);
+    layout->addWidget(genres_);
     fetch_ = new QPushButton(tr("Fetch metadata"), this);
     fetch_->setObjectName(QStringLiteral("fetch"));
-    fetch_->setEnabled(false);
-    fetch_->setToolTip(tr("Arrives with metadata enrichment in Phase 3"));
+    fetch_->setToolTip(tr("Look this book up by its ISBN, or by title and author, and choose what to "
+                          "take. Nothing entered by hand is replaced."));
+    connect(fetch_, &QPushButton::clicked, this, &BookView::fetchRequested);
     layout->addWidget(fetch_, 0, Qt::AlignLeft);
 
     // Edition: the facts of this copy.
@@ -362,11 +365,17 @@ void BookView::showBook(const BookDetail& detail)
         synopsis_->setText(text(*book.synopsis));
         setMuted(synopsis_, false);
     } else {
-        synopsis_->setText(tr("Synopsis and cover are fetched per book from Google Books, with "
-                              "Open Library as fallback. Nothing has been fetched for this book "
-                              "yet."));
+        synopsis_->setText(tr("No synopsis yet. Fetch metadata looks for one, with the cover, on "
+                              "Open Library."));
         setMuted(synopsis_, true);
     }
+
+    QStringList genres;
+    for (const auto& genre : detail.genres)
+        genres << text(genre);
+    genres_->setText(tr("Genres: %1").arg(genres.join(QStringLiteral(" · "))));
+    genres_->setVisible(!genres.isEmpty());
+    setMuted(genres_, true);
 
     setEditionValue(publisher_, book.publisher);
     setEditionValue(published_,

@@ -3,15 +3,19 @@
 #include "db/author_repository.h"
 #include "db/book_repository.h"
 #include "db/db_error.h"
+#include "db/genre_repository.h"
 #include "db/migrations.h"
 #include "db/series_repository.h"
 #include "db/transaction.h"
+#include "domain/enrichment.h"
 #include "domain/sort_title.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cctype>
 #include <filesystem>
+#include <chrono>
+#include <ctime>
 #include <map>
 
 namespace pinax::app {
@@ -55,6 +59,8 @@ std::optional<domain::BookDetail> Catalogue::detail(std::int64_t id)
             detail.credits.push_back({author->name, credit.role});
     }
     detail.series = db::SeriesRepository(connection_).membershipsForBook(id);
+    for (const auto& genre : db::GenreRepository(connection_).forBook(id))
+        detail.genres.push_back(genre.name);
 
     // Covers live beside the database (SPEC.md §4); a missing file shows the
     // placeholder rather than failing.
@@ -366,6 +372,53 @@ std::vector<domain::NamedCredit> Catalogue::seriesCredits(std::int64_t seriesId)
             credits.push_back({author->name, credit.role});
     }
     return credits;
+}
+
+namespace {
+
+// ISO 8601, UTC, to the second: 2026-10-06T21:04:00Z.
+std::string nowIso()
+{
+    const std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::tm utc {};
+    gmtime_r(&now, &utc);
+    char text[32];
+    std::strftime(text, sizeof text, "%Y-%m-%dT%H:%M:%SZ", &utc);
+    return text;
+}
+
+} // namespace
+
+Catalogue::EnrichResult Catalogue::enrich(std::int64_t bookId, const domain::Candidate& candidate,
+    bool fromIsbnLookup)
+{
+    try {
+        db::BookRepository books(connection_);
+        const auto book = books.find(bookId);
+        if (!book)
+            return {std::nullopt, "This book is no longer in the catalogue."};
+        const auto plan = domain::planEnrichment(*book, candidate, fromIsbnLookup, nowIso());
+
+        db::Transaction transaction(connection_);
+        books.update(plan.book);
+        db::GenreRepository genres(connection_);
+        for (const auto& category : plan.categories)
+            genres.addToBook(bookId, category, candidate.source);
+        transaction.commit();
+        return {plan.coverUrl, std::nullopt};
+    } catch (const db::DbError& error) {
+        return {std::nullopt, std::string("The details were not saved: ") + error.what()};
+    }
+}
+
+void Catalogue::markLookupFailed(std::int64_t bookId)
+{
+    db::BookRepository books(connection_);
+    if (auto book = books.find(bookId); book && book->metadataStatus != domain::MetadataStatus::Manual) {
+        book->metadataStatus = domain::MetadataStatus::Failed;
+        book->metadataFetchedAt = nowIso();
+        books.update(*book);
+    }
 }
 
 std::optional<std::string> Catalogue::dataDirectory() const

@@ -1,6 +1,7 @@
 #include "app/main_window.h"
 
 #include "app/catalogue.h"
+#include "app/enricher.h"
 #include "ui/book_list_model.h"
 #include "ui/book_list_view.h"
 #include "db/db_error.h"
@@ -84,6 +85,14 @@ MainWindow::MainWindow(QWidget* parent)
     connect(detail_, &ui::DetailPanel::markOwnedRequested, this, &MainWindow::beginMarkOwned);
     connect(detail_, &ui::DetailPanel::attachRequested, this, &MainWindow::attachBook);
     connect(detail_, &ui::DetailPanel::createForEntryRequested, this, &MainWindow::createForEntry);
+    connect(detail_, &ui::DetailPanel::fetchRequested, this, &MainWindow::fetchMetadata);
+    connect(detail_, &ui::DetailPanel::candidateChosen, this, &MainWindow::useCandidate);
+    connect(detail_, &ui::DetailPanel::fetchCancelled, this, [this] {
+        if (enricher_)
+            enricher_->cancel();
+        offer_.reset();
+        refreshPanel();
+    });
 
     auto* toolbar = addToolBar(tr("Catalogue"));
     toolbar->setObjectName(QStringLiteral("toolbar"));
@@ -120,7 +129,9 @@ void MainWindow::lockWhileBusy()
     missingPage_->setEnabled(!busy);
     rail_->setEnabled(!busy);
     addBook_->setEnabled(!busy);
-    if (detail_->isEditing())
+    if (detail_->state() == ui::DetailPanel::State::Fetching)
+        statusBar()->showMessage(tr("Fetching metadata — Esc cancels"));
+    else if (detail_->isEditing())
         statusBar()->showMessage(tr("Editing — Ctrl+Enter saves, Esc cancels"));
     else if (detail_->state() == ui::DetailPanel::State::ConfirmingDelete)
         statusBar()->showMessage(tr("Delete or keep? Esc keeps"));
@@ -133,6 +144,112 @@ void MainWindow::setCatalogue(Catalogue* catalogue)
     catalogue_ = catalogue;
     list_->setBooks(catalogue_ ? catalogue_->summaries() : std::vector<domain::BookSummary> {});
     refreshRail();
+}
+
+void MainWindow::setEnricher(Enricher* enricher)
+{
+    if (enricher_)
+        disconnect(enricher_, nullptr, this, nullptr);
+    enricher_ = enricher;
+    if (!enricher_)
+        return;
+    connect(enricher_, &Enricher::waiting, this, [this](const QString& provider, int seconds) {
+        const QString text = tr("%1 asked us to wait; trying again in about %2 s.").arg(provider).arg(seconds);
+        if (detail_->state() == ui::DetailPanel::State::Fetching)
+            detail_->setFetchProgress(text);
+        statusBar()->showMessage(text);
+    });
+}
+
+void MainWindow::fetchMetadata(qint64 bookId)
+{
+    if (!catalogue_)
+        return;
+    if (!enricher_) {
+        statusBar()->showMessage(tr("Metadata cannot be fetched here: no network access was set up."));
+        return;
+    }
+    const auto detail = catalogue_->detail(bookId);
+    if (!detail)
+        return;
+
+    const auto& book = detail->book;
+    const QString providers = enricher_->googleAvailable() ? tr("Open Library, then Google Books")
+                                                           : tr("Open Library");
+    const auto isbn = book.isbn13 ? book.isbn13 : book.isbn10;
+    const QString how = isbn ? tr("Looking up ISBN %1 on %2…").arg(QString::fromStdString(*isbn), providers)
+                             : tr("No ISBN, so searching %1 by title and author…").arg(providers);
+    offer_.reset();
+    detail_->beginFetch(how);
+
+    enricher_->find(*detail, [this, bookId](FindResult result) {
+        if (detail_->fetchingBookId() != bookId)
+            return;
+        if (result.problem) {
+            detail_->showFetchProblem(tr("Nothing could be fetched: %1").arg(QString::fromStdString(*result.problem)));
+            return;
+        }
+        if (result.candidates.empty()) {
+            catalogue_->markLookupFailed(bookId);
+            detail_->showFetchProblem(tr("Neither its ISBN nor its title and author are known to the "
+                                         "providers asked. The book is marked as not found; its details "
+                                         "are unchanged."));
+            if (const auto summary = catalogue_->summary(bookId))
+                list_->updateBook(*summary);
+            return;
+        }
+        offer_ = Offer {bookId, result.candidates, result.byIsbn};
+        detail_->offerCandidates(result.candidates, result.byIsbn);
+    });
+}
+
+void MainWindow::useCandidate(qint64 bookId, int index)
+{
+    if (!catalogue_ || !enricher_ || !offer_ || offer_->bookId != bookId || index < 0
+        || index >= static_cast<int>(offer_->candidates.size()))
+        return;
+    const auto candidate = offer_->candidates[static_cast<std::size_t>(index)];
+    const bool byIsbn = offer_->byIsbn;
+    detail_->setFetchProgress(tr("Fetching the synopsis…"));
+
+    enricher_->complete(candidate, [this, bookId, byIsbn](domain::Candidate filled) {
+        if (detail_->fetchingBookId() != bookId)
+            return;
+        offer_.reset();
+        const auto result = catalogue_->enrich(bookId, filled, byIsbn);
+        if (result.problem) {
+            detail_->showFetchProblem(QString::fromStdString(*result.problem));
+            return;
+        }
+        detail_->showNothing(); // out of Fetching, so the refresh may redraw
+        refreshBooks({bookId});
+        refreshRail();
+        statusBar()->showMessage(tr("Details fetched for “%1”").arg(titleOf(bookId)), 4000);
+        if (result.coverUrl)
+            fetchCover(bookId, *result.coverUrl, filled.source);
+    });
+}
+
+void MainWindow::fetchCover(qint64 bookId, const std::string& url, domain::Source source)
+{
+    const auto directory = catalogue_->dataDirectory();
+    if (!directory)
+        return;
+    enricher_->fetchCover(bookId, url, *directory, [this, bookId, source](metadata::CoverResult cover) {
+        if (!cover.relativePath) {
+            // A missing cover is common and harmless; say so and move on.
+            statusBar()->showMessage(tr("No cover for “%1”: %2")
+                                         .arg(titleOf(bookId), QString::fromStdString(cover.error.value_or(""))),
+                6000);
+            return;
+        }
+        if (const auto problem = catalogue_->setCover(bookId, *cover.relativePath, source)) {
+            statusBar()->showMessage(QString::fromStdString(*problem), 6000);
+            return;
+        }
+        refreshBooks({bookId});
+        statusBar()->showMessage(tr("Cover saved for “%1”").arg(titleOf(bookId)), 4000);
+    });
 }
 
 void MainWindow::refreshRail()

@@ -148,7 +148,10 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
   `EntryEditor` (position, sort number, title, notes; Remove from series)
   and `AttachView` (Mark as owned: add a new book through `BookEditor`
   prefilled from the series, or attach one already catalogued). The
-  confirmation state is generic: `askToConfirm(question, label, action)`. Series completeness on show comes from the views, not from
+  confirmation state is generic: `askToConfirm(question, label, action)`.
+  For a book, `CandidateView` is Fetch metadata: the lookup under way, then
+  the candidates to choose from, with nothing preselected for a search
+  (AV-010); the panel is busy meanwhile. Series completeness on show comes from the views, not from
   arithmetic in the panel (D-004).
 
 ### `app`
@@ -165,6 +168,15 @@ module permitted to know about all the others.
   `removeEntry` and `attach` edit series entries. Credit changes and deletions remove
   authors left uncredited and without notes (IMP-003). `save` turns a constraint failure into a
   sentence for the owner.
+- **Enricher** — asks the providers about one book for Fetch metadata
+  (F-012): by ISBN, then by title and first author, Open Library before
+  Google (D-019), each through its own `RequestQueue`; completes a searched
+  candidate's synopsis from its work, and fetches covers. It writes nothing:
+  the owner's choice goes to `Catalogue::enrich`, which applies
+  `domain::planEnrichment` (SPEC.md §3.5, AV-001) in one transaction, and the
+  cover to `Catalogue::setCover`. `cancel` drops every answer still to come.
+- **Provider key** — `findGoogleBooksKey` reads the Google key from the
+  environment or a `google-books.key` file, never from the build (D-021).
 - **MainWindow** — a toolbar (Add a book, Ctrl+N), the splitter. While the
   panel is busy — editing, or asking about a deletion — the list and Add a
   book are disabled, so the selection cannot move under an unfinished edit

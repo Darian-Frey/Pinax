@@ -52,4 +52,15 @@ bool isValidIsbn10(std::string_view isbn)
     return isDigit(last) && check == last - '0';
 }
 
+std::string isbn10To13(std::string_view isbn10)
+{
+    std::string isbn = "978";
+    isbn.append(isbn10.substr(0, 9));
+    int sum = 0;
+    for (std::size_t i = 0; i < isbn.size(); ++i)
+        sum += (isbn[i] - '0') * (i % 2 == 0 ? 1 : 3);
+    isbn.push_back(static_cast<char>('0' + (10 - sum % 10) % 10));
+    return isbn;
+}
+
 } // namespace pinax::domain

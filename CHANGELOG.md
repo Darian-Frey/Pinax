@@ -15,6 +15,17 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- Fetch metadata (Phase 3 step 4, F-012 to F-015): the panel's button looks
+  the book up — by ISBN, or by title and author when it has none — on Open
+  Library, and on Google Books too with a key, and lists what it found. Only
+  the candidate you choose is written, under one set of rules
+  (`domain::planEnrichment`, SPEC.md §3.5): its synopsis and source, genres
+  verbatim, a first-published year, a publisher and page count only from an
+  ISBN match and only where empty, and its cover; nothing entered by hand is
+  replaced (AV-001), and no ISBN is ever written. A book no provider knows is
+  marked failed and otherwise untouched. `GenreRepository` arrives, and the
+  panel lists genres. The Google key is read from `PINAX_GOOGLE_BOOKS_KEY` or
+  a `google-books.key` file (D-021).
 - The cover cache (Phase 3 step 3, F-013): `CoverCache` downloads a cover
   through the polite queue into `covers/<book id>.jpg|png` beside the
   database, once, refusing placeholders and error pages and writing

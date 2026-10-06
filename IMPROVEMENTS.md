@@ -48,6 +48,36 @@ dead weight once it clears — worth retrying the qualified form in a few
 days before building anything.
 **Notes.** Google is the second opinion behind Open Library (D-019), so
 nothing is blocked meanwhile.
+Still so on 2026-10-06, later: eight ISBNs from the owner's shelf, asked as
+`isbn:`, found nothing on Google, while Open Library knew six. Asked in free
+text, `9780575078017` (*Sunstorm*) returned one item — *The British National
+Bibliography*, whose scanned pages contain the number — so the ISBN filter
+the proposal calls essential is borne out.
+
+### IMP-008 Leave Open Library's library-service subjects out of genres
+
+**Status:** suggested
+**Found:** 2026-10-06 (Phase 3 step 4, the first real fetch into a catalogue copy)
+**Location:** `src/metadata/open_library.cpp`, `parseBooksApi` and `parseSearch`
+**Effort:** small
+**Description.** Open Library's subjects mix genres with tags about the
+library copy: *Consider Phlebas* by ISBN brings "Fiction", "Science Fiction"
+and "Imaginary wars and battles", but also "Accessible book", "Protected
+DAISY", "OverDrive" and "Long now manual for civilization". Stored verbatim
+(D-009, D-019), these become genres in the rail's future filter (F-017),
+where every book Open Library lends out would share "Accessible book". A
+search result's `subject` list can run to dozens.
+**Proposal.** Drop a short, fixed list of service tags — "Accessible book",
+"Protected DAISY", "In library", "Lending library", "OverDrive", "Large type
+books", "Long now manual for civilization" and the like — and keep at most
+the first ten subjects from a search. Everything kept is still verbatim.
+**Trade-offs.** A blocklist is a small taxonomy decision, which D-009 set
+out to avoid, and it will lag Open Library's own tags. Leaving it means
+cleaning genres by hand later, once a genre editor exists, and a filter
+cluttered meanwhile. Filtering at display time instead keeps the data
+verbatim but hides the problem rather than solving it.
+**Notes.** The owner's first fetch, *Surface Detail* by search, brought five
+clean subjects; the noise shows on ISBN lookups more than on searches.
 
 ## Applied
 

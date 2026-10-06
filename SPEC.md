@@ -204,14 +204,14 @@ GET https://openlibrary.org/search.json?title={title}&author={author}&limit=5
 
 | Response field (Books API / search) | Target |
 |---|---|
-| `title` | `book.title` |
-| `subtitle` | `book.subtitle` |
-| `authors[].name` / `author_name[]` | `author` rows via `book_author` |
+| `title` | the candidate card; never written over the book's own |
+| `subtitle` | the candidate card |
+| `authors[].name` / `author_name[]` | the candidate card; credits are the owner's |
 | `publishers[0].name` / `publisher[0]` | `book.publisher` |
 | `publish_date` (first four-digit year) | `book.published_year` |
 | `first_publish_year` (search) | first-published year on the confirmation card (F-024) |
 | `number_of_pages` / `number_of_pages_median` | `book.page_count` |
-| `identifiers.isbn_13`, `identifiers.isbn_10` | `book.isbn13`, `book.isbn10`, check digits verified |
+| `identifiers.isbn_13`, `identifiers.isbn_10` | the candidate card; written only by add-by-ISBN (F-024), never by a fetch |
 | `subjects[].name` / `subject[]` | `genre` rows, verbatim, source `open_library` |
 | `cover.large` / `cover_i` | the cover cache (§4), source `open_library` |
 | `description` (edition or work) | `book.synopsis`, source `open_library` |
@@ -259,7 +259,36 @@ owner.
 2. No ISBN → title and author search. **Never** accepted automatically; the
    candidate is queued for manual confirmation. See AV-010.
 3. No result from any provider → `metadata_status = 'failed'`, existing
-   content untouched.
+   content untouched. A provider that could not be reached is not a "no
+   result": the book is left as it was and the problem reported.
+
+Within each step Open Library is asked first and Google Books, with a key,
+only if Open Library has nothing (D-019); an ISBN neither knows falls through
+to step 2. An ISBN-10 is asked as its ISBN-13. Fetch metadata in the panel
+(F-012) always shows the candidates and writes nothing until one is chosen —
+even for an ISBN, which can name another book (AV-010); an ISBN's answer is
+offered ready to accept, a search's never is.
+
+### 3.5 What a chosen candidate writes
+
+`domain::planEnrichment` is the one statement of these rules (AV-001):
+
+| Field | Rule |
+|---|---|
+| `synopsis`, `synopsis_source` | written with the provider as source, unless the source is `manual` |
+| `published_year` | filled if empty: the work's first-published year, else the edition's |
+| `publisher`, `page_count` | filled if empty, and **only from an ISBN lookup** — a search result may describe another edition |
+| `isbn13`, `isbn10` | never |
+| `title`, `subtitle`, credits, series | never |
+| edition and condition notes, acquisition, notes | never |
+| read state, `times_read`, rating | never |
+| genres | each category added verbatim with the provider as source; a genre already linked keeps its source, so the owner's stay `manual` |
+| cover | fetched into the cache (§4) unless `cover_source` is `manual` |
+| `metadata_status`, `metadata_fetched_at` | `matched` and the time, UTC; a status of `manual` stays |
+
+Publisher, year and page count have no source column, so an existing value
+may be the owner's and is never replaced. The writes happen in one
+transaction; the cover follows when it has downloaded.
 
 ---
 

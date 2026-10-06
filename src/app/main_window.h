@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/book_edit.h"
+#include "domain/candidate.h"
 #include "domain/book_filter.h"
 #include "domain/missing_row.h"
 #include "domain/series_entry.h"
@@ -9,6 +10,7 @@
 #include <QMainWindow>
 
 #include <optional>
+#include <vector>
 
 class QAction;
 class QSplitter;
@@ -26,6 +28,7 @@ class SeriesPage;
 namespace pinax::app {
 
 class Catalogue;
+class Enricher;
 
 // The application shell: filter rail, list and detail panel side by side in a
 // splitter (D-010). The list and detail panel are the ui module's; the rail
@@ -39,6 +42,9 @@ public:
 
     // Shows this catalogue's books. The catalogue must outlive the window.
     void setCatalogue(Catalogue* catalogue);
+    // Looks books up for "Fetch metadata". Without one, Fetch says so. The
+    // enricher must outlive the window.
+    void setEnricher(Enricher* enricher);
 
     QSplitter* splitter() const { return splitter_; }
     ui::BookListView* bookList() const { return list_; }
@@ -92,11 +98,25 @@ private:
     void refreshBooks(const QList<qint64>& ids);
     QString titleOf(qint64 id) const;
 
+    // "Fetch metadata" (F-012): look the book up, offer the candidates, write
+    // the one chosen, then fetch its cover.
+    void fetchMetadata(qint64 bookId);
+    void useCandidate(qint64 bookId, int index);
+    void fetchCover(qint64 bookId, const std::string& url, domain::Source source);
+
     // IMP-002: while the panel holds an edit or a question, the list and Add
     // stand still, so a stray click cannot throw the edit away.
     void lockWhileBusy();
 
     Catalogue* catalogue_ = nullptr;
+    Enricher* enricher_ = nullptr;
+    // What the last lookup offered, for the candidate chosen.
+    struct Offer {
+        qint64 bookId = 0;
+        std::vector<domain::Candidate> candidates;
+        bool byIsbn = false;
+    };
+    std::optional<Offer> offer_;
     QAction* addBook_ = nullptr;
     // A new book being added for this missing volume (Mark as owned).
     std::optional<qint64> pendingAttach_;

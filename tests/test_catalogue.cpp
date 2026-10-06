@@ -4,6 +4,7 @@
 #include <memory>
 #include "db/db_error.h"
 #include "db/statement.h"
+#include "db/genre_repository.h"
 #include "domain/credit_text.h"
 #include "app/main_window.h"
 #include "io/csv_importer.h"
@@ -127,6 +128,11 @@ private slots:
     void aHandSetCoverIsNeverReplaced();
     void deletingABookTakesItsCoverFile();
     void thePanelShowsTheCoverFile();
+
+    // F-012, F-014, F-015, AV-001
+    void enrichingWritesTheCandidateAndItsGenres();
+    void enrichingNeverOverwritesTheOwnersWork();
+    void aLookupThatFindsNothingChangesNothing();
 };
 
 void TestCatalogue::detailCarriesSeriesCompleteness()
@@ -1237,6 +1243,110 @@ void TestCatalogue::thePanelShowsTheCoverFile()
     window.bookList()->selectBook(disk.book);
     QVERIFY(cover->pixmap().isNull());
     QVERIFY(cover->text().contains(QStringLiteral("NO COVER YET")));
+}
+
+namespace {
+
+pinax::domain::Candidate phlebas()
+{
+    pinax::domain::Candidate candidate;
+    candidate.source = pinax::domain::Source::OpenLibrary;
+    candidate.providerKey = "/books/OL9759601M";
+    candidate.title = "Consider Phlebas";
+    candidate.publisher = "Orbit";
+    candidate.firstPublishedYear = 1987;
+    candidate.pageCount = 480;
+    candidate.description = "The war raged across the galaxy.";
+    candidate.categories = {"Science Fiction", "Space opera"};
+    candidate.coverUrl = "https://covers.openlibrary.org/b/id/1174792-L.jpg";
+    return candidate;
+}
+
+} // namespace
+
+void TestCatalogue::enrichingWritesTheCandidateAndItsGenres()
+{
+    Catalogue catalogue(":memory:");
+    pinax::domain::BookEdit edit;
+    edit.book.title = "Consider Phlebas";
+    const auto id = catalogue.save(edit).id;
+
+    const auto result = catalogue.enrich(id, phlebas(), true);
+    QVERIFY(!result.problem);
+    QVERIFY(result.coverUrl == phlebas().coverUrl);
+
+    const auto detail = catalogue.detail(id);
+    QVERIFY(detail->book.synopsis == phlebas().description);
+    QVERIFY(detail->book.synopsisSource == pinax::domain::Source::OpenLibrary);
+    QVERIFY(detail->book.publisher == std::optional<std::string>("Orbit"));
+    QVERIFY(detail->book.pageCount == 480);
+    QVERIFY(detail->book.metadataStatus == pinax::domain::MetadataStatus::Matched);
+    QVERIFY(detail->book.metadataFetchedAt);
+    QCOMPARE(detail->genres, (std::vector<std::string> {"Science Fiction", "Space opera"}));
+
+    pinax::db::GenreRepository genres(catalogue.connection());
+    QVERIFY(genres.forBook(id).front().source == pinax::domain::Source::OpenLibrary);
+
+    // Fetching again changes nothing more and duplicates nothing.
+    QVERIFY(!catalogue.enrich(id, phlebas(), true).problem);
+    QCOMPARE(catalogue.detail(id)->genres.size(), std::size_t(2));
+}
+
+void TestCatalogue::enrichingNeverOverwritesTheOwnersWork()
+{
+    // AV-001, end to end: everything the owner entered survives a fetch with
+    // an answer for every field, and their genre stays theirs.
+    OnDisk disk;
+    Catalogue& catalogue = *disk.catalogue;
+    auto book = catalogue.detail(disk.book)->book;
+    book.synopsis = "My own words.";
+    book.synopsisSource = pinax::domain::Source::Manual;
+    book.publisher = "Macmillan";
+    book.publishedYear = 1987;
+    book.pageCount = 471;
+    book.isbn13 = "9780333447055";
+    book.editionNote = "First edition";
+    book.notes = "Signed.";
+    QVERIFY(!catalogue.save(book));
+    QVERIFY(!catalogue.setCover(disk.book, "covers/mine.png", pinax::domain::Source::Manual));
+    pinax::db::GenreRepository genres(catalogue.connection());
+    genres.addToBook(disk.book, "Space opera", pinax::domain::Source::Manual);
+    const auto before = catalogue.detail(disk.book)->book;
+
+    const auto result = catalogue.enrich(disk.book, phlebas(), true);
+    QVERIFY(!result.problem);
+    QVERIFY(!result.coverUrl); // the owner's cover is not even asked for
+
+    auto after = catalogue.detail(disk.book)->book;
+    QVERIFY(after.metadataStatus == pinax::domain::MetadataStatus::Matched);
+    after.metadataStatus = before.metadataStatus;
+    after.metadataFetchedAt = before.metadataFetchedAt;
+    after.updatedAt = before.updatedAt;
+    QVERIFY(after == before);
+
+    // And a cover fetched regardless is refused.
+    QVERIFY(catalogue.setCover(disk.book, disk.coverPath().toStdString(), pinax::domain::Source::OpenLibrary));
+
+    QCOMPARE(genres.forBook(disk.book),
+        (std::vector<pinax::db::GenreLink> {{"Science Fiction", pinax::domain::Source::OpenLibrary},
+            {"Space opera", pinax::domain::Source::Manual}}));
+}
+
+void TestCatalogue::aLookupThatFindsNothingChangesNothing()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+    const auto id = idOf(catalogue, "Tau Zero");
+    auto before = catalogue.detail(id)->book;
+
+    catalogue.markLookupFailed(id);
+    auto after = catalogue.detail(id)->book;
+    QVERIFY(after.metadataStatus == pinax::domain::MetadataStatus::Failed);
+    QVERIFY(after.metadataFetchedAt);
+    after.metadataStatus = before.metadataStatus;
+    after.metadataFetchedAt = before.metadataFetchedAt;
+    after.updatedAt = before.updatedAt;
+    QVERIFY(after == before);
 }
 
 QTEST_MAIN(TestCatalogue)

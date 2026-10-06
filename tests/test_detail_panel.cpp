@@ -1,11 +1,13 @@
 #include "ui/book_editor.h"
 #include "ui/book_view.h"
+#include "ui/candidate_view.h"
 #include "ui/detail_panel.h"
 #include "ui/rating_bar.h"
 
 #include <QComboBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSignalSpy>
@@ -78,6 +80,10 @@ private slots:
     void escapeCancelsBackToView();
     void editedSynopsisIsMarkedManual();
     void ratingSquaresChooseAndClear();
+    // F-012, AV-010
+    void fetchAsksForTheBookOnShow();
+    void searchedCandidatesWaitToBeChosen();
+    void anIsbnAnswerIsOfferedReadyToUse();
     void authorsAreEditedAsText();
     void aNewBookStartsEmptyAndCancelsToNothing();
     void deletionIsConfirmedInThePanel();
@@ -364,6 +370,86 @@ void TestDetailPanel::placeholdersAreCountedNotNamed()
     DetailPanel panel;
     panel.showBook(detail);
     QCOMPARE(labelText(*panel.view(), QStringLiteral("series.missing")), expected);
+}
+
+namespace {
+
+std::vector<pinax::domain::Candidate> twoEditions()
+{
+    pinax::domain::Candidate first;
+    first.title = "Excession";
+    first.authors = {"Iain M. Banks"};
+    first.publishedYear = 1996;
+    first.publisher = "Orbit";
+    pinax::domain::Candidate second = first;
+    second.publishedYear = 1998;
+    second.publisher = "Bantam Spectra";
+    second.source = Source::GoogleBooks;
+    return {first, second};
+}
+
+} // namespace
+
+void TestDetailPanel::fetchAsksForTheBookOnShow()
+{
+    DetailPanel panel;
+    panel.show();
+    panel.showBook(excession());
+    QSignalSpy asked(&panel, &DetailPanel::fetchRequested);
+    auto* fetch = child<QPushButton>(*panel.view(), QStringLiteral("fetch"));
+    QVERIFY(fetch->isEnabled());
+    QTest::mouseClick(fetch, Qt::LeftButton);
+    QCOMPARE(asked.count(), 1);
+    QCOMPARE(asked.front().front().toLongLong(), 5);
+
+    panel.beginFetch(QStringLiteral("Looking up…"));
+    QCOMPARE(panel.state(), DetailPanel::State::Fetching);
+    QVERIFY(panel.isBusy());
+    QVERIFY(panel.isEditing()); // nothing redraws over it
+    QVERIFY(panel.fetchingBookId() == 5);
+    QCOMPARE(labelText(*panel.candidateView(), QStringLiteral("candidates.heading")), QStringLiteral("Excession"));
+}
+
+void TestDetailPanel::searchedCandidatesWaitToBeChosen()
+{
+    DetailPanel panel;
+    panel.show();
+    panel.showBook(excession());
+    panel.beginFetch(QStringLiteral("Searching…"));
+    panel.offerCandidates(twoEditions(), false);
+
+    auto* list = child<QListWidget>(*panel.candidateView(), QStringLiteral("candidates.list"));
+    auto* use = child<QPushButton>(*panel.candidateView(), QStringLiteral("candidates.use"));
+    QCOMPARE(list->count(), 2);
+    QVERIFY(list->item(1)->text().contains(QStringLiteral("Bantam Spectra")));
+    QVERIFY(list->item(1)->text().contains(QStringLiteral("Google Books")));
+    QVERIFY(labelText(*panel.candidateView(), QStringLiteral("candidates.status")).contains(QStringLiteral("another edition")));
+    QCOMPARE(list->currentRow(), -1);
+    QVERIFY(!use->isEnabled());
+
+    QSignalSpy chosen(&panel, &DetailPanel::candidateChosen);
+    list->setCurrentRow(1);
+    QVERIFY(use->isEnabled());
+    QTest::mouseClick(use, Qt::LeftButton);
+    QCOMPARE(chosen.count(), 1);
+    QCOMPARE(chosen.front().at(0).toLongLong(), 5);
+    QCOMPARE(chosen.front().at(1).toInt(), 1);
+}
+
+void TestDetailPanel::anIsbnAnswerIsOfferedReadyToUse()
+{
+    DetailPanel panel;
+    panel.show();
+    panel.showBook(excession());
+    panel.beginFetch(QStringLiteral("Looking up…"));
+    panel.offerCandidates({twoEditions().front()}, true);
+    QCOMPARE(child<QListWidget>(*panel.candidateView(), QStringLiteral("candidates.list"))->currentRow(), 0);
+    QVERIFY(child<QPushButton>(*panel.candidateView(), QStringLiteral("candidates.use"))->isEnabled());
+
+    QSignalSpy cancelled(&panel, &DetailPanel::fetchCancelled);
+    QTest::mouseClick(child<QPushButton>(*panel.candidateView(), QStringLiteral("candidates.cancel")), Qt::LeftButton);
+    QCOMPARE(cancelled.count(), 1);
+    QCOMPARE(panel.state(), DetailPanel::State::Viewing);
 }
 
 QTEST_MAIN(TestDetailPanel)

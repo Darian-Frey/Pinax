@@ -17,4 +17,8 @@ bool isValidIsbn13(std::string_view isbn);
 // Expects normalised input.
 bool isValidIsbn10(std::string_view isbn);
 
+// The ISBN-13 of a valid, normalised ISBN-10: 978, its first nine digits and
+// a check digit of its own.
+std::string isbn10To13(std::string_view isbn10);
+
 } // namespace pinax::domain

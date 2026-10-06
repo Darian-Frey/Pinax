@@ -21,12 +21,16 @@ over a value the owner typed. The provider is wrong more often than the owner
 is, and the overwritten value is unrecoverable — edition and condition notes in
 particular hold facts no provider knows (a 1961 first English edition, a
 misprinted spine).
-**Detection.** Partly implemented, 2026-10-06. `tests/test_catalogue.cpp`,
-`aHandSetCoverIsNeverReplaced`, asserts that a cover whose source is `manual`
-survives `Catalogue::setCover` with a fetched one; `tests/test_detail_panel.cpp`,
-`editedSynopsisIsMarkedManual`, that hand edits are marked. The full test — a
-manual synopsis, publisher and genre unchanged after an enrichment pass over
-the same book — is owed by Phase 3 step 4.
+**Detection.** Implemented, 2026-10-06. The rules are one pure function,
+`domain::planEnrichment` (SPEC.md §3.5). `tests/test_domain.cpp`,
+`enrichmentNeverTouchesWhatTheOwnerWrote`, gives it a book with every
+owner field set and a candidate with an answer for each, and finds the book
+unchanged but for its match status; `tests/test_catalogue.cpp`,
+`enrichingNeverOverwritesTheOwnersWork`, does the same through the database —
+manual synopsis, publisher, year, pages, ISBN, edition note, notes, a manual
+cover and a manual genre — and `aHandSetCoverIsNeverReplaced` covers
+`Catalogue::setCover`. `tests/test_detail_panel.cpp`,
+`editedSynopsisIsMarkedManual`, checks hand edits are marked.
 **Related decisions.** D-008, D-009.
 **History.** Identified during schema design, 2026-10-04. The per-field
 provenance columns exist for this reason.
@@ -194,9 +198,15 @@ single volume — and is accepted without review. The catalogue then holds
 confident, wrong data, which is worse than an empty field because nothing
 prompts a correction. Most acute for the 443 seeded books, none of which carry
 an ISBN.
-**Detection.** Not implemented (would require title-and-author matches to be
-queued for confirmation rather than auto-accepted, and a report listing books
-whose metadata was accepted on a fuzzy match).
+**Detection.** Partly implemented, 2026-10-06. Fetch metadata never writes
+without the owner's choice, ISBN matches included; a search's candidates are
+offered with none preselected and a note that any may be another edition,
+and a search result never supplies publisher, page count or ISBN (SPEC.md
+§3.5). `tests/test_detail_panel.cpp`, `searchedCandidatesWaitToBeChosen`;
+`tests/test_enricher.cpp`, `fetchingFromThePanelWritesTheChoiceAndItsCover`;
+`tests/test_domain.cpp`, `aSearchedCandidateGivesNoEditionFacts`. Not yet:
+a report of books matched by search rather than ISBN, and the batch pass's
+confirmation queue (Phase 3 step 5).
 **Related decisions.** D-008, D-012.
 **History.** Identified while specifying the matching strategy in SPEC.md §3.3,
 2026-10-04. A live instance, 2026-10-06: ISBN 9780000000002, chosen for a test

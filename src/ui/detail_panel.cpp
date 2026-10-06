@@ -2,6 +2,7 @@
 
 #include "ui/attach_view.h"
 #include "ui/book_editor.h"
+#include "ui/candidate_view.h"
 #include "ui/entry_editor.h"
 #include "ui/book_view.h"
 #include "ui/series_view.h"
@@ -57,6 +58,7 @@ DetailPanel::DetailPanel(QWidget* parent)
     , seriesView_(new SeriesView)
     , entryEditor_(new EntryEditor)
     , attachView_(new AttachView)
+    , candidateView_(new CandidateView)
 {
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -92,6 +94,7 @@ DetailPanel::DetailPanel(QWidget* parent)
     stack_->addWidget(scrolling(seriesView_, this));
     stack_->addWidget(scrolling(entryEditor_, this));
     stack_->addWidget(attachView_);
+    stack_->addWidget(candidateView_);
 
     connect(confirmButton_, &QPushButton::clicked, this, [this] {
         auto action = std::move(pendingConfirm_);
@@ -136,6 +139,21 @@ DetailPanel::DetailPanel(QWidget* parent)
     connect(attachView_, &AttachView::cancelled, this, [this] {
         showNothing();
         emit dismissed();
+    });
+    connect(view_, &BookView::fetchRequested, this, [this] {
+        if (shown_)
+            emit fetchRequested(shown_->book.id);
+    });
+    connect(candidateView_, &CandidateView::chosen, this, [this](int index) {
+        if (state_ == State::Fetching && shown_)
+            emit candidateChosen(shown_->book.id, index);
+    });
+    connect(candidateView_, &CandidateView::cancelled, this, [this] {
+        if (shown_)
+            showBook(*shown_);
+        else
+            showNothing();
+        emit fetchCancelled();
     });
     connect(view_, &BookView::deleteRequested, this, [this] {
         if (shown_)
@@ -247,6 +265,37 @@ void DetailPanel::beginAttach(const domain::SeriesRow& volume, const QString& se
 void DetailPanel::showSaveError(const QString& message)
 {
     editor_->showError(message);
+}
+
+void DetailPanel::beginFetch(const QString& how)
+{
+    if (state_ != State::Viewing || !shown_)
+        return;
+    candidateView_->begin(QString::fromStdString(shown_->book.title), how);
+    setState(State::Fetching);
+}
+
+void DetailPanel::offerCandidates(const std::vector<domain::Candidate>& candidates, bool byIsbn)
+{
+    candidateView_->offer(candidates, byIsbn);
+    candidateView_->focusList();
+}
+
+void DetailPanel::showFetchProblem(const QString& message)
+{
+    candidateView_->showProblem(message);
+}
+
+void DetailPanel::setFetchProgress(const QString& text)
+{
+    candidateView_->setProgress(text);
+}
+
+std::optional<qint64> DetailPanel::fetchingBookId() const
+{
+    if (state_ != State::Fetching || !shown_)
+        return std::nullopt;
+    return shown_->book.id;
 }
 
 void DetailPanel::setState(State state)

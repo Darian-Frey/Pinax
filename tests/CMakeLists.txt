@@ -27,3 +27,6 @@ pinax_add_test(test_catalogue pinax_app pinax_io)
 # The owner's real catalogue, if present; the test skips without it.
 target_compile_definitions(test_import PRIVATE
     PINAX_SEED_CSV="${PROJECT_SOURCE_DIR}/seed/library.csv")
+pinax_add_test(test_enricher pinax_app)
+target_compile_definitions(test_enricher PRIVATE
+    PINAX_TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")

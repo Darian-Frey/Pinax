@@ -75,8 +75,10 @@ splitting per D-007.
   recordable per book.
 - Free-text edition and condition notes are preserved verbatim and never
   overwritten by a metadata fetch.
-**Status:** In progress — every field is recordable and editable in the detail
-panel. "Never overwritten by a metadata fetch" waits for the fetch (AV-001).
+**Status:** Complete — every field is recordable and editable in the detail
+panel, and a fetch never writes the edition or condition note, nor a
+publisher, year or page count already recorded (AV-001; 2026-10-06,
+`enrichmentNeverTouchesWhatTheOwnerWrote`, `enrichingNeverOverwritesTheOwnersWork`).
 **Notes:** Carries facts a provider will not know — printing, jacket state,
 misprints, acquisition.
 
@@ -191,7 +193,12 @@ refused by the schema; no entry field yet. ISBN-10 validation exists in
 - The provider that supplied it is recorded alongside it.
 - A failed lookup marks the book as unmatched and leaves prior content intact.
 - A synopsis edited by hand is marked manual and survives subsequent fetches.
-**Status:** Not started
+**Status:** In progress — Fetch metadata in the panel looks one book up, by
+ISBN (an ISBN-10 as its ISBN-13) or else by title and first author, and
+offers the candidates; the one chosen writes its synopsis with its source. A
+lookup that finds nothing records `failed` (SPEC.md §3.4) — "not matched"
+in the sense of the criterion above — and changes nothing else. A manual
+synopsis survives. Batch fetching is Phase 3 step 5.
 **Notes:** D-019 for the provider pair — Open Library first, Google Books only
 with a key, superseding D-008 — and SPEC.md §3 for the request shapes. See
 AV-001 (never overwrite a manual field), AV-009 (quota) and AV-010 (a
@@ -206,8 +213,9 @@ title-and-author match is never auto-accepted).
 - Re-running enrichment does not re-download a cover already cached.
 **Status:** In progress — the cover cache downloads once, refuses anything
 but a real image, keeps covers beside the database and removes them with
-their book; the panel shows a cached cover or the placeholder. Covers arrive
-when enrichment matches books to providers (Phase 3 steps 4–5).
+their book; the panel shows a cached cover or the placeholder. A candidate
+chosen in Fetch metadata brings its cover, unless the book's cover was set by
+hand. The batch pass is Phase 3 step 5.
 **Notes:** From Open Library by cover id; Google as a second source with a key
 (D-019). Cache layout in SPEC.md §4.
 
@@ -220,7 +228,10 @@ when enrichment matches books to providers (Phase 3 steps 4–5).
 - The source of each category is recorded, so a hand-entered category is
   distinguishable from a fetched one.
 - The catalogue can be filtered and grouped by category.
-**Status:** Not started
+**Status:** In progress — a chosen candidate's categories are stored verbatim
+in `genre`/`book_genre` with their source, beside any the owner added, which
+keep theirs; the panel lists a book's genres. Filtering and grouping by
+genre wait for Phase 4 (F-017, F-018).
 **Notes:** Subgenre classification at the level of hard SF versus space opera
 is explicitly out of scope at this version — see below.
 
@@ -229,7 +240,11 @@ is explicitly out of scope at this version — see below.
 **Acceptance:**
 - Every fetched field records which provider supplied it and when.
 - A field entered by hand is never silently replaced by a fetched value.
-**Status:** Not started
+**Status:** In progress — synopsis, cover and each genre record their
+provider; the book records `metadata_status` and `metadata_fetched_at`.
+Publisher, year and page count carry no source column, so a fetch fills
+them only when empty and never replaces one (SPEC.md §3.5). A per-field
+source for those would need a schema change, not proposed.
 
 ### F-024 Add a book by ISBN
 **Priority:** Must

@@ -99,18 +99,24 @@ everything published reports complete to date.
 **Status:** In progress
 **Features delivered:** F-011, F-012, F-013, F-014, F-015, F-024
 **Deliverables:**
-- [ ] `GenreRepository`, carried from Phase 1
-- [ ] F-004's remaining criterion: a fetch never overwrites edition or
-      condition notes, carried from Phase 1 (AV-001)
+- [x] `GenreRepository`, carried from Phase 1 — 2026-10-06
+- [x] F-004's remaining criterion: a fetch never overwrites edition or
+      condition notes, carried from Phase 1 (AV-001) — 2026-10-06
 - [x] HTTP client with rate limiting and retry — 2026-10-06, `RequestQueue`
       over Qt Network (D-020)
 - [x] Provider lookups by ISBN and by title/author — 2026-10-06, Open Library
       first and Google Books with a key (D-019, superseding D-008's order)
-- [ ] Covers from Open Library, Google as a second source
+- [x] Fetch metadata for one book from the panel: candidates shown and
+      confirmed before anything is written (AV-010), then written under the
+      rules of SPEC.md §3.5 — 2026-10-06; the Google key is read as D-021
+- [x] Covers from Open Library, Google as a second source — 2026-10-06,
+      with a chosen candidate
 - [x] On-disk cover cache keyed by book — 2026-10-06, `CoverCache`;
       covers are removed with their book
 - [ ] Batch enrichment with progress, cancellation and resumption
-- [ ] Per-field provenance recorded on write
+- [x] Per-field provenance recorded on write — 2026-10-06, where the schema
+      has a source column; publisher, year and pages are filled only when
+      empty (SPEC.md §3.5)
 - [ ] Add-by-ISBN flow: lookup, confirmation card, duplicate and series checks,
       and attachment to a waiting series entry
 **Acceptance:** A batch run over the whole catalogue completes inside the

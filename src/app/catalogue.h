@@ -5,6 +5,7 @@
 #include "domain/book_edit.h"
 #include "domain/book_filter.h"
 #include "domain/book_summary.h"
+#include "domain/candidate.h"
 #include "domain/missing_row.h"
 #include "domain/series_detail.h"
 #include "domain/series_entry.h"
@@ -107,6 +108,20 @@ public:
     // The credits a new volume of this series most likely carries: those of
     // its owned volume whose authors are most frequent there.
     std::vector<domain::NamedCredit> seriesCredits(std::int64_t seriesId);
+
+    // Writes a confirmed candidate onto a book under the enrichment rules
+    // (domain::planEnrichment, AV-001), adds its categories as genres with
+    // their source, and marks the book matched — in one transaction. Returns
+    // the cover URL still to fetch, if any; or a problem.
+    struct EnrichResult {
+        std::optional<std::string> coverUrl;
+        std::optional<std::string> problem;
+    };
+    EnrichResult enrich(std::int64_t bookId, const domain::Candidate& candidate, bool fromIsbnLookup);
+
+    // No provider knew the book: marked failed, its content untouched
+    // (SPEC.md §3.4). A book whose metadata is marked manual stays so.
+    void markLookupFailed(std::int64_t bookId);
 
     // The folder holding the database, where covers are kept beside it
     // (SPEC.md §4); nullopt for an in-memory catalogue.
