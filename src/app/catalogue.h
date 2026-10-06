@@ -6,6 +6,7 @@
 #include "domain/book_filter.h"
 #include "domain/book_summary.h"
 #include "domain/series_detail.h"
+#include "domain/series_entry.h"
 #include "domain/series_row.h"
 #include "domain/series_status.h"
 
@@ -71,8 +72,34 @@ public:
     // its credits, resolving each name to an author (created if new, D-007).
     // Creates the book when `book.id` is 0 (F-001); a new book marked read
     // starts at one read (AV-005). Authors the change leaves uncredited, and
-    // without notes, are removed (IMP-003).
-    SaveResult save(const domain::BookEdit& edit);
+    // without notes, are removed (IMP-003). With `attachTo`, the book is
+    // attached to that waiting series entry in the same transaction rather
+    // than given a new one (AV-007).
+    SaveResult save(const domain::BookEdit& edit, std::optional<std::int64_t> attachTo = std::nullopt);
+
+    // Series entries (F-008, F-009, Phase 2 step 4).
+    std::optional<domain::SeriesEntry> entry(std::int64_t entryId);
+    std::optional<std::string> seriesName(std::int64_t seriesId);
+
+    // A sort number for a new entry: one after the series' last, or 1.
+    double nextSortPosition(std::int64_t seriesId);
+
+    // Adds the entry when its id is 0, else updates it. Needs a position or
+    // a title. Returns nothing on success, or a message.
+    std::optional<std::string> saveEntry(const domain::SeriesEntry& entry);
+
+    // Removes the entry. An owned volume's book stays in the catalogue, out
+    // of this series.
+    std::optional<std::string> removeEntry(std::int64_t entryId);
+
+    // Marks a missing volume as owned by attaching a book already in the
+    // catalogue (AV-007). Refused if the entry is owned already or the book
+    // is in the series under another entry.
+    std::optional<std::string> attach(std::int64_t entryId, std::int64_t bookId);
+
+    // The credits a new volume of this series most likely carries: those of
+    // its owned volume whose authors are most frequent there.
+    std::vector<domain::NamedCredit> seriesCredits(std::int64_t seriesId);
 
     // Deletes the books in one transaction (F-001). Credits and genre links
     // go with them; series entries stay as missing volumes; authors left

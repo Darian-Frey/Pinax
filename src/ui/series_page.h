@@ -59,16 +59,22 @@ public:
     SeriesEntryModel* entryModel() const { return model_; }
 
     QList<qint64> selectedBooks() const { return table_->selectedBooks(); }
+    // The selected entries, owned or not, in series order.
+    std::vector<domain::SeriesRow> selectedEntries() const;
     void selectBook(std::int64_t bookId);
 
 signals:
     // The selection moved: the owned books selected, and how many volumes
     // not owned are selected with them.
     void selectionChangedTo(const QList<qint64>& bookIds, int missing);
+    void addEntryRequested();
+    void editEntryRequested(qint64 entryId);
 
 private:
     QLabel* heading_;
     QToolButton* showMissing_;
+    QToolButton* addEntry_;
+    QToolButton* editEntry_;
     SeriesEntryModel* model_;
     SeriesTable* table_;
     std::int64_t seriesId_ = 0;

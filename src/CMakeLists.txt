@@ -95,6 +95,8 @@ set_target_properties(pinax_io PROPERTIES AUTOMOC OFF)
 # ui: Qt Widgets panels and item models. Fed domain types; issues no SQL
 # (invariant 8), so it does not link pinax_db.
 add_library(pinax_ui STATIC
+    ui/attach_view.cpp
+    ui/attach_view.h
     ui/book_editor.cpp
     ui/book_editor.h
     ui/book_list_model.cpp
@@ -107,6 +109,8 @@ add_library(pinax_ui STATIC
     ui/book_view.h
     ui/detail_panel.cpp
     ui/detail_panel.h
+    ui/entry_editor.cpp
+    ui/entry_editor.h
     ui/list_keys.cpp
     ui/list_keys.h
     ui/rail_view.cpp

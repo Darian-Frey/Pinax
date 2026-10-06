@@ -14,6 +14,16 @@ change can be traced to the capability or decision that motivated it.
 Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) in progress.
 
 ### Added
+- The entry editor (Phase 2 step 4, F-008, F-009): on a series' page,
+  "+ Add volume" and "Edit entry" open a form in the panel for a volume's
+  position, sort number, title and notes, with Remove from series — a missing
+  volume is deleted, an owned one leaves the series and stays in the
+  catalogue. Selecting a missing volume shows a card with Mark as owned:
+  add it as a new book, the form prefilled with its title and the series'
+  usual authors, or attach a book already catalogued; either way the book
+  takes the waiting entry in one transaction (AV-007). The sort number is
+  entered, never derived from the position (AV-006); a new volume is offered
+  one after the last. The panel's confirmation became generic.
 - A series' own page (Phase 2 step 3, D-006, D-010): choosing a series lists
   its entries in series order with the volumes not owned in place — italic,
   marked, "not owned" — behind a toggle, under a heading of entries, held and

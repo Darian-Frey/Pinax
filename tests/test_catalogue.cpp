@@ -13,10 +13,14 @@
 #include "ui/rail_view.h"
 #include "ui/series_entry_model.h"
 #include "ui/series_page.h"
+#include "ui/attach_view.h"
+#include "ui/entry_editor.h"
+#include "ui/series_view.h"
 
 #include <QAction>
 #include <QLabel>
 #include <QStatusBar>
+#include <QToolButton>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSignalSpy>
@@ -100,6 +104,15 @@ private slots:
     void aMissingVolumeSelectedShowsTheSeries();
     void keysInTheSeriesPageReachTheBooks();
     void deletingFromASeriesLeavesItsGap();
+    // Phase 2 step 4: entries
+    void entriesAreAddedEditedAndRemoved();
+    void removingAnOwnedVolumeKeepsTheBook();
+    void attachingFillsTheWaitingEntry();
+    void attachingIsRefusedWhereItWouldDuplicate();
+    void aNewBookForAMissingVolumeTakesItsEntry();
+    void addVolumeThroughTheSeriesPage();
+    void markOwnedWithABookAlreadyHeld();
+    void markOwnedWithANewBook();
 };
 
 void TestCatalogue::detailCarriesSeriesCompleteness()
@@ -878,6 +891,196 @@ void TestCatalogue::deletingFromASeriesLeavesItsGap()
     QCOMPARE(model->index(1, pinax::ui::SeriesEntryModel::StateColumn).data().toString(),
         QStringLiteral("not owned"));
     QVERIFY(window.detailPanel()->state() == DetailPanel::State::ViewingSeries);
+}
+
+namespace {
+
+std::int64_t entryIdAt(Catalogue& catalogue, std::int64_t series, const std::string& position)
+{
+    for (const auto& row : catalogue.seriesRows(series)) {
+        if (row.position == position)
+            return row.entryId;
+    }
+    return 0;
+}
+
+} // namespace
+
+void TestCatalogue::entriesAreAddedEditedAndRemoved()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+    const std::int64_t culture = seriesId(catalogue, "The Culture");
+    QCOMPARE(catalogue.nextSortPosition(culture), 10.0); // after Surface Detail's 9
+
+    pinax::domain::SeriesEntry entry;
+    entry.seriesId = culture;
+    QCOMPARE(catalogue.saveEntry(entry), std::optional<std::string>("A volume needs a position or a title."));
+
+    entry.position = "10";
+    entry.sortPosition = 10;
+    entry.title = "The Hydrogen Sonata";
+    QVERIFY(!catalogue.saveEntry(entry));
+    QCOMPARE(catalogue.seriesDetail(culture)->series.known, 5);
+
+    auto stored = *catalogue.entry(entryIdAt(catalogue, culture, "10"));
+    stored.title = "The Hydrogen Sonata (2012)";
+    QVERIFY(!catalogue.saveEntry(stored));
+    QCOMPARE(catalogue.entry(stored.id)->title, std::optional<std::string>("The Hydrogen Sonata (2012)"));
+
+    QVERIFY(!catalogue.removeEntry(stored.id));
+    QVERIFY(!catalogue.entry(stored.id));
+    QCOMPARE(catalogue.removeEntry(stored.id), std::optional<std::string>("That volume is no longer in the series."));
+}
+
+void TestCatalogue::removingAnOwnedVolumeKeepsTheBook()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+    const std::int64_t culture = seriesId(catalogue, "The Culture");
+
+    QVERIFY(!catalogue.removeEntry(entryIdAt(catalogue, culture, "5")));
+    const auto excession = catalogue.detail(idOf(catalogue, "Excession"));
+    QVERIFY(excession);                  // still in the catalogue
+    QVERIFY(excession->series.empty()); // out of the series
+    QCOMPARE(catalogue.seriesDetail(culture)->series.known, 3);
+}
+
+void TestCatalogue::attachingFillsTheWaitingEntry()
+{
+    // AV-007: Consider Phlebas bought, already catalogued by hand, then
+    // attached to the waiting volume 1.
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+    const std::int64_t culture = seriesId(catalogue, "The Culture");
+    pinax::domain::BookEdit edit;
+    edit.book.title = "Consider Phlebas";
+    const std::int64_t book = catalogue.save(edit).id;
+
+    const auto entriesBefore = catalogue.seriesRows(culture).size();
+    QVERIFY(!catalogue.attach(entryIdAt(catalogue, culture, "1"), book));
+    QCOMPARE(catalogue.seriesRows(culture).size(), entriesBefore);
+    QCOMPARE(catalogue.seriesDetail(culture)->series.held, 3);
+    QCOMPARE(catalogue.detail(book)->series.front().position, std::optional<std::string>("1"));
+}
+
+void TestCatalogue::attachingIsRefusedWhereItWouldDuplicate()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+    const std::int64_t culture = seriesId(catalogue, "The Culture");
+    const std::int64_t waiting = entryIdAt(catalogue, culture, "1");
+
+    QCOMPARE(catalogue.attach(entryIdAt(catalogue, culture, "5"), idOf(catalogue, "Tau Zero")),
+        std::optional<std::string>("That volume is already owned."));
+    QCOMPARE(catalogue.attach(waiting, idOf(catalogue, "Excession")),
+        std::optional<std::string>("That book is already in this series."));
+    QVERIFY(!catalogue.entry(waiting)->bookId);
+}
+
+void TestCatalogue::aNewBookForAMissingVolumeTakesItsEntry()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+    const std::int64_t culture = seriesId(catalogue, "The Culture");
+    QCOMPARE(pinax::domain::formatCredits(catalogue.seriesCredits(culture)), std::string("Iain M. Banks"));
+
+    pinax::domain::BookEdit edit;
+    edit.book.title = "Consider Phlebas";
+    edit.credits = catalogue.seriesCredits(culture);
+    const auto entriesBefore = catalogue.seriesRows(culture).size();
+    const auto result = catalogue.save(edit, entryIdAt(catalogue, culture, "1"));
+    QVERIFY(!result.problem);
+
+    QCOMPARE(catalogue.seriesRows(culture).size(), entriesBefore);
+    QCOMPARE(catalogue.entry(entryIdAt(catalogue, culture, "1"))->bookId, std::optional<std::int64_t>(result.id));
+
+    // An entry already owned refuses, and the new book is not left behind.
+    const auto count = catalogue.count();
+    edit.book.title = "Excession again";
+    const auto refused = catalogue.save(edit, entryIdAt(catalogue, culture, "5"));
+    QCOMPARE(refused.problem, std::optional<std::string>("That volume is already owned."));
+    QCOMPARE(catalogue.count(), count);
+}
+
+void TestCatalogue::addVolumeThroughTheSeriesPage()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    window.rail()->chooseFilter(seriesFilter(seriesId(catalogue, "The Culture")));
+
+    window.seriesPage()->findChild<QToolButton*>(QStringLiteral("series.addEntry"))->click();
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::EditingEntry);
+    QVERIFY(!window.seriesPage()->isEnabled()); // IMP-002
+    auto* editor = window.detailPanel()->entryEditor();
+    QCOMPARE(editor->findChild<QLineEdit*>(QStringLiteral("entry.sortPosition"))->text(), QStringLiteral("10"));
+    editor->findChild<QLineEdit*>(QStringLiteral("entry.position"))->setText(QStringLiteral("10"));
+    editor->findChild<QLineEdit*>(QStringLiteral("entry.title"))->setText(QStringLiteral("The Hydrogen Sonata"));
+    editor->save();
+
+    QVERIFY(window.seriesPage()->isEnabled());
+    QCOMPARE(window.seriesPage()->entryModel()->rowCount(), 5);
+    QCOMPARE(seriesTitles(window).at(3), QStringLiteral("The Hydrogen Sonata"));
+}
+
+void TestCatalogue::markOwnedWithABookAlreadyHeld()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+    pinax::domain::BookEdit edit;
+    edit.book.title = "Consider Phlebas";
+    const std::int64_t book = catalogue.save(edit).id;
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    window.rail()->chooseFilter(seriesFilter(seriesId(catalogue, "The Culture")));
+    window.seriesPage()->table()->selectRow(0); // Consider Phlebas, missing
+
+    window.detailPanel()->seriesView()->findChild<QPushButton*>(QStringLiteral("seriesView.markOwned"))->click();
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::Attaching);
+    window.detailPanel()->attachView()->findChild<QPushButton*>(QStringLiteral("attach.attach"))->click();
+
+    QCOMPARE(catalogue.entry(entryIdAt(catalogue, seriesId(catalogue, "The Culture"), "1"))->bookId,
+        std::optional<std::int64_t>(book));
+    QCOMPARE(window.seriesPage()->selectedBooks(), QList<qint64>({book}));
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::Viewing);
+}
+
+void TestCatalogue::markOwnedWithANewBook()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+    const std::int64_t culture = seriesId(catalogue, "The Culture");
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    window.rail()->chooseFilter(seriesFilter(culture));
+    window.seriesPage()->table()->selectRow(0);
+    window.detailPanel()->seriesView()->findChild<QPushButton*>(QStringLiteral("seriesView.markOwned"))->click();
+    window.detailPanel()->attachView()->findChild<QPushButton*>(QStringLiteral("attach.create"))->click();
+
+    // The book form, prefilled from the series.
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::Editing);
+    auto* editor = window.detailPanel()->editor();
+    QCOMPARE(editor->findChild<QLineEdit*>(QStringLiteral("edit.title"))->text(), QStringLiteral("Consider Phlebas"));
+    QCOMPARE(editor->findChild<QLineEdit*>(QStringLiteral("edit.authors"))->text(), QStringLiteral("Iain M. Banks"));
+    editor->save();
+
+    const std::int64_t book = idOf(catalogue, "Consider Phlebas");
+    QVERIFY(book > 0);
+    QCOMPARE(catalogue.entry(entryIdAt(catalogue, culture, "1"))->bookId, std::optional<std::int64_t>(book));
+    QCOMPARE(catalogue.seriesRows(culture).size(), std::size_t(4)); // no second entry
+    QVERIFY(window.showingSeries());
+    QCOMPARE(window.seriesPage()->selectedBooks(), QList<qint64>({book}));
 }
 
 QTEST_MAIN(TestCatalogue)

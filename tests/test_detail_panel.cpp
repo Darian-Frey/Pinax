@@ -313,7 +313,7 @@ void TestDetailPanel::deletionIsConfirmedInThePanel()
     QCOMPARE(requested.at(0).at(0).value<QList<qint64>>(), QList<qint64>({5}));
 
     QSignalSpy confirmed(&panel, &DetailPanel::deleteConfirmed);
-    QSignalSpy cancelled(&panel, &DetailPanel::deleteCancelled);
+    QSignalSpy cancelled(&panel, &DetailPanel::dismissed);
 
     panel.askToDelete({5}, QStringLiteral("Delete “Excession”?"));
     QVERIFY(panel.state() == DetailPanel::State::ConfirmingDelete);

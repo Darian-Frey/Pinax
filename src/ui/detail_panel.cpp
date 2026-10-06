@@ -1,6 +1,8 @@
 #include "ui/detail_panel.h"
 
+#include "ui/attach_view.h"
 #include "ui/book_editor.h"
+#include "ui/entry_editor.h"
 #include "ui/book_view.h"
 #include "ui/series_view.h"
 #include "ui/style.h"
@@ -51,7 +53,10 @@ DetailPanel::DetailPanel(QWidget* parent)
     , confirm_(new QWidget(this))
     , question_(new QLabel(confirm_))
     , keep_(new QPushButton(tr("Keep"), confirm_))
+    , confirmButton_(new QPushButton(tr("Delete"), confirm_))
     , seriesView_(new SeriesView)
+    , entryEditor_(new EntryEditor)
+    , attachView_(new AttachView)
 {
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -74,27 +79,29 @@ DetailPanel::DetailPanel(QWidget* parent)
     question_->setTextFormat(Qt::PlainText);
     confirmLayout->addWidget(question_);
     auto* confirmButtons = new QHBoxLayout;
-    auto* destroy = new QPushButton(tr("Delete"), confirm_);
-    destroy->setObjectName(QStringLiteral("confirm.delete"));
-    destroy->setAutoDefault(false);
+    confirmButton_->setObjectName(QStringLiteral("confirm.delete"));
+    confirmButton_->setAutoDefault(false);
     keep_->setObjectName(QStringLiteral("confirm.keep"));
     keep_->setDefault(true);
     confirmButtons->addWidget(keep_);
-    confirmButtons->addWidget(destroy);
+    confirmButtons->addWidget(confirmButton_);
     confirmButtons->addStretch();
     confirmLayout->addLayout(confirmButtons);
     confirmLayout->addStretch();
     stack_->addWidget(confirm_);
     stack_->addWidget(scrolling(seriesView_, this));
+    stack_->addWidget(scrolling(entryEditor_, this));
+    stack_->addWidget(attachView_);
 
-    connect(destroy, &QPushButton::clicked, this, [this] {
-        const QList<qint64> ids = pendingDelete_;
-        pendingDelete_.clear();
-        emit deleteConfirmed(ids);
+    connect(confirmButton_, &QPushButton::clicked, this, [this] {
+        auto action = std::move(pendingConfirm_);
+        pendingConfirm_ = nullptr;
+        if (action)
+            action();
     });
     auto keep = [this] {
-        pendingDelete_.clear();
-        emit deleteCancelled();
+        pendingConfirm_ = nullptr;
+        emit dismissed();
     };
     connect(keep_, &QPushButton::clicked, this, keep);
     auto* escape = new QShortcut(QKeySequence(Qt::Key_Escape), confirm_);
@@ -108,10 +115,27 @@ DetailPanel::DetailPanel(QWidget* parent)
             emit ratingRequested(shown_->book.id, rating);
     });
     connect(editor_, &BookEditor::cancelled, this, [this] {
-        if (shown_ && shown_->book.id != 0)
+        if (shown_ && shown_->book.id != 0) {
             showBook(*shown_);
-        else
+        } else {
             showNothing();
+            emit dismissed();
+        }
+    });
+
+    connect(seriesView_, &SeriesView::markOwnedRequested, this, &DetailPanel::markOwnedRequested);
+    connect(seriesView_, &SeriesView::editEntryRequested, this, &DetailPanel::editEntryRequested);
+    connect(entryEditor_, &EntryEditor::saveRequested, this, &DetailPanel::entrySaveRequested);
+    connect(entryEditor_, &EntryEditor::removeRequested, this, &DetailPanel::entryRemoveRequested);
+    connect(entryEditor_, &EntryEditor::cancelled, this, [this] {
+        showNothing();
+        emit dismissed();
+    });
+    connect(attachView_, &AttachView::attachRequested, this, &DetailPanel::attachRequested);
+    connect(attachView_, &AttachView::createRequested, this, &DetailPanel::createForEntryRequested);
+    connect(attachView_, &AttachView::cancelled, this, [this] {
+        showNothing();
+        emit dismissed();
     });
     connect(view_, &BookView::deleteRequested, this, [this] {
         if (shown_)
@@ -148,15 +172,22 @@ void DetailPanel::showSelection(int count)
     setState(State::Several);
 }
 
-void DetailPanel::showSeries(const domain::SeriesDetail& detail)
+void DetailPanel::showSeries(const domain::SeriesDetail& detail,
+    const std::optional<domain::SeriesRow>& selected)
 {
     shown_.reset();
-    seriesView_->showSeries(detail);
+    seriesView_->showSeries(detail, selected);
     setState(State::ViewingSeries);
 }
 
 void DetailPanel::beginEdit()
 {
+    // F2 on a selected volume of a series edits that volume's entry.
+    if (state_ == State::ViewingSeries) {
+        if (const auto entry = seriesView_->selectedEntry())
+            emit editEntryRequested(*entry);
+        return;
+    }
     if (state_ != State::Viewing || !shown_)
         return;
     editor_->editBook(*shown_);
@@ -164,9 +195,10 @@ void DetailPanel::beginEdit()
     editor_->focusTitle();
 }
 
-void DetailPanel::beginNew()
+void DetailPanel::beginNew(const domain::BookDetail& prefill)
 {
-    shown_ = domain::BookDetail {};
+    shown_ = prefill;
+    shown_->book.id = 0;
     editor_->editBook(*shown_);
     setState(State::Editing);
     editor_->focusTitle();
@@ -176,10 +208,40 @@ void DetailPanel::askToDelete(const QList<qint64>& ids, const QString& question)
 {
     if (ids.isEmpty())
         return;
-    pendingDelete_ = ids;
+    askToConfirm(question, tr("Delete"), [this, ids] { emit deleteConfirmed(ids); });
+}
+
+void DetailPanel::askToConfirm(const QString& question, const QString& confirmLabel,
+    std::function<void()> onConfirm)
+{
+    pendingConfirm_ = std::move(onConfirm);
     question_->setText(question);
+    confirmButton_->setText(confirmLabel);
     setState(State::ConfirmingDelete);
     keep_->setFocus();
+}
+
+void DetailPanel::beginEntryEdit(const domain::SeriesEntry& entry, const QString& seriesName,
+    const QString& ownedBy)
+{
+    shown_.reset();
+    entryEditor_->editEntry(entry, seriesName, ownedBy);
+    setState(State::EditingEntry);
+    entryEditor_->focusFirst();
+}
+
+void DetailPanel::showEntryError(const QString& message)
+{
+    entryEditor_->showError(message);
+}
+
+void DetailPanel::beginAttach(const domain::SeriesRow& volume, const QString& seriesName,
+    const std::vector<domain::BookSummary>& candidates)
+{
+    shown_.reset();
+    attachView_->offer(volume, seriesName, candidates);
+    setState(State::Attaching);
+    attachView_->focusSearch();
 }
 
 void DetailPanel::showSaveError(const QString& message)

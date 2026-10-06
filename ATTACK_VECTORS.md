@@ -115,11 +115,16 @@ entry is the canonical case.
 `series_entry` instead of attaching to the waiting one. The series then shows
 eleven entries where ten exist, never reports complete, and the ghost row
 persists beside the book that was meant to replace it.
-**Detection.** Partly implemented, 2026-10-05. `tests/test_import.cpp`,
-`fillsAWaitingMissingVolume`, imports a book whose series and position match
-an unowned entry and asserts the entry count is unchanged and
-`v_series_status` moves to Complete. The add-by-ISBN path (F-024) owes the
-same test when it exists.
+**Detection.** Partly implemented, 2026-10-05 and 2026-10-06.
+`tests/test_import.cpp`, `fillsAWaitingMissingVolume`, imports a book into a
+waiting position and asserts the entry count is unchanged and
+`v_series_status` moves to Complete. `tests/test_catalogue.cpp` does the same
+for Mark as owned: `attachingFillsTheWaitingEntry` and
+`markOwnedWithABookAlreadyHeld` attach an existing book,
+`aNewBookForAMissingVolumeTakesItsEntry` and `markOwnedWithANewBook` create
+one into the entry, and `attachingIsRefusedWhereItWouldDuplicate` refuses an
+owned entry or a book already in the series. The add-by-ISBN path (F-024)
+owes the same test when it exists.
 **Related decisions.** D-004, D-006, D-012.
 **History.** Identified while specifying F-024, 2026-10-04.
 

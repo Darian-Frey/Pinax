@@ -6,6 +6,7 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QProgressBar>
+#include <QPushButton>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -92,6 +93,36 @@ SeriesView::SeriesView(QWidget* parent)
     legend_ = makeValue(QStringLiteral("seriesView.legend"), this);
     layout->addWidget(legend_);
 
+    // The volume chosen on the series page, with what can be done to it.
+    card_ = new QWidget(this);
+    card_->setObjectName(QStringLiteral("seriesView.card"));
+    auto* cardLayout = new QVBoxLayout(card_);
+    cardLayout->setContentsMargins(0, 6, 0, 0);
+    cardLayout->addWidget(makeSectionHeading(tr("Selected volume"), card_));
+    cardTitle_ = makeValue(QStringLiteral("seriesView.cardTitle"), card_);
+    cardTitle_->setTextFormat(Qt::RichText);
+    cardLayout->addWidget(cardTitle_);
+    auto* cardButtons = new QHBoxLayout;
+    markOwned_ = new QPushButton(tr("Mark as owned"), card_);
+    markOwned_->setObjectName(QStringLiteral("seriesView.markOwned"));
+    auto* editEntry = new QPushButton(tr("Edit entry"), card_);
+    editEntry->setObjectName(QStringLiteral("seriesView.editEntry"));
+    editEntry->setToolTip(tr("Edit this volume's position and title (F2)"));
+    cardButtons->addWidget(markOwned_);
+    cardButtons->addWidget(editEntry);
+    cardButtons->addStretch();
+    cardLayout->addLayout(cardButtons);
+    layout->addWidget(card_);
+    card_->hide();
+    connect(markOwned_, &QPushButton::clicked, this, [this] {
+        if (selectedEntry_)
+            emit markOwnedRequested(*selectedEntry_);
+    });
+    connect(editEntry, &QPushButton::clicked, this, [this] {
+        if (selectedEntry_)
+            emit editEntryRequested(*selectedEntry_);
+    });
+
     layout->addWidget(makeRule(this));
     missingHeading_ = makeSectionHeading(tr("Missing"), this);
     missingHeading_->setObjectName(QStringLiteral("seriesView.missingHeading"));
@@ -128,8 +159,21 @@ SeriesView::SeriesView(QWidget* parent)
     layout->addStretch();
 }
 
-void SeriesView::showSeries(const SeriesDetail& detail)
+void SeriesView::showSeries(const SeriesDetail& detail, const std::optional<domain::SeriesRow>& selected)
 {
+    selectedEntry_ = selected ? std::optional<qint64>(selected->entryId) : std::nullopt;
+    card_->setVisible(selected.has_value());
+    if (selected) {
+        const auto title = selected->title();
+        QString text = QStringLiteral("<b>%1</b>")
+                           .arg(title ? QString::fromStdString(*title).toHtmlEscaped() : tr("Untitled volume"));
+        if (selected->position)
+            text += QStringLiteral(" · ") + QString::fromStdString(*selected->position).toHtmlEscaped();
+        text += QStringLiteral(" · ") + (selected->owned() ? tr("on the shelf") : tr("not owned"));
+        cardTitle_->setText(text);
+        markOwned_->setVisible(!selected->owned());
+    }
+
     const auto& series = detail.series;
     name_->setText(QString::fromStdString(series.name));
     QString byline = lengthText(series);

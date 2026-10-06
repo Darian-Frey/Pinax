@@ -2,9 +2,12 @@
 
 #include "domain/book_edit.h"
 #include "domain/book_filter.h"
+#include "domain/series_entry.h"
 
 #include <QList>
 #include <QMainWindow>
+
+#include <optional>
 
 class QAction;
 class QSplitter;
@@ -53,6 +56,18 @@ private:
     // Redraws the panel for whatever the middle panel has selected, unless a
     // form is open.
     void refreshPanel();
+
+    // Series entries (Phase 2 step 4).
+    void addEntry();
+    void editEntry(qint64 entryId);
+    void saveEntry(const domain::SeriesEntry& entry);
+    void askToRemoveEntry(qint64 entryId);
+    void beginMarkOwned(qint64 entryId);
+    void attachBook(qint64 entryId, qint64 bookId);
+    void createForEntry(qint64 entryId);
+    // After anything changes a series: the page, the rail, the book list's
+    // series labels, and the panel; then selects the book, if given.
+    void afterSeriesChange(std::optional<qint64> selectBook = std::nullopt);
     void saveBook(const domain::BookEdit& edit);
     void addBook();
     void askToDelete(const QList<qint64>& ids);
@@ -74,6 +89,8 @@ private:
 
     Catalogue* catalogue_ = nullptr;
     QAction* addBook_ = nullptr;
+    // A new book being added for this missing volume (Mark as owned).
+    std::optional<qint64> pendingAttach_;
     QSplitter* splitter_;
     ui::RailView* rail_;
     QStackedWidget* centre_;

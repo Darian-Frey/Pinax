@@ -128,10 +128,10 @@ rejected, not clamped.
   `Broadcast 6.5`, `1-4` and `3a`.
 - Ordering is correct for half-numbered entries and for omnibuses spanning
   several positions.
-**Status:** In progress — positions are stored as printed with a separate sort key,
-and a series lists in position order (6.5 between 6 and 7, 10 after 2). A
-book may sit in several series in the data; entries are not yet editable in
-the application (Phase 2 step 4).
+**Status:** Complete (2026-10-06). Positions are stored as printed with a sort number
+entered beside them, never derived outside the importer (AV-006); a series
+lists in sort order; entries are added, edited and removed on the series'
+page; a book may sit in several series.
 **Notes:** D-005. `position` is free text; `sort_position` is the numeric sort
 key. Never parse one from the other at display time — see AV-006. Derivation
 rules in SPEC.md §1.2.
@@ -142,10 +142,10 @@ rules in SPEC.md §1.2.
 - A series entry can be recorded with no book attached, representing a volume
   known to exist but absent from the shelf.
 - Attaching a book to that entry later does not create a duplicate.
-**Status:** In progress — recorded through `--import-series` (D-018) and shown in
-place in a series' list, italic and marked "not owned". A book imported into
-a waiting position attaches to it (AV-007). Editing entries in the
-application is Phase 2 step 4.
+**Status:** Complete (2026-10-06). Known volumes come in through `--import-series`
+(D-018) or are added on the series' page, and show in place, italic and "not
+owned". Mark as owned attaches a book — new, or already catalogued — to the
+waiting entry in one transaction, never adding a second (AV-007).
 **Notes:** D-006. Attaching is an update to `book_id` on the existing row; see
 AV-007 for the failure this avoids.
 

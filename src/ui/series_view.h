@@ -1,10 +1,14 @@
 #pragma once
 
 #include "domain/series_detail.h"
+#include "domain/series_row.h"
 
 #include <QWidget>
 
+#include <optional>
+
 class QLabel;
+class QPushButton;
 class QProgressBar;
 class QVBoxLayout;
 
@@ -20,9 +24,23 @@ class SeriesView : public QWidget {
 public:
     explicit SeriesView(QWidget* parent = nullptr);
 
-    void showSeries(const domain::SeriesDetail& detail);
+    // `selected` is a volume chosen on the series page, shown as a card with
+    // its own actions.
+    void showSeries(const domain::SeriesDetail& detail,
+        const std::optional<domain::SeriesRow>& selected = std::nullopt);
+
+    std::optional<qint64> selectedEntry() const { return selectedEntry_; }
+
+signals:
+    void markOwnedRequested(qint64 entryId);
+    void editEntryRequested(qint64 entryId);
 
 private:
+    QWidget* card_;
+    QLabel* cardTitle_;
+    QPushButton* markOwned_;
+    std::optional<qint64> selectedEntry_;
+
     QLabel* name_;
     QLabel* byline_;
     QProgressBar* progress_;

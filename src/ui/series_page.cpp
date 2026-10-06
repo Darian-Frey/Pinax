@@ -12,6 +12,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <utility>
 
 namespace pinax::ui {
@@ -103,6 +104,8 @@ SeriesPage::SeriesPage(QWidget* parent)
     : QWidget(parent)
     , heading_(new QLabel(this))
     , showMissing_(new QToolButton(this))
+    , addEntry_(new QToolButton(this))
+    , editEntry_(new QToolButton(this))
     , model_(new SeriesEntryModel(this))
     , table_(new SeriesTable(model_, this))
 {
@@ -119,8 +122,23 @@ SeriesPage::SeriesPage(QWidget* parent)
     showMissing_->setChecked(true);
     showMissing_->setText(tr("Showing volumes you don't own"));
     showMissing_->setToolTip(tr("Show or hide the volumes the series contains but the shelf does not"));
+    addEntry_->setObjectName(QStringLiteral("series.addEntry"));
+    addEntry_->setText(tr("+ Add volume"));
+    addEntry_->setToolTip(tr("Record a volume the series contains"));
+    editEntry_->setObjectName(QStringLiteral("series.editEntry"));
+    editEntry_->setText(tr("Edit entry"));
+    editEntry_->setToolTip(tr("Edit the selected volume's position and title"));
+    editEntry_->setEnabled(false);
     bar->addWidget(heading_, 1);
+    bar->addWidget(addEntry_);
+    bar->addWidget(editEntry_);
     bar->addWidget(showMissing_);
+    connect(addEntry_, &QToolButton::clicked, this, &SeriesPage::addEntryRequested);
+    connect(editEntry_, &QToolButton::clicked, this, [this] {
+        const auto entries = selectedEntries();
+        if (entries.size() == 1)
+            emit editEntryRequested(entries.front().entryId);
+    });
     layout->addLayout(bar);
     layout->addWidget(table_, 1);
 
@@ -128,7 +146,10 @@ SeriesPage::SeriesPage(QWidget* parent)
         showMissing_->setText(show ? tr("Showing volumes you don't own") : tr("Hiding volumes you don't own"));
         model_->setShowMissing(show);
     });
-    auto report = [this] { emit selectionChangedTo(table_->selectedBooks(), table_->selectedMissing()); };
+    auto report = [this] {
+        editEntry_->setEnabled(table_->selectionModel()->selectedRows().size() == 1);
+        emit selectionChangedTo(table_->selectedBooks(), table_->selectedMissing());
+    };
     connect(table_->selectionModel(), &QItemSelectionModel::selectionChanged, this, report);
     connect(model_, &QAbstractItemModel::modelReset, this, report);
 }
@@ -152,6 +173,16 @@ void SeriesPage::showSeries(const domain::SeriesStatus& series, std::vector<doma
             table_->selectionModel()->select(model_->index(row, 0),
                 QItemSelectionModel::Select | QItemSelectionModel::Rows);
     }
+}
+
+std::vector<domain::SeriesRow> SeriesPage::selectedEntries() const
+{
+    QModelIndexList rows = table_->selectionModel()->selectedRows();
+    std::sort(rows.begin(), rows.end(), [](const QModelIndex& a, const QModelIndex& b) { return a.row() < b.row(); });
+    std::vector<domain::SeriesRow> entries;
+    for (const QModelIndex& index : rows)
+        entries.push_back(model_->row(index.row()));
+    return entries;
 }
 
 void SeriesPage::selectBook(std::int64_t bookId)

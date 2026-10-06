@@ -79,7 +79,8 @@ genre links, and leaves its series entries as missing volumes.
 - [x] Series detail showing owned and missing entries in position order —
       2026-10-06, a series' own page in the middle panel and its description
       in the detail panel
-- [ ] Entry editor accepting non-numeric positions
+- [x] Entry editor accepting non-numeric positions — 2026-10-06; add, edit,
+      remove, and Mark as owned with a new or existing book (AV-007)
 - [ ] Missing-volumes report backed by `v_missing_entries`
 **Acceptance:** A series with every published volume held reports complete;
 one short of a volume reports incomplete and names it; an ongoing series with

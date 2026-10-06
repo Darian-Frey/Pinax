@@ -69,6 +69,15 @@ public:
     // Ids of the books on the shelf in this series.
     std::vector<std::int64_t> bookIds(std::int64_t seriesId);
 
+    std::optional<domain::SeriesEntry> findEntry(std::int64_t entryId);
+    std::optional<std::string> name(std::int64_t seriesId);
+
+    // The highest sort_position in the series, if any entry has one.
+    std::optional<double> lastSortPosition(std::int64_t seriesId);
+
+    // Deletes the entry. A book attached to it stays in the catalogue.
+    bool removeEntry(std::int64_t entryId);
+
     std::int64_t addEntry(const domain::SeriesEntry& entry);
     bool updateEntry(const domain::SeriesEntry& entry);
 

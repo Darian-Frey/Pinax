@@ -113,7 +113,8 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
   missing, a toggle for the volumes not owned, and a `SeriesTable` over
   `SeriesEntryModel` listing every entry in series order, the missing ones in
   place, italic and marked (D-006, D-010). It answers the list's single keys
-  for owned volumes through the shared `listKeyAction`.
+  for owned volumes through the shared `listKeyAction`. "+ Add volume" and
+  "Edit entry" open the panel's entry editor.
 - **List** — `BookListView`, a `QTableView` over `BookListModel` (a
   `QAbstractTableModel` of `domain::BookSummary`) through `BookSortProxy`. The
   composition root reads summaries from `BookRepository` and hands them over;
@@ -130,7 +131,12 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
   `domain::BookEdit` — the book's fields and its credits by name. For a
   series with nothing owned selected it shows `SeriesView`: held against
   known, read and unread, the missing volumes, and totals across every
-  series, all from the views (D-004). Series completeness on show comes from the views, not from
+  series, all from the views (D-004). With one missing volume selected, a
+  card offers Mark as owned and Edit entry. Its other states for a series:
+  `EntryEditor` (position, sort number, title, notes; Remove from series)
+  and `AttachView` (Mark as owned: add a new book through `BookEditor`
+  prefilled from the series, or attach one already catalogued). The
+  confirmation state is generic: `askToConfirm(question, label, action)`. Series completeness on show comes from the views, not from
   arithmetic in the panel (D-004).
 
 ### `app`
@@ -141,8 +147,10 @@ module permitted to know about all the others.
 - **Catalogue** — the open database: one `Connection`, migrated on open, and
   the reads and writes the window needs, assembled from `db`'s repositories
   (`summaries`, `detail`, `save`, `remove`, `toggleRead`, `setRating`, each
-  write in one transaction). `save(BookEdit)` creates when the id is 0 and
-  resolves credit names to authors. Credit changes and deletions remove
+  write in one transaction). `save(BookEdit, attachTo)` creates when the id
+  is 0, resolves credit names to authors, and with `attachTo` puts the new
+  book in that waiting entry in the same transaction (AV-007). `saveEntry`,
+  `removeEntry` and `attach` edit series entries. Credit changes and deletions remove
   authors left uncredited and without notes (IMP-003). `save` turns a constraint failure into a
   sentence for the owner.
 - **MainWindow** — a toolbar (Add a book, Ctrl+N), the splitter. While the

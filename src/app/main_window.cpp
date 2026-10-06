@@ -15,6 +15,8 @@
 #include <QStatusBar>
 #include <QToolBar>
 
+#include <algorithm>
+
 namespace pinax::app {
 
 namespace {
@@ -49,6 +51,8 @@ MainWindow::MainWindow(QWidget* parent)
     connect(seriesPage_->table(), &ui::SeriesTable::toggleReadRequested, this, &MainWindow::toggleRead);
     connect(seriesPage_->table(), &ui::SeriesTable::ratingRequested, this, &MainWindow::rate);
     connect(seriesPage_->table(), &ui::SeriesTable::deleteRequested, this, &MainWindow::askToDelete);
+    connect(seriesPage_, &ui::SeriesPage::addEntryRequested, this, &MainWindow::addEntry);
+    connect(seriesPage_, &ui::SeriesPage::editEntryRequested, this, &MainWindow::editEntry);
     detail_->setObjectName(QStringLiteral("detail"));
 
     connect(list_, &ui::BookListView::selectionChangedTo, this, &MainWindow::showSelection);
@@ -61,7 +65,16 @@ MainWindow::MainWindow(QWidget* parent)
     connect(list_, &ui::BookListView::deleteRequested, this, &MainWindow::askToDelete);
     connect(detail_, &ui::DetailPanel::deleteRequested, this, &MainWindow::askToDelete);
     connect(detail_, &ui::DetailPanel::deleteConfirmed, this, &MainWindow::deleteBooks);
-    connect(detail_, &ui::DetailPanel::deleteCancelled, this, &MainWindow::refreshPanel);
+    connect(detail_, &ui::DetailPanel::dismissed, this, [this] {
+        pendingAttach_.reset();
+        refreshPanel();
+    });
+    connect(detail_, &ui::DetailPanel::editEntryRequested, this, &MainWindow::editEntry);
+    connect(detail_, &ui::DetailPanel::entrySaveRequested, this, &MainWindow::saveEntry);
+    connect(detail_, &ui::DetailPanel::entryRemoveRequested, this, &MainWindow::askToRemoveEntry);
+    connect(detail_, &ui::DetailPanel::markOwnedRequested, this, &MainWindow::beginMarkOwned);
+    connect(detail_, &ui::DetailPanel::attachRequested, this, &MainWindow::attachBook);
+    connect(detail_, &ui::DetailPanel::createForEntryRequested, this, &MainWindow::createForEntry);
 
     auto* toolbar = addToolBar(tr("Catalogue"));
     toolbar->setObjectName(QStringLiteral("toolbar"));
@@ -97,7 +110,7 @@ void MainWindow::lockWhileBusy()
     seriesPage_->setEnabled(!busy);
     rail_->setEnabled(!busy);
     addBook_->setEnabled(!busy);
-    if (detail_->state() == ui::DetailPanel::State::Editing)
+    if (detail_->isEditing())
         statusBar()->showMessage(tr("Editing — Ctrl+Enter saves, Esc cancels"));
     else if (detail_->state() == ui::DetailPanel::State::ConfirmingDelete)
         statusBar()->showMessage(tr("Delete or keep? Esc keeps"));
@@ -161,9 +174,14 @@ void MainWindow::showSeriesSelection(const QList<qint64>& bookIds, int missing)
     if (!catalogue_ || !showingSeries())
         return;
     if (bookIds.isEmpty()) {
-        // Nothing owned selected: the panel describes the series itself.
+        // Nothing owned selected: the panel describes the series itself, with
+        // a card for the one missing volume selected, if that is what it is.
+        const auto entries = seriesPage_->selectedEntries();
+        std::optional<domain::SeriesRow> selected;
+        if (entries.size() == 1)
+            selected = entries.front();
         if (const auto detail = catalogue_->seriesDetail(seriesPage_->seriesId()))
-            detail_->showSeries(*detail);
+            detail_->showSeries(*detail, selected);
         return;
     }
     if (bookIds.size() == 1 && missing == 0) {
@@ -183,14 +201,149 @@ void MainWindow::showSeriesPage(std::int64_t seriesId)
 
 void MainWindow::refreshPanel()
 {
-    // Never redraw over a form in progress. A pending delete question is
-    // redrawn: that is how Keep returns to what was shown.
-    if (detail_->state() == ui::DetailPanel::State::Editing)
+    // Never redraw over a form in progress. A pending question is redrawn:
+    // that is how Keep returns to what was shown.
+    if (detail_->isEditing())
         return;
     if (showingSeries())
         showSeriesSelection(seriesPage_->selectedBooks(), seriesPage_->table()->selectedMissing());
     else
         showSelection(list_->selectedBooks());
+}
+
+void MainWindow::addEntry()
+{
+    if (!catalogue_ || !showingSeries())
+        return;
+    domain::SeriesEntry entry;
+    entry.seriesId = seriesPage_->seriesId();
+    entry.sortPosition = catalogue_->nextSortPosition(entry.seriesId);
+    detail_->beginEntryEdit(entry,
+        QString::fromStdString(catalogue_->seriesName(entry.seriesId).value_or("")), QString());
+}
+
+void MainWindow::editEntry(qint64 entryId)
+{
+    if (!catalogue_)
+        return;
+    const auto entry = catalogue_->entry(entryId);
+    if (!entry)
+        return;
+    QString ownedBy;
+    if (entry->bookId)
+        ownedBy = titleOf(*entry->bookId);
+    detail_->beginEntryEdit(*entry,
+        QString::fromStdString(catalogue_->seriesName(entry->seriesId).value_or("")), ownedBy);
+}
+
+void MainWindow::saveEntry(const domain::SeriesEntry& entry)
+{
+    if (!catalogue_)
+        return;
+    if (const auto problem = catalogue_->saveEntry(entry)) {
+        detail_->showEntryError(QString::fromStdString(*problem));
+        return;
+    }
+    detail_->showNothing();
+    afterSeriesChange();
+    statusBar()->showMessage(entry.id == 0 ? tr("Volume added") : tr("Volume saved"), 4000);
+}
+
+void MainWindow::askToRemoveEntry(qint64 entryId)
+{
+    if (!catalogue_)
+        return;
+    const auto entry = catalogue_->entry(entryId);
+    if (!entry)
+        return;
+    const QString series = QString::fromStdString(catalogue_->seriesName(entry->seriesId).value_or(""));
+    QString name = entry->title ? QString::fromStdString(*entry->title)
+                                : tr("volume %1").arg(QString::fromStdString(entry->position.value_or("?")));
+    QString question;
+    if (entry->bookId) {
+        name = titleOf(*entry->bookId);
+        question = tr("Take “%1” out of %2?").arg(name, series) + QStringLiteral("\n\n")
+            + tr("The book stays in the catalogue; the series will no longer count it.");
+    } else {
+        question = tr("Remove “%1” from %2?").arg(name, series) + QStringLiteral("\n\n")
+            + tr("The series will no longer count it as missing.");
+    }
+    detail_->askToConfirm(question, tr("Remove"), [this, entryId, name] {
+        if (const auto problem = catalogue_->removeEntry(entryId)) {
+            statusBar()->showMessage(QString::fromStdString(*problem));
+            refreshPanel();
+            return;
+        }
+        detail_->showNothing();
+        afterSeriesChange();
+        statusBar()->showMessage(tr("Removed “%1” from the series").arg(name), 4000);
+    });
+}
+
+void MainWindow::beginMarkOwned(qint64 entryId)
+{
+    if (!catalogue_ || !showingSeries())
+        return;
+    const auto rows = catalogue_->seriesRows(seriesPage_->seriesId());
+    const auto volume = std::find_if(rows.begin(), rows.end(),
+        [entryId](const domain::SeriesRow& row) { return row.entryId == entryId; });
+    if (volume == rows.end() || volume->owned())
+        return;
+
+    // Any book not already in this series may take the volume.
+    std::vector<domain::BookSummary> candidates;
+    for (auto& book : catalogue_->summaries()) {
+        const bool inSeries = std::any_of(rows.begin(), rows.end(),
+            [&](const domain::SeriesRow& row) { return row.bookId == book.id; });
+        if (!inSeries)
+            candidates.push_back(std::move(book));
+    }
+    detail_->beginAttach(*volume,
+        QString::fromStdString(catalogue_->seriesName(seriesPage_->seriesId()).value_or("")), candidates);
+}
+
+void MainWindow::attachBook(qint64 entryId, qint64 bookId)
+{
+    if (!catalogue_)
+        return;
+    if (const auto problem = catalogue_->attach(entryId, bookId)) {
+        statusBar()->showMessage(QString::fromStdString(*problem));
+        return;
+    }
+    detail_->showNothing();
+    afterSeriesChange(bookId);
+    statusBar()->showMessage(tr("“%1” now owned").arg(titleOf(bookId)), 4000);
+}
+
+void MainWindow::createForEntry(qint64 entryId)
+{
+    if (!catalogue_)
+        return;
+    const auto entry = catalogue_->entry(entryId);
+    if (!entry || entry->bookId)
+        return;
+    // The form starts with what the series already knows: the volume's title
+    // (unless it is a placeholder) and the authors its other volumes carry.
+    domain::BookDetail prefill;
+    if (entry->title && entry->title->rfind("Unidentified", 0) != 0
+        && entry->title->rfind("Later volumes", 0) != 0)
+        prefill.book.title = *entry->title;
+    prefill.credits = catalogue_->seriesCredits(entry->seriesId);
+    pendingAttach_ = entryId;
+    detail_->beginNew(prefill);
+}
+
+void MainWindow::afterSeriesChange(std::optional<qint64> selectBook)
+{
+    list_->setBooks(catalogue_->summaries());
+    refreshRail();
+    if (showingSeries()) {
+        showSeriesPage(seriesPage_->seriesId());
+        if (selectBook)
+            seriesPage_->selectBook(*selectBook);
+        seriesPage_->table()->setFocus();
+    }
+    refreshPanel();
 }
 
 void MainWindow::showSelection(const QList<qint64>& ids)
@@ -213,13 +366,23 @@ void MainWindow::saveBook(const domain::BookEdit& edit)
 {
     if (!catalogue_)
         return;
-    const auto result = catalogue_->save(edit);
+    const auto attachTo = edit.book.id == 0 ? pendingAttach_ : std::nullopt;
+    const auto result = catalogue_->save(edit, attachTo);
     if (result.problem) {
         detail_->showSaveError(QString::fromStdString(*result.problem));
         return;
     }
 
     const QString title = QString::fromStdString(edit.book.title);
+    if (attachTo) {
+        // Added for a missing volume: it takes the waiting entry (AV-007), and
+        // the owner stays on the series' page.
+        pendingAttach_.reset();
+        detail_->showNothing();
+        afterSeriesChange(result.id);
+        statusBar()->showMessage(tr("Added “%1”, now owned").arg(title), 4000);
+        return;
+    }
     refreshRail();
     if (edit.book.id == 0) {
         // A new row: back to every book, since a filter chosen before it

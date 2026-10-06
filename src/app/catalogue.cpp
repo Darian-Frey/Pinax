@@ -9,6 +9,7 @@
 #include "domain/sort_title.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cctype>
 #include <filesystem>
 #include <map>
@@ -201,7 +202,7 @@ std::string describe(const db::DbError& error, const domain::Book& book)
 
 } // namespace
 
-Catalogue::SaveResult Catalogue::save(const domain::BookEdit& edit)
+Catalogue::SaveResult Catalogue::save(const domain::BookEdit& edit, std::optional<std::int64_t> attachTo)
 {
     db::BookRepository books(connection_);
     db::AuthorRepository authors(connection_);
@@ -231,11 +232,109 @@ Catalogue::SaveResult Catalogue::save(const domain::BookEdit& edit)
             authors.removeUncredited();
         }
 
+        if (attachTo) {
+            db::SeriesRepository series(connection_);
+            auto entry = series.findEntry(*attachTo);
+            if (!entry)
+                return {0, "That volume is no longer in the series."};
+            if (entry->bookId)
+                return {0, "That volume is already owned."};
+            entry->bookId = book.id;
+            series.updateEntry(*entry);
+        }
+
         transaction.commit();
     } catch (const db::DbError& error) {
         return {0, describe(error, book)};
     }
     return {book.id, std::nullopt};
+}
+
+std::optional<domain::SeriesEntry> Catalogue::entry(std::int64_t entryId)
+{
+    return db::SeriesRepository(connection_).findEntry(entryId);
+}
+
+std::optional<std::string> Catalogue::seriesName(std::int64_t seriesId)
+{
+    return db::SeriesRepository(connection_).name(seriesId);
+}
+
+double Catalogue::nextSortPosition(std::int64_t seriesId)
+{
+    const auto last = db::SeriesRepository(connection_).lastSortPosition(seriesId);
+    return last ? std::floor(*last) + 1 : 1;
+}
+
+std::optional<std::string> Catalogue::saveEntry(const domain::SeriesEntry& entry)
+{
+    if (!entry.position && !entry.title)
+        return "A volume needs a position or a title.";
+    try {
+        db::SeriesRepository series(connection_);
+        if (entry.id == 0)
+            series.addEntry(entry);
+        else if (!series.updateEntry(entry))
+            return "That volume is no longer in the series.";
+    } catch (const db::DbError& error) {
+        return std::string("The volume was not saved: ") + error.what();
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> Catalogue::removeEntry(std::int64_t entryId)
+{
+    try {
+        if (!db::SeriesRepository(connection_).removeEntry(entryId))
+            return "That volume is no longer in the series.";
+    } catch (const db::DbError& error) {
+        return std::string("The volume was not removed: ") + error.what();
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> Catalogue::attach(std::int64_t entryId, std::int64_t bookId)
+{
+    try {
+        db::SeriesRepository series(connection_);
+        auto entry = series.findEntry(entryId);
+        if (!entry)
+            return "That volume is no longer in the series.";
+        if (entry->bookId)
+            return "That volume is already owned.";
+        if (series.entryForBook(entry->seriesId, bookId))
+            return "That book is already in this series.";
+        entry->bookId = bookId;
+        series.updateEntry(*entry);
+    } catch (const db::DbError& error) {
+        return std::string("The volume was not marked as owned: ") + error.what();
+    }
+    return std::nullopt;
+}
+
+std::vector<domain::NamedCredit> Catalogue::seriesCredits(std::int64_t seriesId)
+{
+    db::BookRepository books(connection_);
+    std::map<std::string, std::pair<int, std::int64_t>> byAuthors; // authors -> (count, a book)
+    for (const std::int64_t id : db::SeriesRepository(connection_).bookIds(seriesId)) {
+        const auto summary = books.summary(id);
+        if (!summary || !summary->authors)
+            continue;
+        auto& [count, book] = byAuthors[*summary->authors];
+        ++count;
+        book = id;
+    }
+    if (byAuthors.empty())
+        return {};
+    const auto best = std::max_element(byAuthors.begin(), byAuthors.end(),
+        [](const auto& a, const auto& b) { return a.second.first < b.second.first; });
+    std::vector<domain::NamedCredit> credits;
+    db::AuthorRepository authors(connection_);
+    for (const domain::Credit& credit : books.credits(best->second.second)) {
+        if (const auto author = authors.find(credit.authorId))
+            credits.push_back({author->name, credit.role});
+    }
+    return credits;
 }
 
 std::optional<std::string> Catalogue::remove(const std::vector<std::int64_t>& ids)

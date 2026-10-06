@@ -277,6 +277,42 @@ std::vector<std::int64_t> SeriesRepository::bookIds(std::int64_t seriesId)
     return result;
 }
 
+std::optional<SeriesEntry> SeriesRepository::findEntry(std::int64_t entryId)
+{
+    Statement select(connection_,
+        "SELECT " + std::string(entryColumns) + " FROM series_entry WHERE id = :id");
+    select.bind(":id", entryId);
+    if (!select.step())
+        return std::nullopt;
+    return readEntry(select);
+}
+
+std::optional<std::string> SeriesRepository::name(std::int64_t seriesId)
+{
+    Statement select(connection_, "SELECT name FROM series WHERE id = :id");
+    select.bind(":id", seriesId);
+    if (!select.step())
+        return std::nullopt;
+    return select.columnText(0);
+}
+
+std::optional<double> SeriesRepository::lastSortPosition(std::int64_t seriesId)
+{
+    Statement select(connection_,
+        "SELECT MAX(sort_position) FROM series_entry WHERE series_id = :series_id");
+    select.bind(":series_id", seriesId);
+    select.step();
+    return select.columnOptionalDouble(0);
+}
+
+bool SeriesRepository::removeEntry(std::int64_t entryId)
+{
+    Statement remove(connection_, "DELETE FROM series_entry WHERE id = :id");
+    remove.bind(":id", entryId);
+    remove.step();
+    return sqlite3_changes(connection_.handle()) == 1;
+}
+
 std::int64_t SeriesRepository::addEntry(const SeriesEntry& entry)
 {
     Statement insert(connection_, R"(
