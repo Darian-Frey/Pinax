@@ -108,9 +108,19 @@ public:
     // its owned volume whose authors are most frequent there.
     std::vector<domain::NamedCredit> seriesCredits(std::int64_t seriesId);
 
+    // The folder holding the database, where covers are kept beside it
+    // (SPEC.md §4); nullopt for an in-memory catalogue.
+    std::optional<std::string> dataDirectory() const;
+
+    // Records a book's cover: its path relative to the data directory and
+    // where it came from (F-013, F-015). A cover set by hand is never
+    // replaced by a fetched one (AV-001). Returns nothing on success, or why.
+    std::optional<std::string> setCover(std::int64_t bookId, const std::string& relativePath, domain::Source source);
+
     // Deletes the books in one transaction (F-001). Credits and genre links
     // go with them; series entries stay as missing volumes; authors left
-    // uncredited, and without notes, go too (IMP-003). Returns nothing on
+    // uncredited, and without notes, go too (IMP-003); so do their cover
+    // files, since a later book may be given the same id. Returns nothing on
     // success, or a message.
     std::optional<std::string> remove(const std::vector<std::int64_t>& ids);
 

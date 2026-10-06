@@ -1,3 +1,4 @@
+#include "metadata/cover_cache.h"
 #include "metadata/google_books.h"
 #include "metadata/http.h"
 #include "metadata/open_library.h"
@@ -6,6 +7,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
 
@@ -98,6 +100,13 @@ private slots:
     // Google Books (D-019)
     void googleVolumesParse();
     void googleWithoutAKeySendsNothing();
+
+    // Cover cache (F-013)
+    void aCoverIsDownloadedOnceAndKept();
+    void openLibraryIsAskedForAPlain404();
+    void aMissingCoverIsReportedNotWritten();
+    void anythingButAnImageIsRefused();
+    void forgettingRemovesTheFile();
 };
 
 void TestMetadata::booksApiReadsTheEdition()
@@ -309,6 +318,116 @@ void TestMetadata::googleWithoutAKeySendsNothing()
 
     GoogleBooksClient keyed(queue, QStringLiteral("test-key"));
     QVERIFY(keyed.isbnUrl("9780316005388").toString().contains(QStringLiteral("q=isbn:9780316005388&key=test-key")));
+}
+
+namespace {
+
+// Synthetic images: the right signature, padded past the placeholder size.
+// No real cover art is kept in the repository.
+QByteArray jpeg(int size = 4096)
+{
+    QByteArray body("\xFF\xD8\xFF\xE0", 4);
+    body.append(QByteArray(size - body.size(), 'j'));
+    return body;
+}
+
+QByteArray png(int size = 4096)
+{
+    QByteArray body("\x89PNG\r\n\x1A\n", 8);
+    body.append(QByteArray(size - body.size(), 'p'));
+    return body;
+}
+
+const QUrl coverUrl(QStringLiteral("https://covers.openlibrary.org/b/id/1009644-L.jpg"));
+
+} // namespace
+
+void TestMetadata::aCoverIsDownloadedOnceAndKept()
+{
+    QTemporaryDir dir;
+    FakeFetcher fetcher;
+    RequestQueue queue(fetcher, fast());
+    CoverCache cache(queue, dir.path());
+    fetcher.script(CoverCache::politeUrl(coverUrl), {ok(jpeg())});
+
+    std::optional<CoverResult> first;
+    cache.fetch(12, coverUrl, [&](CoverResult r) { first = r; });
+    QTRY_VERIFY(first);
+    QVERIFY2(!first->error, first->error.value_or("").c_str());
+    QCOMPARE(first->relativePath, std::optional<std::string>("covers/12.jpg"));
+    QVERIFY(first->downloaded);
+    QVERIFY(QFile::exists(dir.filePath(QStringLiteral("covers/12.jpg"))));
+
+    // Asked again: from disk, not the network (F-013).
+    std::optional<CoverResult> second;
+    cache.fetch(12, coverUrl, [&](CoverResult r) { second = r; });
+    QVERIFY(second);
+    QVERIFY(!second->downloaded);
+    QCOMPARE(fetcher.requested.size(), std::size_t(1));
+    QCOMPARE(cache.cached(12), std::optional<std::string>("covers/12.jpg"));
+
+    // A PNG keeps its own extension.
+    fetcher.script(CoverCache::politeUrl(QUrl(QStringLiteral("https://covers.openlibrary.org/b/id/2-L.jpg"))), {ok(png())});
+    std::optional<CoverResult> third;
+    cache.fetch(13, QUrl(QStringLiteral("https://covers.openlibrary.org/b/id/2-L.jpg")), [&](CoverResult r) { third = r; });
+    QTRY_VERIFY(third);
+    QCOMPARE(third->relativePath, std::optional<std::string>("covers/13.png"));
+}
+
+void TestMetadata::openLibraryIsAskedForAPlain404()
+{
+    QCOMPARE(CoverCache::politeUrl(coverUrl).toString(),
+        QStringLiteral("https://covers.openlibrary.org/b/id/1009644-L.jpg?default=false"));
+    const QUrl google(QStringLiteral("https://books.google.com/books/content?id=x&img=1"));
+    QCOMPARE(CoverCache::politeUrl(google), google);
+}
+
+void TestMetadata::aMissingCoverIsReportedNotWritten()
+{
+    QTemporaryDir dir;
+    FakeFetcher fetcher; // unscripted: 404
+    RequestQueue queue(fetcher, fast());
+    CoverCache cache(queue, dir.path());
+
+    std::optional<CoverResult> result;
+    cache.fetch(7, coverUrl, [&](CoverResult r) { result = r; });
+    QTRY_VERIFY(result);
+    QCOMPARE(result->error, std::optional<std::string>("no cover"));
+    QVERIFY(!result->relativePath);
+    QVERIFY(!cache.cached(7));
+}
+
+void TestMetadata::anythingButAnImageIsRefused()
+{
+    QCOMPARE(CoverCache::imageType(jpeg()), std::optional<QString>(QStringLiteral("jpg")));
+    QVERIFY(!CoverCache::imageType(jpeg(43)));                        // a 1×1 placeholder
+    QVERIFY(!CoverCache::imageType(QByteArray(4096, '<')));           // an HTML error page
+
+    QTemporaryDir dir;
+    FakeFetcher fetcher;
+    RequestQueue queue(fetcher, fast());
+    CoverCache cache(queue, dir.path());
+    fetcher.script(CoverCache::politeUrl(coverUrl), {ok(QByteArray(4096, '<'))});
+    std::optional<CoverResult> result;
+    cache.fetch(8, coverUrl, [&](CoverResult r) { result = r; });
+    QTRY_VERIFY(result);
+    QVERIFY(result->error);
+    QVERIFY(!cache.cached(8));
+}
+
+void TestMetadata::forgettingRemovesTheFile()
+{
+    QTemporaryDir dir;
+    FakeFetcher fetcher;
+    RequestQueue queue(fetcher, fast());
+    CoverCache cache(queue, dir.path());
+    fetcher.script(CoverCache::politeUrl(coverUrl), {ok(jpeg())});
+    std::optional<CoverResult> result;
+    cache.fetch(12, coverUrl, [&](CoverResult r) { result = r; });
+    QTRY_VERIFY(result);
+
+    cache.forget(12);
+    QVERIFY(!cache.cached(12));
 }
 
 QTEST_MAIN(TestMetadata)

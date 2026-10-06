@@ -21,9 +21,12 @@ over a value the owner typed. The provider is wrong more often than the owner
 is, and the overwritten value is unrecoverable — edition and condition notes in
 particular hold facts no provider knows (a 1961 first English edition, a
 misprinted spine).
-**Detection.** Not implemented (would require a test asserting that a field
-with `source = 'manual'` is unchanged after an enrichment pass over the same
-book).
+**Detection.** Partly implemented, 2026-10-06. `tests/test_catalogue.cpp`,
+`aHandSetCoverIsNeverReplaced`, asserts that a cover whose source is `manual`
+survives `Catalogue::setCover` with a fetched one; `tests/test_detail_panel.cpp`,
+`editedSynopsisIsMarkedManual`, that hand edits are marked. The full test — a
+manual synopsis, publisher and genre unchanged after an enrichment pass over
+the same book — is owed by Phase 3 step 4.
 **Related decisions.** D-008, D-009.
 **History.** Identified during schema design, 2026-10-04. The per-field
 provenance columns exist for this reason.

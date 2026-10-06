@@ -24,10 +24,10 @@ database and exports to SQL, CSV and Excel.
 | `db/schema.sql`, `db/migrations/` | Version 4. `schema.sql` is the latest full schema; `002_book_display_sort_keys.sql`, `003_book_display_editors.sql` and `004_missing_entries_entry_id.sql` carry older files forward. The last step's `CREATE VIEW` must stay byte-identical to `schema.sql`'s — `migratingVersion1MatchesFreshSchema` fails otherwise. |
 | `src/domain/` | Value types (`Book`, `BookSummary`, `BookDetail`, `BookEdit`, `BookFilter`, `Author`, `Credit`, `SeriesEntry`, `SeriesMembership`, `SeriesStatus`), enums with schema strings, `makeSortTitle`, `makeSortName`, ISBN check digits, `parseCredits`/`formatCredits`, `isPlaceholderTitle`. No Qt, no SQL. |
 | `src/db/` | SQLite C API, no Qt (D-015). `Connection` (FK on + verified, WAL), `Statement` (named binds), `Transaction` (RAII), `Savepoint`, `migrate()` with schema and migrations compiled in, and `BookRepository`, `AuthorRepository`, `SeriesRepository`. Errors throw `DbError` with the extended result code; `isConstraintViolation()` tells the data's fault from the database's. |
-| `src/metadata/` | Qt Network (D-020). `Fetcher`/`NetworkFetcher` (the one network seam), `RequestQueue` (spacing, pause on 429/503, retries), `OpenLibraryClient` and `GoogleBooksClient` (key only, D-019) with pure `openlibrary::`/`googlebooks::` parsers. Not yet wired into the application. |
+| `src/metadata/` | Qt Network (D-020). `Fetcher`/`NetworkFetcher` (the one network seam), `RequestQueue` (spacing, pause on 429/503, retries), `CoverCache` (covers beside the database), `OpenLibraryClient` and `GoogleBooksClient` (key only, D-019) with pure `openlibrary::`/`googlebooks::` parsers. Not yet wired into the application. |
 | `src/io/` | Qt-free. `parseCsv` (RFC 4180), `CsvImporter` (SPEC.md §1) and `SeriesImporter` (§1.6), sharing `import_support.h`: one transaction, savepoint per row, failures by line, `deriveSortPosition` (the only code that parses `position`). |
 | `src/ui/` | `BookListModel`, `BookSortProxy` (view keys; missing values last; author then series), `BookListView` (opens sorted by author; emits `selectionChangedTo`). `RailView` (LIBRARY, SERIES and NEEDS ATTENTION sections; emits `BookFilter`). `MissingPage` (the shopping list over `MissingModel`) is the third view in the middle stack. `SeriesPage` (heading, show-missing toggle, `SeriesTable` over `SeriesEntryModel`) replaces the book list in the middle stack while a series is chosen. `SeriesView` is the panel's description of a series, with a card for a selected missing volume. `EntryEditor` and `AttachView` are the panel's forms for an entry and for Mark as owned. `list_keys.h` holds the single-key actions both lists share. `BookListView::showOnly` narrows to a set of ids. `DetailPanel` stacks Empty / Viewing (`BookView`) / Editing (`BookEditor`) / Several / ConfirmingDelete (generic `askToConfirm`) / ViewingSeries (`SeriesView`) / EditingEntry (`EntryEditor`) / Attaching (`AttachView`). `RatingBar`, `style.h` (accent, muted, section headings). Links `domain`, not `db`. |
-| `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save(Book)`, `save(BookEdit)` which creates at id 0 and resolves credits, `remove`, `toggleRead`, `setRating`). Also `countWithReadStatus`, `seriesStatuses` (filed as titles), `bookIds(BookFilter)`, `seriesRows`, `seriesDetail`, `entry`, `saveEntry`, `removeEntry`, `attach`, `seriesCredits`, `nextSortPosition`; `save(BookEdit, attachTo)` for Mark as owned; `missingVolumes`, `libraryTotals`. Toolbar: Add a book. `MainWindow`: splitter of `rail`, `list`, `detail`; rail choice → Catalogue ids → list; selection → panel; panel save → Catalogue → row and rail refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import` and `--import-series`, shows the count. |
+| `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save(Book)`, `save(BookEdit)` which creates at id 0 and resolves credits, `remove`, `toggleRead`, `setRating`). Also `countWithReadStatus`, `seriesStatuses` (filed as titles), `bookIds(BookFilter)`, `seriesRows`, `seriesDetail`, `entry`, `saveEntry`, `removeEntry`, `attach`, `seriesCredits`, `nextSortPosition`; `save(BookEdit, attachTo)` for Mark as owned; `missingVolumes`, `libraryTotals`; `dataDirectory`, `setCover` (never over a manual cover). Toolbar: Add a book. `MainWindow`: splitter of `rail`, `list`, `detail`; rail choice → Catalogue ids → list; selection → panel; panel save → Catalogue → row and rail refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import` and `--import-series`, shows the count. |
 | `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_rail`, `test_series_page`, `test_entry_editor`, `test_import` and `test_series_import` (their seed tests skip without `seed/`), `test_metadata` (recorded responses only; see `tests/fixtures/README.md`), `test_detail_panel`, `test_catalogue`. Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
 | `FEATURES.md` | Complete. F-001 to F-025. F-001, F-002, F-003, F-005, F-006, F-007, F-008, F-009, F-010 Complete; F-004, F-011, F-016, F-017 In progress; the rest Not started. |
@@ -74,8 +74,10 @@ Suggested order:
    Google needs a key (D-019, SPEC.md §3). A title-and-author match is never accepted
    without confirmation (AV-010) — and none of the 443 seeded books has an
    ISBN, so this path is the one the backlog takes.
-3. **Open Library fallback** for covers and older titles (§3.2), and the
-   **cover cache** beside the database (§4).
+3. ~~**Open Library fallback** for covers and older titles (§3.2), and the
+   **cover cache** beside the database (§4).~~ Done 2026-10-06: `CoverCache`
+   and `Catalogue::setCover`. Nothing fetches covers until step 4–5 matches
+   books to providers; the panel already shows a cached one.
 4. **Per-field provenance on write** (F-015) and the carried F-004 / AV-001
    rule: a field whose source is `manual` is never overwritten. Its test is
    the first AV-001 detection. `GenreRepository` arrives here, carried from
@@ -220,6 +222,9 @@ Not vectors, but worth knowing:
 - **`v_book_display.authors` is not an author list.** Where a book has no
   author it shows the editors, "(ed.)" and all (IMP-004). Count or filter
   authors from role 'author' rows in `book_author`.
+- **A deleted book's id can come back.** SQLite reuses the highest rowid
+  once that row is gone, so anything kept outside the database under a book
+  id — covers today — must be deleted with the book (`Catalogue::remove`).
 - **Tests never touch the network.** Provider behaviour is pinned by recorded
   responses in `tests/fixtures/` (their origins in that folder's README);
   record new ones by hand with `curl`, keeping titles already public in the

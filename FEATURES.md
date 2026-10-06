@@ -204,7 +204,10 @@ title-and-author match is never auto-accepted).
   path, not image data.
 - A book with no cover found displays a placeholder rather than failing.
 - Re-running enrichment does not re-download a cover already cached.
-**Status:** Not started
+**Status:** In progress — the cover cache downloads once, refuses anything
+but a real image, keeps covers beside the database and removes them with
+their book; the panel shows a cached cover or the placeholder. Covers arrive
+when enrichment matches books to providers (Phase 3 steps 4–5).
 **Notes:** From Open Library by cover id; Google as a second source with a key
 (D-019). Cache layout in SPEC.md §4.
 

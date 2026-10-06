@@ -1,4 +1,7 @@
 #include "app/catalogue.h"
+
+#include <QDir>
+#include <memory>
 #include "db/db_error.h"
 #include "db/statement.h"
 #include "domain/credit_text.h"
@@ -19,7 +22,9 @@
 #include "ui/missing_page.h"
 
 #include <QAction>
+#include <QImage>
 #include <QLabel>
+#include <QTemporaryDir>
 #include <QStatusBar>
 #include <QToolButton>
 #include <QLineEdit>
@@ -117,6 +122,11 @@ private slots:
     // Phase 2 step 5: the shopping list
     void missingVolumesRunFewestNeededFirst();
     void theShoppingListActsInPlace();
+    // Phase 3 step 3: covers
+    void aCoverIsRecordedWithItsSource();
+    void aHandSetCoverIsNeverReplaced();
+    void deletingABookTakesItsCoverFile();
+    void thePanelShowsTheCoverFile();
 };
 
 void TestCatalogue::detailCarriesSeriesCompleteness()
@@ -1145,6 +1155,88 @@ void TestCatalogue::theShoppingListActsInPlace()
     emit window.missingPage()->table()->activated(window.missingPage()->missingModel()->index(0, 0));
     QVERIFY(window.showingSeries());
     QCOMPARE(window.rail()->currentFilter().seriesId, seriesId(catalogue, "The Culture"));
+}
+
+namespace {
+
+// A catalogue in a temporary folder, so covers have somewhere to live, with a
+// small real image written as book 1's cover.
+struct OnDisk {
+    QTemporaryDir dir;
+    std::unique_ptr<Catalogue> catalogue;
+    std::int64_t book = 0;
+
+    OnDisk()
+    {
+        catalogue = std::make_unique<Catalogue>(dir.filePath(QStringLiteral("pinax.db")).toStdString());
+        pinax::domain::BookEdit edit;
+        edit.book.title = "Consider Phlebas";
+        book = catalogue->save(edit).id;
+        QDir(dir.path()).mkpath(QStringLiteral("covers"));
+        QImage image(60, 90, QImage::Format_RGB32);
+        image.fill(QColor(0xD9, 0xA4, 0x41));
+        image.save(dir.filePath(QStringLiteral("covers/%1.png").arg(book)));
+    }
+    QString coverPath() const { return QStringLiteral("covers/%1.png").arg(book); }
+};
+
+} // namespace
+
+void TestCatalogue::aCoverIsRecordedWithItsSource()
+{
+    OnDisk disk;
+    Catalogue& catalogue = *disk.catalogue;
+    QCOMPARE(catalogue.dataDirectory(), std::optional<std::string>(QDir(disk.dir.path()).absolutePath().toStdString()));
+    QVERIFY(!Catalogue(":memory:").dataDirectory());
+
+    QVERIFY(!catalogue.setCover(disk.book, disk.coverPath().toStdString(), pinax::domain::Source::OpenLibrary));
+    const auto detail = catalogue.detail(disk.book);
+    QCOMPARE(detail->book.coverPath, std::optional<std::string>(disk.coverPath().toStdString()));
+    QVERIFY(detail->book.coverSource == pinax::domain::Source::OpenLibrary);
+    QVERIFY(detail->coverFile); // resolved beside the database (SPEC.md §4)
+}
+
+void TestCatalogue::aHandSetCoverIsNeverReplaced()
+{
+    // AV-001.
+    OnDisk disk;
+    Catalogue& catalogue = *disk.catalogue;
+    QVERIFY(!catalogue.setCover(disk.book, "covers/mine.png", pinax::domain::Source::Manual));
+    QCOMPARE(catalogue.setCover(disk.book, disk.coverPath().toStdString(), pinax::domain::Source::OpenLibrary),
+        std::optional<std::string>("The cover was set by hand and is kept."));
+    QCOMPARE(catalogue.detail(disk.book)->book.coverPath, std::optional<std::string>("covers/mine.png"));
+}
+
+void TestCatalogue::deletingABookTakesItsCoverFile()
+{
+    OnDisk disk;
+    Catalogue& catalogue = *disk.catalogue;
+    catalogue.setCover(disk.book, disk.coverPath().toStdString(), pinax::domain::Source::OpenLibrary);
+    QVERIFY(QFile::exists(disk.dir.filePath(disk.coverPath())));
+
+    QVERIFY(!catalogue.remove({disk.book}));
+    QVERIFY(!QFile::exists(disk.dir.filePath(disk.coverPath())));
+}
+
+void TestCatalogue::thePanelShowsTheCoverFile()
+{
+    OnDisk disk;
+    Catalogue& catalogue = *disk.catalogue;
+    catalogue.setCover(disk.book, disk.coverPath().toStdString(), pinax::domain::Source::OpenLibrary);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.bookList()->selectBook(disk.book);
+    const auto* cover = window.detailPanel()->view()->findChild<QLabel*>(QStringLiteral("cover"));
+    QVERIFY(!cover->pixmap().isNull());
+    QVERIFY(cover->text().isEmpty()); // no "NO COVER YET"
+
+    // A cover file gone missing falls back to the placeholder (F-013).
+    QFile::remove(disk.dir.filePath(disk.coverPath()));
+    window.bookList()->clearSelection();
+    window.bookList()->selectBook(disk.book);
+    QVERIFY(cover->pixmap().isNull());
+    QVERIFY(cover->text().contains(QStringLiteral("NO COVER YET")));
 }
 
 QTEST_MAIN(TestCatalogue)

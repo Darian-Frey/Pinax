@@ -107,7 +107,8 @@ everything published reports complete to date.
 - [x] Provider lookups by ISBN and by title/author — 2026-10-06, Open Library
       first and Google Books with a key (D-019, superseding D-008's order)
 - [ ] Covers from Open Library, Google as a second source
-- [ ] On-disk cover cache keyed by book
+- [x] On-disk cover cache keyed by book — 2026-10-06, `CoverCache`;
+      covers are removed with their book
 - [ ] Batch enrichment with progress, cancellation and resumption
 - [ ] Per-field provenance recorded on write
 - [ ] Add-by-ISBN flow: lookup, confirmation card, duplicate and series checks,

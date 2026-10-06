@@ -15,6 +15,13 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- The cover cache (Phase 3 step 3, F-013): `CoverCache` downloads a cover
+  through the polite queue into `covers/<book id>.jpg|png` beside the
+  database, once, refusing placeholders and error pages and writing
+  atomically; Open Library is always asked for a plain 404 over a blank
+  image. `Catalogue::setCover` records where a cover came from and never
+  replaces one set by hand (AV-001); deleting a book deletes its cover, since
+  its id may be given to a later book.
 - The `metadata` module (Phase 3 steps 1–2, D-020): a `Fetcher` over Qt
   Network, a polite `RequestQueue` per provider that spaces requests and
   pauses on 429 or 503 (AV-009), and clients for Open Library and Google

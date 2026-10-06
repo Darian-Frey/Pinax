@@ -266,13 +266,25 @@ owner.
 <data dir>/covers/<book_id>.<ext>
 ```
 
-`<data dir>` is the directory holding `pinax.db`. `<ext>` follows the response
-content type, `jpg` or `png`. `book.cover_path` stores the path relative to the
-data directory, so moving the pair together keeps the catalogue intact.
+`<data dir>` is the directory holding `pinax.db`. `<ext>` is `jpg` or `png`,
+from the downloaded bytes' signature rather than the URL or content type.
+`book.cover_path` stores the path relative to the data directory, so moving
+the pair together keeps the catalogue intact.
 
-A cover already present on disk is not re-downloaded. Deleting the cache is
-safe: the next enrichment pass refetches, and a book with a missing file
-displays a placeholder rather than failing.
+A download is kept only if it is a JPEG or PNG of at least 1 KiB — a 1×1
+placeholder or an HTML error page is refused — and is written atomically, so
+a failure leaves no partial file. Open Library cover URLs are always requested
+with `default=false`, so a missing cover is a 404 rather than a blank image.
+
+A cover already present on disk is not re-downloaded (F-013). Deleting the
+cache is safe: the next enrichment pass refetches, and a book with a missing
+file displays a placeholder rather than failing.
+
+Deleting a book deletes its cover file. SQLite may give a later book the same
+id, and that book must not inherit someone else's cover.
+
+`book.cover_source` records where the cover came from. A cover whose source is
+`manual` is never replaced by a fetched one (AV-001).
 
 ---
 

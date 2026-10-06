@@ -368,17 +368,57 @@ std::vector<domain::NamedCredit> Catalogue::seriesCredits(std::int64_t seriesId)
     return credits;
 }
 
-std::optional<std::string> Catalogue::remove(const std::vector<std::int64_t>& ids)
+std::optional<std::string> Catalogue::dataDirectory() const
+{
+    if (path_ == ":memory:" || path_.empty())
+        return std::nullopt;
+    return std::filesystem::absolute(std::filesystem::path(path_)).parent_path().string();
+}
+
+std::optional<std::string> Catalogue::setCover(std::int64_t bookId, const std::string& relativePath,
+    domain::Source source)
 {
     try {
         db::BookRepository books(connection_);
+        auto book = books.find(bookId);
+        if (!book)
+            return "This book is no longer in the catalogue.";
+        if (book->coverSource == domain::Source::Manual && source != domain::Source::Manual)
+            return "The cover was set by hand and is kept.";
+        if (book->coverPath == relativePath && book->coverSource == source)
+            return std::nullopt;
+        book->coverPath = relativePath;
+        book->coverSource = source;
+        books.update(*book);
+    } catch (const db::DbError& error) {
+        return std::string("The cover was not recorded: ") + error.what();
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> Catalogue::remove(const std::vector<std::int64_t>& ids)
+{
+    std::vector<std::string> covers;
+    try {
+        db::BookRepository books(connection_);
         db::Transaction transaction(connection_);
-        for (const std::int64_t id : ids)
+        for (const std::int64_t id : ids) {
+            if (const auto book = books.find(id); book && book->coverPath)
+                covers.push_back(*book->coverPath);
             books.remove(id);
+        }
         db::AuthorRepository(connection_).removeUncredited();
         transaction.commit();
     } catch (const db::DbError& error) {
         return std::string("Nothing was deleted: ") + error.what();
+    }
+    // Only once the rows are gone: a cover outliving its book would be handed
+    // to the next book given the same id.
+    if (const auto directory = dataDirectory()) {
+        for (const auto& cover : covers) {
+            std::error_code ignored;
+            std::filesystem::remove(std::filesystem::path(*directory) / cover, ignored);
+        }
     }
     return std::nullopt;
 }

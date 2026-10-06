@@ -79,8 +79,10 @@ results are returned to the caller, which persists them through `db`.
   `domain::Candidate` through pure parsing functions.
 - **Request queue** — one per provider: serialises requests, spaces them, and
   pauses and retries on 429 or 503 rather than failing (AV-009).
-- **Cover cache** — downloads an image once, writes it under `covers/`, returns
-  the relative path. The database stores that path, never the image.
+- **Cover cache** — `CoverCache` downloads a cover once, through the
+  provider's queue, checks the bytes are a real image, writes it atomically
+  under `covers/` and returns the relative path; `forget` deletes a book's
+  file. The database stores that path, never the image.
 
 ### `io`
 Everything that crosses the application boundary as a file or a device.
