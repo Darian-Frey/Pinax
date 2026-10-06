@@ -1,5 +1,7 @@
 #include "ui/book_list_model.h"
 
+#include "ui/style.h"
+
 #include <QColor>
 
 #include <utility>
@@ -11,23 +13,9 @@ using domain::ReadStatus;
 
 namespace {
 
-// The mock-up's accent, used for the read mark.
-const QColor accent(0xD9, 0xA4, 0x41);
-
 QString text(const std::optional<std::string>& value)
 {
     return value ? QString::fromStdString(*value) : QString();
-}
-
-QString readMark(ReadStatus status)
-{
-    switch (status) {
-    case ReadStatus::Read: return QStringLiteral("●");
-    case ReadStatus::Reading: return QStringLiteral("◐");
-    case ReadStatus::Abandoned: return QStringLiteral("×");
-    case ReadStatus::Unread: break;
-    }
-    return QStringLiteral("○");
 }
 
 QString readDescription(const BookSummary& book)
@@ -117,7 +105,7 @@ QVariant BookListModel::data(const QModelIndex& index, int role) const
 
     case Qt::ForegroundRole:
         if (index.column() == ReadColumn && row.readStatus == ReadStatus::Read)
-            return accent;
+            return accent();
         break;
 
     case Qt::TextAlignmentRole:

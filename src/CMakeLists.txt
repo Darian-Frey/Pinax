@@ -17,7 +17,9 @@ add_library(pinax_domain STATIC
     domain/isbn.cpp
     domain/isbn.h
     domain/series_entry.h
+    domain/series_detail.h
     domain/series_membership.h
+    domain/series_row.h
     domain/series_status.h
     domain/sort_name.cpp
     domain/sort_name.h
@@ -105,10 +107,18 @@ add_library(pinax_ui STATIC
     ui/book_view.h
     ui/detail_panel.cpp
     ui/detail_panel.h
+    ui/list_keys.cpp
+    ui/list_keys.h
     ui/rail_view.cpp
     ui/rail_view.h
     ui/rating_bar.cpp
     ui/rating_bar.h
+    ui/series_entry_model.cpp
+    ui/series_entry_model.h
+    ui/series_page.cpp
+    ui/series_page.h
+    ui/series_view.cpp
+    ui/series_view.h
     ui/style.cpp
     ui/style.h)
 target_include_directories(pinax_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

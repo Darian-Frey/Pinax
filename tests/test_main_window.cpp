@@ -22,7 +22,7 @@ void TestMainWindow::opensWithThreePanels()
     QVERIFY(splitter != nullptr);
     QCOMPARE(splitter->count(), 3);
     QCOMPARE(splitter->widget(0)->objectName(), QStringLiteral("rail"));
-    QCOMPARE(splitter->widget(1)->objectName(), QStringLiteral("list"));
+    QCOMPARE(splitter->widget(1)->objectName(), QStringLiteral("centre"));
     QCOMPARE(splitter->widget(2)->objectName(), QStringLiteral("detail"));
 }
 

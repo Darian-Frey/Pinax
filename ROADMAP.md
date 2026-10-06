@@ -76,7 +76,9 @@ genre links, and leaves its series entries as missing volumes.
       spreadsheet
 - [x] Series list with held, known and status columns backed by `v_series_status`
       — 2026-10-06, the rail's SERIES section; status in each entry's tooltip
-- [ ] Series detail showing owned and missing entries in position order
+- [x] Series detail showing owned and missing entries in position order —
+      2026-10-06, a series' own page in the middle panel and its description
+      in the detail panel
 - [ ] Entry editor accepting non-numeric positions
 - [ ] Missing-volumes report backed by `v_missing_entries`
 **Acceptance:** A series with every published volume held reports complete;

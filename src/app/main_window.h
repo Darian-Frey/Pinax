@@ -8,12 +8,14 @@
 
 class QAction;
 class QSplitter;
+class QStackedWidget;
 class QWidget;
 
 namespace pinax::ui {
 class BookListView;
 class DetailPanel;
 class RailView;
+class SeriesPage;
 }
 
 namespace pinax::app {
@@ -37,9 +39,20 @@ public:
     ui::BookListView* bookList() const { return list_; }
     ui::DetailPanel* detailPanel() const { return detail_; }
     ui::RailView* rail() const { return rail_; }
+    ui::SeriesPage* seriesPage() const { return seriesPage_; }
+    // True while a series is chosen and the middle panel lists its entries.
+    bool showingSeries() const;
 
 private:
     void showSelection(const QList<qint64>& ids);
+    // The series page's selection: owned books and volumes not owned.
+    void showSeriesSelection(const QList<qint64>& bookIds, int missing);
+    // Shows the series in the middle panel and, unless the panel is busy or
+    // something is selected, in the detail panel too.
+    void showSeriesPage(std::int64_t seriesId);
+    // Redraws the panel for whatever the middle panel has selected, unless a
+    // form is open.
+    void refreshPanel();
     void saveBook(const domain::BookEdit& edit);
     void addBook();
     void askToDelete(const QList<qint64>& ids);
@@ -63,6 +76,8 @@ private:
     QAction* addBook_ = nullptr;
     QSplitter* splitter_;
     ui::RailView* rail_;
+    QStackedWidget* centre_;
+    ui::SeriesPage* seriesPage_;
     ui::BookListView* list_;
     ui::DetailPanel* detail_;
 };

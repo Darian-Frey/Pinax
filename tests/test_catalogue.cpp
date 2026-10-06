@@ -4,12 +4,15 @@
 #include "domain/credit_text.h"
 #include "app/main_window.h"
 #include "io/csv_importer.h"
+#include "io/series_importer.h"
 #include "ui/book_editor.h"
 #include "ui/book_list_model.h"
 #include "ui/book_list_view.h"
 #include "ui/book_view.h"
 #include "ui/detail_panel.h"
 #include "ui/rail_view.h"
+#include "ui/series_entry_model.h"
+#include "ui/series_page.h"
 
 #include <QAction>
 #include <QLabel>
@@ -91,6 +94,12 @@ private slots:
     void railCountsFollowChangesButTheListHoldsStill();
     void railStandsStillWhileEditing();
     void addingABookReturnsToAllBooks();
+    // Phase 2 step 3: a series' own page
+    void seriesRowsRunInSeriesOrder();
+    void seriesDetailNamesAuthorsAndTotals();
+    void aMissingVolumeSelectedShowsTheSeries();
+    void keysInTheSeriesPageReachTheBooks();
+    void deletingFromASeriesLeavesItsGap();
 };
 
 void TestCatalogue::detailCarriesSeriesCompleteness()
@@ -624,12 +633,12 @@ pinax::domain::BookFilter seriesFilter(std::int64_t id)
     return {pinax::domain::BookFilter::Kind::Series, ReadStatus::Unread, id};
 }
 
-QStringList listedTitles(const MainWindow& window)
+QStringList seriesTitles(const MainWindow& window)
 {
     QStringList titles;
-    const auto* model = window.bookList()->model();
+    const auto* model = window.seriesPage()->entryModel();
     for (int row = 0; row < model->rowCount(); ++row)
-        titles << model->index(row, pinax::ui::BookListModel::TitleColumn).data().toString();
+        titles << model->index(row, pinax::ui::SeriesEntryModel::TitleColumn).data().toString();
     return titles;
 }
 
@@ -677,10 +686,13 @@ void TestCatalogue::choosingASeriesNarrowsAndOrdersTheList()
     window.setCatalogue(&catalogue);
     window.rail()->chooseFilter(seriesFilter(seriesId(catalogue, "The Culture")));
 
-    QCOMPARE(listedTitles(window), QStringList({"Consider Phlebas", "Excession", "Surface Detail"}));
-    QVERIFY(window.statusBar()->currentMessage().startsWith(QStringLiteral("The Culture · 3 of 4 shown")));
+    // A series has its own page, in series order.
+    QVERIFY(window.showingSeries());
+    QCOMPARE(seriesTitles(window), QStringList({"Consider Phlebas", "Excession", "Surface Detail"}));
+    QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("The Culture"));
 
     window.rail()->chooseFilter({});
+    QVERIFY(!window.showingSeries());
     QCOMPARE(window.bookList()->shownCount(), 4);
 }
 
@@ -734,17 +746,138 @@ void TestCatalogue::addingABookReturnsToAllBooks()
     MainWindow window;
     window.setCatalogue(&catalogue);
     window.rail()->chooseFilter(seriesFilter(seriesId(catalogue, "The Culture")));
-    QCOMPARE(window.bookList()->shownCount(), 2);
+    QVERIFY(window.showingSeries());
 
     pinax::domain::BookEdit edit;
     edit.book.title = "Ringworld";
     emit window.detailPanel()->saveRequested(edit);
 
     QVERIFY(window.rail()->currentFilter().kind == pinax::domain::BookFilter::Kind::All);
+    QVERIFY(!window.showingSeries());
     QCOMPARE(window.bookList()->shownCount(), 4);
     QCOMPARE(window.bookList()->selectedBooks(), QList<qint64>({idOf(catalogue, "Ringworld")}));
     const QModelIndex library = window.rail()->model()->index(0, 0);
     QCOMPARE(window.rail()->model()->index(0, 1, library).data().toString(), QStringLiteral("4"));
+}
+
+namespace {
+
+// The Culture: 1 missing, 5 and 9 held, a placeholder with no position; and
+// a standalone.
+void seedCulture(Catalogue& catalogue)
+{
+    pinax::io::CsvImporter(catalogue.connection()).importText(
+        "title,authors,series,position,shelf\n"
+        "Surface Detail,Iain M. Banks,The Culture,9,unread\n"
+        "Excession,Iain M. Banks,The Culture,5,read\n"
+        "Tau Zero,Poul Anderson,,,unread\n");
+    pinax::io::SeriesImporter(catalogue.connection()).importText(
+        "series,position,title\n"
+        "The Culture,1,Consider Phlebas\n"
+        "The Culture,,Unidentified volume 1\n");
+}
+
+} // namespace
+
+void TestCatalogue::seriesRowsRunInSeriesOrder()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+
+    const auto rows = catalogue.seriesRows(seriesId(catalogue, "The Culture"));
+    QCOMPARE(rows.size(), std::size_t(4));
+    QCOMPARE(*rows[0].title(), std::string("Consider Phlebas"));
+    QVERIFY(!rows[0].owned());
+    QCOMPARE(*rows[1].title(), std::string("Excession"));
+    QVERIFY(rows[1].readStatus == ReadStatus::Read);
+    QCOMPARE(*rows[2].title(), std::string("Surface Detail"));
+    QCOMPARE(*rows[3].title(), std::string("Unidentified volume 1")); // no position: last
+}
+
+void TestCatalogue::seriesDetailNamesAuthorsAndTotals()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+
+    const auto detail = catalogue.seriesDetail(seriesId(catalogue, "The Culture"));
+    QVERIFY(detail);
+    QCOMPARE(detail->authors, std::optional<std::string>("Iain M. Banks"));
+    QCOMPARE(detail->series.held, 2);
+    QCOMPARE(detail->series.known, 4);
+    QCOMPARE(detail->series.heldRead, 1);
+    QCOMPARE(detail->missing.size(), std::size_t(2));
+    QCOMPARE(detail->library.withGaps, 1);
+    QCOMPARE(detail->library.oneVolumeShort, 0);
+    QCOMPARE(detail->library.volumesNotOwned, 2);
+    QVERIFY(!catalogue.seriesDetail(999));
+}
+
+void TestCatalogue::aMissingVolumeSelectedShowsTheSeries()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.rail()->chooseFilter(seriesFilter(seriesId(catalogue, "The Culture")));
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::ViewingSeries);
+
+    window.seriesPage()->selectBook(idOf(catalogue, "Excession"));
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::Viewing);
+
+    window.seriesPage()->table()->selectRow(0); // Consider Phlebas, not owned
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::ViewingSeries);
+}
+
+void TestCatalogue::keysInTheSeriesPageReachTheBooks()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    window.rail()->chooseFilter(seriesFilter(seriesId(catalogue, "The Culture")));
+    const std::int64_t id = idOf(catalogue, "Surface Detail");
+    window.seriesPage()->selectBook(id);
+
+    QTest::keyClick(window.seriesPage()->table(), Qt::Key_R);
+    QTest::keyClick(window.seriesPage()->table(), Qt::Key_8);
+
+    const auto book = catalogue.detail(id)->book;
+    QVERIFY(book.readStatus == ReadStatus::Read);
+    QCOMPARE(book.rating, std::optional<int>(8));
+    // The page redrew in place, still on the same volume.
+    QVERIFY(window.showingSeries());
+    QCOMPARE(window.seriesPage()->selectedBooks(), QList<qint64>({id}));
+    QCOMPARE(window.seriesPage()->entryModel()->index(2, pinax::ui::SeriesEntryModel::StateColumn)
+                 .data().toString(),
+        QStringLiteral("read"));
+}
+
+void TestCatalogue::deletingFromASeriesLeavesItsGap()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    window.rail()->chooseFilter(seriesFilter(seriesId(catalogue, "The Culture")));
+    window.seriesPage()->selectBook(idOf(catalogue, "Excession"));
+
+    QTest::keyClick(window.seriesPage()->table(), Qt::Key_Delete);
+    QTest::mouseClick(window.detailPanel()->findChild<QPushButton*>(QStringLiteral("confirm.delete")),
+        Qt::LeftButton);
+
+    // Still four entries; Excession's is now a gap at 5 (F-001, D-006).
+    const auto* model = window.seriesPage()->entryModel();
+    QCOMPARE(model->rowCount(), 4);
+    QCOMPARE(model->index(1, pinax::ui::SeriesEntryModel::StateColumn).data().toString(),
+        QStringLiteral("not owned"));
+    QVERIFY(window.detailPanel()->state() == DetailPanel::State::ViewingSeries);
 }
 
 QTEST_MAIN(TestCatalogue)

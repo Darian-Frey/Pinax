@@ -17,6 +17,22 @@ QColor muted(const QWidget* widget)
     return colour;
 }
 
+QString readMark(domain::ReadStatus status)
+{
+    switch (status) {
+    case domain::ReadStatus::Read: return QStringLiteral("●");
+    case domain::ReadStatus::Reading: return QStringLiteral("◐");
+    case domain::ReadStatus::Abandoned: return QStringLiteral("×");
+    case domain::ReadStatus::Unread: break;
+    }
+    return QStringLiteral("○");
+}
+
+QString missingMark()
+{
+    return QStringLiteral("◌");
+}
+
 QLabel* makeSectionHeading(const QString& text, QWidget* parent)
 {
     auto* label = new QLabel(text.toUpper(), parent);

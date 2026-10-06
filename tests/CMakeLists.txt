@@ -14,6 +14,7 @@ target_compile_definitions(test_db PRIVATE
     PINAX_TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 pinax_add_test(test_book_list pinax_ui)
 pinax_add_test(test_rail pinax_ui)
+pinax_add_test(test_series_page pinax_ui)
 pinax_add_test(test_import pinax_io)
 pinax_add_test(test_series_import pinax_io)
 target_compile_definitions(test_series_import PRIVATE PINAX_SEED_DIR="${PROJECT_SOURCE_DIR}/seed")

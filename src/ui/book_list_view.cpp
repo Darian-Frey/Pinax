@@ -2,6 +2,7 @@
 
 #include "ui/book_list_model.h"
 #include "ui/book_sort_proxy.h"
+#include "ui/list_keys.h"
 
 #include <QHeaderView>
 #include <QKeyEvent>
@@ -88,31 +89,14 @@ void BookListView::selectBook(std::int64_t id)
 
 void BookListView::keyPressEvent(QKeyEvent* event)
 {
-    // Single keys act on the selection without leaving the list. Anything
-    // with Ctrl, Alt or Meta, and every other key, is the table's as usual.
-    const auto modifiers = event->modifiers() & ~Qt::KeypadModifier;
     const QList<qint64> ids = selectedBooks();
-    if (modifiers == Qt::NoModifier && !ids.isEmpty()) {
-        const int key = event->key();
-        if (key == Qt::Key_R) {
-            emit toggleReadRequested(ids);
-            return;
-        }
-        if (key >= Qt::Key_1 && key <= Qt::Key_9) {
-            emit ratingRequested(ids, key - Qt::Key_0);
-            return;
-        }
-        if (key == Qt::Key_0) {
-            emit ratingRequested(ids, 10);
-            return;
-        }
-        if (key == Qt::Key_Backspace || key == Qt::Key_Minus) {
-            emit ratingRequested(ids, 0);
-            return;
-        }
-        if (key == Qt::Key_Delete) {
-            emit deleteRequested(ids);
-            return;
+    const ListKeyAction action = listKeyAction(event);
+    if (!ids.isEmpty()) {
+        switch (action.kind) {
+        case ListKeyAction::Kind::ToggleRead: emit toggleReadRequested(ids); return;
+        case ListKeyAction::Kind::Rate: emit ratingRequested(ids, action.rating); return;
+        case ListKeyAction::Kind::Delete: emit deleteRequested(ids); return;
+        case ListKeyAction::Kind::None: break;
         }
     }
     QTableView::keyPressEvent(event);

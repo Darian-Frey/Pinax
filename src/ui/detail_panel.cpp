@@ -2,6 +2,7 @@
 
 #include "ui/book_editor.h"
 #include "ui/book_view.h"
+#include "ui/series_view.h"
 #include "ui/style.h"
 
 #include <QHBoxLayout>
@@ -50,6 +51,7 @@ DetailPanel::DetailPanel(QWidget* parent)
     , confirm_(new QWidget(this))
     , question_(new QLabel(confirm_))
     , keep_(new QPushButton(tr("Keep"), confirm_))
+    , seriesView_(new SeriesView)
 {
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -83,6 +85,7 @@ DetailPanel::DetailPanel(QWidget* parent)
     confirmLayout->addLayout(confirmButtons);
     confirmLayout->addStretch();
     stack_->addWidget(confirm_);
+    stack_->addWidget(scrolling(seriesView_, this));
 
     connect(destroy, &QPushButton::clicked, this, [this] {
         const QList<qint64> ids = pendingDelete_;
@@ -143,6 +146,13 @@ void DetailPanel::showSelection(int count)
                          "editor.")
                           .arg(count));
     setState(State::Several);
+}
+
+void DetailPanel::showSeries(const domain::SeriesDetail& detail)
+{
+    shown_.reset();
+    seriesView_->showSeries(detail);
+    setState(State::ViewingSeries);
 }
 
 void DetailPanel::beginEdit()

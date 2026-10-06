@@ -156,17 +156,93 @@ std::vector<domain::SeriesMembership> SeriesRepository::membershipsForBook(std::
         result.push_back(std::move(membership));
     }
 
-    for (domain::SeriesMembership& membership : result) {
-        Statement missing(connection_, R"(
-            SELECT position, title
-              FROM v_missing_entries
-             WHERE series_id = :series_id
-             ORDER BY sort_position IS NULL, sort_position, position)");
-        missing.bind(":series_id", membership.seriesId);
-        while (missing.step())
-            membership.missing.push_back({missing.columnOptionalText(0), missing.columnOptionalText(1)});
+    for (domain::SeriesMembership& membership : result)
+        membership.missing = missing(membership.seriesId);
+    return result;
+}
+
+std::vector<domain::SeriesRow> SeriesRepository::rows(std::int64_t seriesId)
+{
+    Statement select(connection_, R"(
+        SELECT se.id, se.position, se.sort_position, se.title, se.book_id,
+               b.title, b.read_status, b.times_read, b.rating, b.published_year
+          FROM series_entry se
+          LEFT JOIN book b ON b.id = se.book_id
+         WHERE se.series_id = :series_id
+         ORDER BY se.sort_position IS NULL, se.sort_position, se.position, se.id)");
+    select.bind(":series_id", seriesId);
+
+    std::vector<domain::SeriesRow> result;
+    while (select.step()) {
+        domain::SeriesRow row;
+        row.entryId = select.columnInt(0);
+        row.position = select.columnOptionalText(1);
+        row.sortPosition = select.columnOptionalDouble(2);
+        row.entryTitle = select.columnOptionalText(3);
+        row.bookId = select.columnOptionalInt(4);
+        if (row.bookId) {
+            row.bookTitle = select.columnOptionalText(5);
+            row.readStatus = domain::readStatusFromString(select.columnText(6))
+                                 .value_or(domain::ReadStatus::Unread);
+            row.timesRead = static_cast<int>(select.columnInt(7));
+            if (const auto rating = select.columnOptionalInt(8))
+                row.rating = static_cast<int>(*rating);
+            if (const auto year = select.columnOptionalInt(9))
+                row.publishedYear = static_cast<int>(*year);
+        }
+        result.push_back(std::move(row));
     }
     return result;
+}
+
+std::optional<domain::SeriesStatus> SeriesRepository::status(std::int64_t seriesId)
+{
+    Statement select(connection_, R"(
+        SELECT id, name, ongoing, held, known, held_read, status
+          FROM v_series_status WHERE id = :id)");
+    select.bind(":id", seriesId);
+    if (!select.step())
+        return std::nullopt;
+    domain::SeriesStatus series;
+    series.id = select.columnInt(0);
+    series.name = select.columnText(1);
+    series.ongoing = select.columnInt(2) != 0;
+    series.held = static_cast<int>(select.columnInt(3));
+    series.known = static_cast<int>(select.columnInt(4));
+    series.heldRead = static_cast<int>(select.columnInt(5));
+    series.status = select.columnText(6);
+    return series;
+}
+
+std::vector<domain::MissingVolume> SeriesRepository::missing(std::int64_t seriesId)
+{
+    Statement select(connection_, R"(
+        SELECT position, title
+          FROM v_missing_entries
+         WHERE series_id = :series_id
+         ORDER BY sort_position IS NULL, sort_position, position)");
+    select.bind(":series_id", seriesId);
+    std::vector<domain::MissingVolume> result;
+    while (select.step())
+        result.push_back({select.columnOptionalText(0), select.columnOptionalText(1)});
+    return result;
+}
+
+domain::LibrarySeriesTotals SeriesRepository::libraryTotals()
+{
+    Statement select(connection_, R"(
+        SELECT SUM(status = 'Incomplete' AND known - held = 1),
+               SUM(status IN ('Complete', 'Complete to date')),
+               SUM(status = 'Incomplete'),
+               (SELECT COUNT(*) FROM series_entry WHERE book_id IS NULL)
+          FROM v_series_status)");
+    select.step();
+    domain::LibrarySeriesTotals totals;
+    totals.oneVolumeShort = static_cast<int>(select.columnInt(0));
+    totals.complete = static_cast<int>(select.columnInt(1));
+    totals.withGaps = static_cast<int>(select.columnInt(2));
+    totals.volumesNotOwned = static_cast<int>(select.columnInt(3));
+    return totals;
 }
 
 std::vector<domain::SeriesStatus> SeriesRepository::statuses()

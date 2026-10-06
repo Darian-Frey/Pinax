@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <map>
 
 namespace pinax::app {
 
@@ -84,6 +85,48 @@ std::vector<domain::SeriesStatus> Catalogue::seriesStatuses()
     std::stable_sort(statuses.begin(), statuses.end(),
         [&](const auto& a, const auto& b) { return key(a) < key(b); });
     return statuses;
+}
+
+std::vector<domain::SeriesRow> Catalogue::seriesRows(std::int64_t seriesId)
+{
+    return db::SeriesRepository(connection_).rows(seriesId);
+}
+
+std::optional<domain::SeriesDetail> Catalogue::seriesDetail(std::int64_t seriesId)
+{
+    db::SeriesRepository series(connection_);
+    const auto status = series.status(seriesId);
+    if (!status)
+        return std::nullopt;
+
+    domain::SeriesDetail detail;
+    detail.series = *status;
+    detail.missing = series.missing(seriesId);
+    detail.library = series.libraryTotals();
+
+    // The series' authors are its volumes' authors, most frequent first:
+    // "Iain M. Banks"; for a shared world, the two who wrote most of it.
+    db::BookRepository books(connection_);
+    std::map<std::string, int> counts;
+    std::vector<std::string> order;
+    for (const std::int64_t id : series.bookIds(seriesId)) {
+        const auto summary = books.summary(id);
+        if (!summary || !summary->authors)
+            continue;
+        if (counts[*summary->authors]++ == 0)
+            order.push_back(*summary->authors);
+    }
+    std::stable_sort(order.begin(), order.end(),
+        [&](const std::string& a, const std::string& b) { return counts[a] > counts[b]; });
+    if (!order.empty()) {
+        std::string authors = order.front();
+        if (order.size() == 2)
+            authors += " and " + order[1];
+        else if (order.size() > 2)
+            authors += " and others";
+        detail.authors = authors;
+    }
+    return detail;
 }
 
 std::optional<std::vector<std::int64_t>> Catalogue::bookIds(const domain::BookFilter& filter)

@@ -14,6 +14,13 @@ change can be traced to the capability or decision that motivated it.
 Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) in progress.
 
 ### Added
+- A series' own page (Phase 2 step 3, D-006, D-010): choosing a series lists
+  its entries in series order with the volumes not owned in place — italic,
+  marked, "not owned" — behind a toggle, under a heading of entries, held and
+  missing. The panel describes the series: authors and length, held against
+  known, read and unread, the one volume short or the missing list, and the
+  totals across every series. Owned volumes answer R, 1–9, 0 and Delete as in
+  the book list; deleting one leaves its gap.
 - The filter rail (Phase 2 step 2, D-010): LIBRARY with All books and each
   read state, SERIES · 144 with each series' held/known from
   `v_series_status` and its status in the tooltip, filed as titles are so The

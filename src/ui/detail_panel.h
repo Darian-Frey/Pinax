@@ -2,6 +2,7 @@
 
 #include "domain/book_detail.h"
 #include "domain/book_edit.h"
+#include "domain/series_detail.h"
 
 #include <QList>
 #include <QWidget>
@@ -16,6 +17,7 @@ namespace pinax::ui {
 
 class BookEditor;
 class BookView;
+class SeriesView;
 
 // The right-hand panel: it describes whatever is selected (D-010). Nothing,
 // one book in its view state or its edit state (D-011), a new book being
@@ -25,7 +27,7 @@ class DetailPanel : public QWidget {
     Q_OBJECT
 
 public:
-    enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete };
+    enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete, ViewingSeries };
     Q_ENUM(State)
 
     // True while the panel holds something the owner must finish — an edit
@@ -37,6 +39,7 @@ public:
     void showNothing();
     void showBook(const domain::BookDetail& detail);
     void showSelection(int count);
+    void showSeries(const domain::SeriesDetail& detail);
 
     // Switches the book on show into its edit state. Does nothing otherwise.
     void beginEdit();
@@ -52,6 +55,7 @@ public:
     State state() const { return state_; }
     BookView* view() const { return view_; }
     BookEditor* editor() const { return editor_; }
+    SeriesView* seriesView() const { return seriesView_; }
 
 signals:
     void saveRequested(const domain::BookEdit& edit);
@@ -74,6 +78,7 @@ private:
     QWidget* confirm_;
     QLabel* question_;
     QPushButton* keep_;
+    SeriesView* seriesView_;
     QList<qint64> pendingDelete_;
 
     std::optional<domain::BookDetail> shown_;

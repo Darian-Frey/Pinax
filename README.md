@@ -33,7 +33,8 @@ every book, sortable by any column. `--import file.csv` loads a catalogue in
 the format of SPEC.md §1 first, and `--import-series series.csv` the volumes
 each series is known to contain (§1.6); both are safe to repeat. The rail on
 the left narrows the list to a read state or a series, with counts and each
-series' held/known; a series lists in its own order. Selecting a book shows
+series' held/known. Choosing a series lists its entries in order with the
+volumes you don't own in place, and the panel describes the series. Selecting a book shows
 it in the detail panel; F2 or Edit opens its fields for editing in place. In
 the list, R toggles read, 1–9 or 0 rate and Delete deletes (after asking in
 the panel) the selected books; the panel's rating squares are clickable.

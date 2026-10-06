@@ -1,7 +1,9 @@
 #pragma once
 
 #include "domain/series_entry.h"
+#include "domain/series_detail.h"
 #include "domain/series_membership.h"
+#include "domain/series_row.h"
 #include "domain/series_status.h"
 
 #include <cstdint>
@@ -50,6 +52,19 @@ public:
     // Every series with its completeness, from v_series_status, by name as
     // stored; filing order is the caller's.
     std::vector<domain::SeriesStatus> statuses();
+
+    // Every entry of the series, owned or not, in series order: by
+    // sort_position, entries with none last, then by printed position.
+    std::vector<domain::SeriesRow> rows(std::int64_t seriesId);
+
+    // One series' completeness, or nullopt if there is no such series.
+    std::optional<domain::SeriesStatus> status(std::int64_t seriesId);
+
+    // The volumes it is known to lack, in series order (v_missing_entries).
+    std::vector<domain::MissingVolume> missing(std::int64_t seriesId);
+
+    // Completeness across every series, from v_series_status.
+    domain::LibrarySeriesTotals libraryTotals();
 
     // Ids of the books on the shelf in this series.
     std::vector<std::int64_t> bookIds(std::int64_t seriesId);

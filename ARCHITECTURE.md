@@ -108,6 +108,12 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
   matching ids and the list shows only those. The set holds until the next
   choice, so a book does not vanish while the owner works on it; counts
   refresh after every change.
+- **Series page** — while a series is chosen, the middle panel is a
+  `SeriesPage` instead of the book list: a heading with held, known and
+  missing, a toggle for the volumes not owned, and a `SeriesTable` over
+  `SeriesEntryModel` listing every entry in series order, the missing ones in
+  place, italic and marked (D-006, D-010). It answers the list's single keys
+  for owned volumes through the shared `listKeyAction`.
 - **List** — `BookListView`, a `QTableView` over `BookListModel` (a
   `QAbstractTableModel` of `domain::BookSummary`) through `BookSortProxy`. The
   composition root reads summaries from `BookRepository` and hands them over;
@@ -121,7 +127,10 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
   bulk editor). Carries both the view state (`BookView`) and the edit state
   (`BookEditor`) (D-011), an empty form for a new book, and a confirmation
   in place of a delete dialogue. Shown a `domain::BookDetail`; emits a
-  `domain::BookEdit` — the book's fields and its credits by name. Series completeness on show comes from the views, not from
+  `domain::BookEdit` — the book's fields and its credits by name. For a
+  series with nothing owned selected it shows `SeriesView`: held against
+  known, read and unread, the missing volumes, and totals across every
+  series, all from the views (D-004). Series completeness on show comes from the views, not from
   arithmetic in the panel (D-004).
 
 ### `app`

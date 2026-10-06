@@ -6,10 +6,12 @@
 #include "db/db_error.h"
 #include "ui/detail_panel.h"
 #include "ui/rail_view.h"
+#include "ui/series_page.h"
 
 #include <QAction>
 #include <QLabel>
 #include <QSplitter>
+#include <QStackedWidget>
 #include <QStatusBar>
 #include <QToolBar>
 
@@ -29,12 +31,24 @@ MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , splitter_(new QSplitter(Qt::Horizontal, this))
     , rail_(new ui::RailView(splitter_))
-    , list_(new ui::BookListView(splitter_))
+    , centre_(new QStackedWidget(splitter_))
+    , seriesPage_(new ui::SeriesPage(centre_))
+    , list_(new ui::BookListView(centre_))
     , detail_(new ui::DetailPanel(splitter_))
 {
     setWindowTitle(QStringLiteral("Pinax"));
     rail_->setObjectName(QStringLiteral("rail"));
+    centre_->setObjectName(QStringLiteral("centre"));
     list_->setObjectName(QStringLiteral("list"));
+    seriesPage_->setObjectName(QStringLiteral("seriesPage"));
+    centre_->addWidget(list_);
+    centre_->addWidget(seriesPage_);
+
+    // A series' list answers the same keys, through the same handlers.
+    connect(seriesPage_, &ui::SeriesPage::selectionChangedTo, this, &MainWindow::showSeriesSelection);
+    connect(seriesPage_->table(), &ui::SeriesTable::toggleReadRequested, this, &MainWindow::toggleRead);
+    connect(seriesPage_->table(), &ui::SeriesTable::ratingRequested, this, &MainWindow::rate);
+    connect(seriesPage_->table(), &ui::SeriesTable::deleteRequested, this, &MainWindow::askToDelete);
     detail_->setObjectName(QStringLiteral("detail"));
 
     connect(list_, &ui::BookListView::selectionChangedTo, this, &MainWindow::showSelection);
@@ -47,8 +61,7 @@ MainWindow::MainWindow(QWidget* parent)
     connect(list_, &ui::BookListView::deleteRequested, this, &MainWindow::askToDelete);
     connect(detail_, &ui::DetailPanel::deleteRequested, this, &MainWindow::askToDelete);
     connect(detail_, &ui::DetailPanel::deleteConfirmed, this, &MainWindow::deleteBooks);
-    connect(detail_, &ui::DetailPanel::deleteCancelled, this,
-        [this] { showSelection(list_->selectedBooks()); });
+    connect(detail_, &ui::DetailPanel::deleteCancelled, this, &MainWindow::refreshPanel);
 
     auto* toolbar = addToolBar(tr("Catalogue"));
     toolbar->setObjectName(QStringLiteral("toolbar"));
@@ -81,6 +94,7 @@ void MainWindow::lockWhileBusy()
     if (list_->isEnabled() == !busy)
         return;
     list_->setEnabled(!busy);
+    seriesPage_->setEnabled(!busy);
     rail_->setEnabled(!busy);
     addBook_->setEnabled(!busy);
     if (detail_->state() == ui::DetailPanel::State::Editing)
@@ -115,16 +129,68 @@ void MainWindow::applyFilter(const domain::BookFilter& filter, const QString& la
 {
     if (!catalogue_)
         return;
+    if (filter.kind == domain::BookFilter::Kind::Series) {
+        // A series has a page of its own: its entries in order, the volumes
+        // not owned among them (D-006, D-010).
+        centre_->setCurrentWidget(seriesPage_);
+        showSeriesPage(filter.seriesId);
+        seriesPage_->table()->clearSelection();
+        seriesPage_->table()->setCurrentIndex({});
+        refreshPanel();
+        seriesPage_->table()->setFocus();
+        statusBar()->showMessage(label);
+        return;
+    }
+    centre_->setCurrentWidget(list_);
     const auto ids = catalogue_->bookIds(filter);
     list_->showOnly(ids ? std::optional(QList<qint64>(ids->begin(), ids->end())) : std::nullopt);
-    // A series reads in its own order (D-005); elsewhere the owner's sort stands.
-    if (filter.kind == domain::BookFilter::Kind::Series)
-        list_->sortByColumn(ui::BookListModel::SeriesColumn, Qt::AscendingOrder);
     list_->clearSelection();
     statusBar()->showMessage(tr("%1 · %2 of %3 shown")
                                  .arg(label)
                                  .arg(list_->shownCount())
                                  .arg(catalogue_->count()));
+}
+
+bool MainWindow::showingSeries() const
+{
+    return centre_->currentWidget() == seriesPage_;
+}
+
+void MainWindow::showSeriesSelection(const QList<qint64>& bookIds, int missing)
+{
+    if (!catalogue_ || !showingSeries())
+        return;
+    if (bookIds.isEmpty()) {
+        // Nothing owned selected: the panel describes the series itself.
+        if (const auto detail = catalogue_->seriesDetail(seriesPage_->seriesId()))
+            detail_->showSeries(*detail);
+        return;
+    }
+    if (bookIds.size() == 1 && missing == 0) {
+        showSelection(bookIds);
+        return;
+    }
+    detail_->showSelection(static_cast<int>(bookIds.size()) + missing);
+}
+
+void MainWindow::showSeriesPage(std::int64_t seriesId)
+{
+    const auto detail = catalogue_->seriesDetail(seriesId);
+    if (!detail)
+        return;
+    seriesPage_->showSeries(detail->series, catalogue_->seriesRows(seriesId));
+}
+
+void MainWindow::refreshPanel()
+{
+    // Never redraw over a form in progress. A pending delete question is
+    // redrawn: that is how Keep returns to what was shown.
+    if (detail_->state() == ui::DetailPanel::State::Editing)
+        return;
+    if (showingSeries())
+        showSeriesSelection(seriesPage_->selectedBooks(), seriesPage_->table()->selectedMissing());
+    else
+        showSelection(list_->selectedBooks());
 }
 
 void MainWindow::showSelection(const QList<qint64>& ids)
@@ -165,11 +231,16 @@ void MainWindow::saveBook(const domain::BookEdit& edit)
     } else {
         if (const auto summary = catalogue_->summary(result.id))
             list_->updateBook(*summary);
+        if (showingSeries())
+            showSeriesPage(seriesPage_->seriesId());
         if (const auto detail = catalogue_->detail(result.id))
             detail_->showBook(*detail);
         statusBar()->showMessage(tr("Saved “%1”").arg(title), 4000);
     }
-    list_->setFocus();
+    if (showingSeries())
+        seriesPage_->table()->setFocus();
+    else
+        list_->setFocus();
 }
 
 void MainWindow::addBook()
@@ -214,13 +285,20 @@ void MainWindow::deleteBooks(const QList<qint64>& ids)
                                             : tr("%1 books").arg(ids.size());
     if (const auto problem = catalogue_->remove(std::vector<std::int64_t>(ids.begin(), ids.end()))) {
         statusBar()->showMessage(QString::fromStdString(*problem));
-        showSelection(list_->selectedBooks());
+        refreshPanel();
         return;
     }
     list_->setBooks(catalogue_->summaries());
     refreshRail();
-    detail_->showNothing();
-    list_->setFocus();
+    if (showingSeries()) {
+        // The deleted volume stays in the series as a missing one (F-001).
+        showSeriesPage(seriesPage_->seriesId());
+        refreshPanel();
+        seriesPage_->table()->setFocus();
+    } else {
+        detail_->showNothing();
+        list_->setFocus();
+    }
     statusBar()->showMessage(tr("Deleted %1").arg(subject), 4000);
 }
 
@@ -276,9 +354,10 @@ void MainWindow::refreshBooks(const QList<qint64>& ids)
         if (const auto summary = catalogue_->summary(id))
             list_->updateBook(*summary);
     }
+    if (showingSeries())
+        showSeriesPage(seriesPage_->seriesId());
     // Never redraw over a form in progress.
-    if (detail_->state() == ui::DetailPanel::State::Viewing)
-        showSelection(list_->selectedBooks());
+    refreshPanel();
 }
 
 QString MainWindow::titleOf(qint64 id) const
