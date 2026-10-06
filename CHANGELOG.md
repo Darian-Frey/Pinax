@@ -199,6 +199,8 @@ Phase 3 (metadata enrichment) in progress.
   after the habit of silent fixing has set in.
 
 ### Notes
+- IMP-007 suggested: Google's qualified queries return nothing even with a
+  key; fall back to free text.
 - IMP-006 suggested, then deferred by the owner: keep placeholder-only gaps
   out of "one volume short".
 - IMP-005 suggested: summarise placeholder volumes in the detail panel.

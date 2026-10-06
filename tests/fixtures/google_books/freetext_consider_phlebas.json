@@ -1,0 +1,242 @@
+{
+  "kind": "books#volumes",
+  "totalItems": 179,
+  "items": [
+    {
+      "kind": "books#volume",
+      "id": "cYFEAQAAQBAJ",
+      "etag": "YF9hzYUvm34",
+      "selfLink": "https://www.googleapis.com/books/v1/volumes/cYFEAQAAQBAJ",
+      "volumeInfo": {
+        "title": "Consider Phlebas",
+        "authors": [
+          "Iain M. Banks"
+        ],
+        "publisher": "Hachette UK",
+        "publishedDate": "2009-12-01",
+        "description": "The first book in Iain M. Banks's seminal science fiction series, The Culture. Consider Phlebas introduces readers to the utopian conglomeration of human and alien races that explores the nature of war, morality, and the limitless bounds of mankind's imagination. The war raged across the galaxy. Billions had died, billions more were doomed. Moons, planets, the very stars themselves, faced destruction, cold-blooded, brutal, and worse, random. The Idirans fought for their Faith; the Culture for its moral right to exist. Principles were at stake. There could be no surrender. Within the cosmic conflict, an individual crusade. Deep within a fabled labyrinth on a barren world, a Planet of the Dead proscribed to mortals, lay a fugitive Mind. Both the Culture and the Idirans sought it. It was the fate of Horza, the Changer, and his motley crew of unpredictable mercenaries, human and machine, actually to find it, and with it their own destruction. The Culture Series Consider Phlebas The Player of Games Use of Weapons The State of the Art Excession Inversions Look to Windward Matter Surface Detail The Hydrogen Sonata",
+        "industryIdentifiers": [
+          {
+            "type": "ISBN_13",
+            "identifier": "9780316095839"
+          },
+          {
+            "type": "ISBN_10",
+            "identifier": "0316095834"
+          }
+        ],
+        "readingModes": {
+          "text": true,
+          "image": false
+        },
+        "pageCount": 516,
+        "printType": "BOOK",
+        "categories": [
+          "Fiction"
+        ],
+        "maturityRating": "NOT_MATURE",
+        "allowAnonLogging": true,
+        "contentVersion": "1.20.20.0.preview.2",
+        "panelizationSummary": {
+          "containsEpubBubbles": false,
+          "containsImageBubbles": false
+        },
+        "imageLinks": {
+          "smallThumbnail": "http://books.google.com/books/content?id=cYFEAQAAQBAJ&printsec=frontcover&img=1&zoom=5&edge=curl&source=gbs_api",
+          "thumbnail": "http://books.google.com/books/content?id=cYFEAQAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"
+        },
+        "language": "en",
+        "previewLink": "http://books.google.co.uk/books?id=cYFEAQAAQBAJ&printsec=frontcover&dq=Consider+Phlebas+Banks&hl=&cd=1&source=gbs_api",
+        "infoLink": "http://books.google.co.uk/books?id=cYFEAQAAQBAJ&dq=Consider+Phlebas+Banks&hl=&source=gbs_api",
+        "canonicalVolumeLink": "https://books.google.com/books/about/Consider_Phlebas.html?hl=&id=cYFEAQAAQBAJ"
+      },
+      "saleInfo": {
+        "country": "GB",
+        "saleability": "NOT_FOR_SALE",
+        "isEbook": false
+      },
+      "accessInfo": {
+        "country": "GB",
+        "viewability": "PARTIAL",
+        "embeddable": true,
+        "publicDomain": false,
+        "textToSpeechPermission": "ALLOWED",
+        "epub": {
+          "isAvailable": true,
+          "acsTokenLink": "http://books.google.co.uk/books/download/Consider_Phlebas-sample-epub.acsm?id=cYFEAQAAQBAJ&format=epub&output=acs4_fulfillment_token&dl_type=sample&source=gbs_api"
+        },
+        "pdf": {
+          "isAvailable": false
+        },
+        "webReaderLink": "http://play.google.com/books/reader?id=cYFEAQAAQBAJ&hl=&source=gbs_api",
+        "accessViewStatus": "SAMPLE",
+        "quoteSharingAllowed": false
+      },
+      "searchInfo": {
+        "textSnippet": "The first book in Iain M. Banks&#39;s seminal science fiction series, The Culture."
+      }
+    },
+    {
+      "kind": "books#volume",
+      "id": "PfazHAAACAAJ",
+      "etag": "pQgNMkf0fYQ",
+      "selfLink": "https://www.googleapis.com/books/v1/volumes/PfazHAAACAAJ",
+      "volumeInfo": {
+        "title": "Consider Phlebas",
+        "authors": [
+          "Iain Banks"
+        ],
+        "publisher": "St Martins Press",
+        "publishedDate": "1987-01-01",
+        "description": "Horza, a Changer, finds himself at the center of an epic galactic confrontation between the fanatical Idirans and the communistic Culture, made up of humans ruled by the Mind machines that they have created",
+        "industryIdentifiers": [
+          {
+            "type": "ISBN_10",
+            "identifier": "0312017529"
+          },
+          {
+            "type": "ISBN_13",
+            "identifier": "9780312017521"
+          }
+        ],
+        "readingModes": {
+          "text": false,
+          "image": false
+        },
+        "pageCount": 471,
+        "printType": "BOOK",
+        "categories": [
+          "Fiction"
+        ],
+        "maturityRating": "NOT_MATURE",
+        "allowAnonLogging": false,
+        "contentVersion": "preview-1.0.0",
+        "language": "en",
+        "previewLink": "http://books.google.co.uk/books?id=PfazHAAACAAJ&dq=Consider+Phlebas+Banks&hl=&cd=2&source=gbs_api",
+        "infoLink": "http://books.google.co.uk/books?id=PfazHAAACAAJ&dq=Consider+Phlebas+Banks&hl=&source=gbs_api",
+        "canonicalVolumeLink": "https://books.google.com/books/about/Consider_Phlebas.html?hl=&id=PfazHAAACAAJ"
+      },
+      "saleInfo": {
+        "country": "GB",
+        "saleability": "NOT_FOR_SALE",
+        "isEbook": false
+      },
+      "accessInfo": {
+        "country": "GB",
+        "viewability": "NO_PAGES",
+        "embeddable": false,
+        "publicDomain": false,
+        "textToSpeechPermission": "ALLOWED",
+        "epub": {
+          "isAvailable": false
+        },
+        "pdf": {
+          "isAvailable": false
+        },
+        "webReaderLink": "http://play.google.com/books/reader?id=PfazHAAACAAJ&hl=&source=gbs_api",
+        "accessViewStatus": "NONE",
+        "quoteSharingAllowed": false
+      },
+      "searchInfo": {
+        "textSnippet": "Horza, a Changer, finds himself at the center of an epic galactic confrontation between the fanatical Idirans and the communistic Culture, made up of humans ruled by the Mind machines that they have created"
+      }
+    },
+    {
+      "kind": "books#volume",
+      "id": "ngtkEQAAQBAJ",
+      "etag": "ilM+HD6oCok",
+      "selfLink": "https://www.googleapis.com/books/v1/volumes/ngtkEQAAQBAJ",
+      "volumeInfo": {
+        "title": "The Culture of \"The Culture\"",
+        "subtitle": "Utopian Processes in Iain M. Banks's Space Opera Series",
+        "authors": [
+          "Joseph S. Norman"
+        ],
+        "publisher": "Liverpool University Press",
+        "publishedDate": "2021-01-05",
+        "description": "In a career that spanned over thirty years, Iain M. Banks became one of the best-loved and most prolific writers in Britain, with his space opera series concerned with the pan-galactic utopian civilisation known as \"the Culture\" widely regarded as his most significant contribution to science fiction. The Culture of \"The Culture\" focuses solely on this series, providing a comprehensive, thematic analysis of Banks’s Culture stories from Consider Phlebas to The Hydrogen Sonata. It explores the development of Banks’s political, philosophical and literary thought, arguing that the Culture offers both an image of a harmonious civilisation modelled on an alternative socialist form of globalisation and a critique of our neo-liberal present. As Joseph Norman explains, the Culture is the result of an ongoing utopian process, attempting through the application of technoscience to move beyond obstacles to progress such as imperialism, capitalism, the human condition, religious dogma, patriarchy and crises in artistic representation. The Culture of \"The Culture\" defines Banks’s creation as culture: a utopian way of doing, of being, of seeing: an approach, an attitude and a lifestyle that has enabled, and is evolving alongside, utopia, rather than an image of a static end-state.",
+        "industryIdentifiers": [
+          {
+            "type": "ISBN_13",
+            "identifier": "9781789627541"
+          },
+          {
+            "type": "ISBN_10",
+            "identifier": "1789627540"
+          }
+        ],
+        "readingModes": {
+          "text": false,
+          "image": true
+        },
+        "pageCount": 296,
+        "printType": "BOOK",
+        "categories": [
+          "Literary Criticism"
+        ],
+        "maturityRating": "NOT_MATURE",
+        "allowAnonLogging": false,
+        "contentVersion": "preview-1.0.0",
+        "panelizationSummary": {
+          "containsEpubBubbles": false,
+          "containsImageBubbles": false
+        },
+        "imageLinks": {
+          "smallThumbnail": "http://books.google.com/books/content?id=ngtkEQAAQBAJ&printsec=frontcover&img=1&zoom=5&edge=curl&source=gbs_api",
+          "thumbnail": "http://books.google.com/books/content?id=ngtkEQAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"
+        },
+        "language": "en",
+        "previewLink": "http://books.google.co.uk/books?id=ngtkEQAAQBAJ&pg=PA25&dq=Consider+Phlebas+Banks&hl=&cd=3&source=gbs_api",
+        "infoLink": "https://play.google.com/store/books/details?id=ngtkEQAAQBAJ&source=gbs_api",
+        "canonicalVolumeLink": "https://play.google.com/store/books/details?id=ngtkEQAAQBAJ"
+      },
+      "saleInfo": {
+        "country": "GB",
+        "saleability": "FOR_SALE",
+        "isEbook": true,
+        "listPrice": {
+          "amount": 119.5,
+          "currencyCode": "GBP"
+        },
+        "retailPrice": {
+          "amount": 119.5,
+          "currencyCode": "GBP"
+        },
+        "buyLink": "https://play.google.com/store/books/details?id=ngtkEQAAQBAJ&rdid=book-ngtkEQAAQBAJ&rdot=1&source=gbs_api",
+        "offers": [
+          {
+            "finskyOfferType": 1,
+            "listPrice": {
+              "amountInMicros": 119500000,
+              "currencyCode": "GBP"
+            },
+            "retailPrice": {
+              "amountInMicros": 119500000,
+              "currencyCode": "GBP"
+            },
+            "giftable": true
+          }
+        ]
+      },
+      "accessInfo": {
+        "country": "GB",
+        "viewability": "PARTIAL",
+        "embeddable": true,
+        "publicDomain": false,
+        "textToSpeechPermission": "ALLOWED",
+        "epub": {
+          "isAvailable": false
+        },
+        "pdf": {
+          "isAvailable": true
+        },
+        "webReaderLink": "http://play.google.com/books/reader?id=ngtkEQAAQBAJ&hl=&source=gbs_api",
+        "accessViewStatus": "SAMPLE",
+        "quoteSharingAllowed": false
+      },
+      "searchInfo": {
+        "textSnippet": "... \u003cb\u003eBanks&#39;s\u003c/b\u003e SF debut , \u003cb\u003eConsider Phlebas\u003c/b\u003e , as “ a stunning departure &quot; in terms of style and genre from his mainstream debut , The Wasp Factory , despite the parallels between The Wasp Factory and SF that \u003cb\u003eBanks\u003c/b\u003e identified . While Phlebas did&nbsp;..."
+      }
+    }
+  ]
+}

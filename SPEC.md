@@ -231,7 +231,10 @@ GET https://www.googleapis.com/books/v1/volumes?q=intitle:{title}+inauthor:{auth
 ```
 
 Without a key nothing is sent: since at least 2026-10-06 a keyless request
-is refused with HTTP 429 and a daily quota of 0. Fields consumed from
+is refused with HTTP 429 and a daily quota of 0. With a key, on 2026-10-06,
+field-qualified queries (`isbn:`, `intitle:`, `inauthor:`) returned no
+results — or "Service temporarily unavailable" — even for books Google
+holds, while free-text queries answered normally (IMP-007). Fields consumed from
 `items[].volumeInfo`: `title`, `subtitle`, `authors[]`, `publisher`,
 `publishedDate` (leading four digits), `description`, `pageCount`,
 `categories[]` (verbatim, so `Fiction / Science Fiction / Space Opera` is one

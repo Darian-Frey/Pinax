@@ -3,6 +3,7 @@
 #include "metadata/http.h"
 #include "metadata/open_library.h"
 #include "metadata/request_queue.h"
+#include "domain/isbn.h"
 
 #include <QElapsedTimer>
 #include <QFile>
@@ -289,15 +290,22 @@ void TestMetadata::cancellingDropsWhatIsQueued()
 
 void TestMetadata::googleVolumesParse()
 {
-    const auto candidates = googlebooks::parseVolumes(fixture("google_books/volumes_documented_shape.json"));
-    QCOMPARE(candidates.size(), std::size_t(1));
+    // Recorded with a key: two editions of one book, and a book about it.
+    const auto candidates = googlebooks::parseVolumes(fixture("google_books/freetext_consider_phlebas.json"));
+    QCOMPARE(candidates.size(), std::size_t(3));
     const Candidate& volume = candidates.front();
     QVERIFY(volume.source == pinax::domain::Source::GoogleBooks);
-    QCOMPARE(volume.subtitle, std::optional<std::string>("A Culture Novel"));
-    QCOMPARE(volume.publishedYear, std::optional<int>(2008));
-    QCOMPARE(volume.isbn13, std::optional<std::string>("9780316005388"));
-    QCOMPARE(volume.categories, std::vector<std::string>({"Fiction / Science Fiction / Space Opera"}));
-    QVERIFY(volume.coverUrl->rfind("https://", 0) == 0);
+    QCOMPARE(volume.title, std::string("Consider Phlebas"));
+    QCOMPARE(volume.authors, std::vector<std::string>({"Iain M. Banks"}));
+    QCOMPARE(volume.publishedYear, std::optional<int>(2009));
+    QCOMPARE(volume.pageCount, std::optional<int>(516));
+    QVERIFY(volume.isbn13 && pinax::domain::isValidIsbn13(*volume.isbn13));
+    QCOMPARE(volume.categories, std::vector<std::string>({"Fiction"}));
+    QVERIFY(volume.coverUrl->rfind("https://", 0) == 0); // asked for over https
+    QCOMPARE(candidates[1].publishedYear, std::optional<int>(1987)); // the other edition (AV-010)
+    QVERIFY(!candidates[1].coverUrl);
+
+    QVERIFY(googlebooks::parseVolumes(fixture("google_books/isbn_no_match.json")).empty());
 
     const auto quota = googlebooks::parseError(fixture("google_books/quota_exceeded_keyless.json"));
     QVERIFY(quota && quota->find("Quota exceeded") != std::string::npos);

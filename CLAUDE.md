@@ -37,7 +37,7 @@ database and exports to SQL, CSV and Excel.
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-013. Detection implemented for AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007, AV-013; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001, BUG-002 and BUG-003 fixed. |
-| `IMPROVEMENTS.md` | None suggested. IMP-001 to IMP-005 applied; IMP-006 deferred (placeholder-only gaps count as one volume short). |
+| `IMPROVEMENTS.md` | IMP-007 suggested (free-text fallback for Google, whose qualified queries return nothing). IMP-001 to IMP-005 applied; IMP-006 deferred. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
@@ -89,7 +89,7 @@ Suggested order:
    duplicate and series checks, attaching to a waiting volume (AV-007). The
    webcam scanner (Phase 5) will feed this.
 
-Nothing is open with the owner. IMP-006 is deferred.
+Open with the owner: IMP-007. IMP-006 is deferred.
 
 The seed: `seed/library.csv` and `seed/series.csv`, made by
 `seed/convert_catalogue.py` from the spreadsheet (all git-ignored). The converter fixes two credits the ` & `
@@ -229,6 +229,13 @@ Not vectors, but worth knowing:
   responses in `tests/fixtures/` (their origins in that folder's README);
   record new ones by hand with `curl`, keeping titles already public in the
   repository, and never anything from `seed/`.
+- **The owner has a Google Books API key. It must never reach the
+  repository** — not in code, settings committed, fixtures or messages. It
+  lives in `google-books.key` at the project root: one line, mode 600,
+  git-ignored (`/google-books.key` and `*.key`). Read it from there when a
+  key is needed; never copy it elsewhere in the project. How the application
+  finds it at run time is settled when enrichment is wired in (D-019). Run
+  `git grep -n AIza` before any commit.
 - **Google Books without a key answers 429, always.** Do not mistake it for a
   rate limit to wait out: `GoogleBooksClient` sends nothing keyless (D-019).
 - **Placeholder volumes are ordinary entries.** "Unidentified volume n" and

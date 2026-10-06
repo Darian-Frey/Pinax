@@ -14,3 +14,7 @@ build/
 
 # Editor and language-server caches
 .cache/
+
+# Secrets. The Google Books API key lives in google-books.key, never in git.
+/google-books.key
+*.key

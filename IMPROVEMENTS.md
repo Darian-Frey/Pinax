@@ -23,7 +23,31 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
-*None.*
+### IMP-007 Fall back to a free-text Google query when a qualified one finds nothing
+
+**Status:** suggested
+**Found:** 2026-10-06 (testing the owner's new Google Books API key)
+**Location:** `src/metadata/google_books.cpp`, `isbnUrl`, `searchUrl`
+**Effort:** small
+**Description.** With a working key, Google Books answered every
+field-qualified query with no results — `q=isbn:9780316005388`,
+`q=intitle:Dune`, even *Dune*'s own ISBN — and sometimes "Service temporarily
+unavailable", while `q=Consider Phlebas Banks` found 179. The client uses
+only qualified queries (SPEC.md §3.2), so as things stand Google adds
+nothing even with a key.
+**Proposal.** When a qualified query returns no items, ask once more in free
+text: the ISBN alone, or title and author words. Keep only results whose
+ISBN matches, for an ISBN lookup; a title-and-author result is queued for
+confirmation as always (AV-010).
+**Trade-offs.** Two requests where one should do, against the daily quota.
+Free text is looser: "Consider Phlebas Banks" also returns a book *about*
+the Culture novels, so the ISBN filter for lookups is essential and title
+results lean harder on the owner's confirmation. If the qualified search is
+a fault of a newly created key or a passing Google problem, the fallback is
+dead weight once it clears — worth retrying the qualified form in a few
+days before building anything.
+**Notes.** Google is the second opinion behind Open Library (D-019), so
+nothing is blocked meanwhile.
 
 ## Applied
 
