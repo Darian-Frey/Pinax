@@ -17,19 +17,19 @@ database and exports to SQL, CSV and Excel.
 
 ## 2. Current state
 
-**Phase 1 built: open, import (`--import`, and `--import-series` for known volumes), list and sort, view and edit in the panel (F2) including credits, add (Ctrl+N), delete (Delete, confirmed in the panel), toggle read (R), rate (1–9, 0). F-001–F-003 and F-005–F-007 Complete; F-004's no-overwrite rule waits on enrichment. Phase 1 closed 2026-10-05; Phase 2 step 1 (missing volumes from the seed) done the same day.**
+**Phase 1 built: open, import (`--import`, and `--import-series` for known volumes), list and sort, view and edit in the panel (F2) including credits, add (Ctrl+N), delete (Delete, confirmed in the panel), toggle read (R), rate (1–9, 0). F-001–F-003 and F-005–F-007 Complete; F-004's no-overwrite rule waits on enrichment. Phase 1 closed 2026-10-05. Phase 2 steps 1 (missing volumes from the seed) and 2 (the filter rail) done.**
 
 | Path | State |
 |---|---|
 | `db/schema.sql`, `db/migrations/` | Version 2. `schema.sql` is the latest full schema; `002_book_display_sort_keys.sql` carries a version 1 file forward. Its `CREATE VIEW` must stay byte-identical to `schema.sql`'s — `migratingVersion1MatchesFreshSchema` fails otherwise. |
-| `src/domain/` | `Book`, enums with schema strings, `makeSortTitle`. No Qt, no SQL. |
-| `src/db/` | SQLite C API, no Qt (D-015). `Connection` (FK on + verified, WAL), `Statement` (named binds), `Transaction` (RAII), `migrate()` with schema compiled in from `db/schema.sql`, `BookRepository`. Errors throw `DbError` with the extended result code. |
+| `src/domain/` | Value types (`Book`, `BookSummary`, `BookDetail`, `BookEdit`, `BookFilter`, `Author`, `Credit`, `SeriesEntry`, `SeriesMembership`, `SeriesStatus`), enums with schema strings, `makeSortTitle`, `makeSortName`, ISBN check digits, `parseCredits`/`formatCredits`. No Qt, no SQL. |
+| `src/db/` | SQLite C API, no Qt (D-015). `Connection` (FK on + verified, WAL), `Statement` (named binds), `Transaction` (RAII), `Savepoint`, `migrate()` with schema and migrations compiled in, and `BookRepository`, `AuthorRepository`, `SeriesRepository`. Errors throw `DbError` with the extended result code; `isConstraintViolation()` tells the data's fault from the database's. |
 | `src/io/` | Qt-free. `parseCsv` (RFC 4180), `CsvImporter` (SPEC.md §1) and `SeriesImporter` (§1.6), sharing `import_support.h`: one transaction, savepoint per row, failures by line, `deriveSortPosition` (the only code that parses `position`). |
-| `src/ui/` | `BookListModel`, `BookSortProxy` (view keys; missing values last; author then series), `BookListView` (opens sorted by author; emits `selectionChangedTo`). `DetailPanel` stacks Empty / Viewing (`BookView`) / Editing (`BookEditor`) / Several. `RatingBar`, `style.h` (accent, muted, section headings). Links `domain`, not `db`. |
-| `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save(Book)`, `save(BookEdit)` which creates at id 0 and resolves credits, `remove`, `toggleRead`, `setRating`). Toolbar: Add a book. `MainWindow`: splitter of `rail` (empty), `list`, `detail`; selection → panel, panel save → Catalogue → row refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import`, shows the count. |
-| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_import` and `test_series_import` (their seed tests skip without `seed/`), `test_detail_panel`, `test_catalogue`. Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
+| `src/ui/` | `BookListModel`, `BookSortProxy` (view keys; missing values last; author then series), `BookListView` (opens sorted by author; emits `selectionChangedTo`). `RailView` (LIBRARY and SERIES sections; emits `BookFilter`). `BookListView::showOnly` narrows to a set of ids. `DetailPanel` stacks Empty / Viewing (`BookView`) / Editing (`BookEditor`) / Several / ConfirmingDelete. `RatingBar`, `style.h` (accent, muted, section headings). Links `domain`, not `db`. |
+| `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save(Book)`, `save(BookEdit)` which creates at id 0 and resolves credits, `remove`, `toggleRead`, `setRating`). Also `countWithReadStatus`, `seriesStatuses` (filed as titles), `bookIds(BookFilter)`. Toolbar: Add a book. `MainWindow`: splitter of `rail`, `list`, `detail`; rail choice → Catalogue ids → list; selection → panel; panel save → Catalogue → row and rail refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import` and `--import-series`, shows the count. |
+| `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_rail`, `test_import` and `test_series_import` (their seed tests skip without `seed/`), `test_detail_panel`, `test_catalogue`. Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
-| `FEATURES.md` | Complete. F-001 to F-025. F-001, F-002, F-003, F-005, F-006, F-007 Complete; F-004, F-009, F-010, F-011, F-016 In progress; the rest Not started. |
+| `FEATURES.md` | Complete. F-001 to F-025. F-001, F-002, F-003, F-005, F-006, F-007 Complete; F-004, F-008, F-009, F-010, F-011, F-016, F-017 In progress; the rest Not started. |
 | `ROADMAP.md` | Complete. Phases 0 and 1 done; Phase 2 in progress; Phases 3–5 not started; Phase 5 (webcam scanning) waits on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
 | `DECISIONS.md` | Complete. D-001 to D-018, all Accepted. |
@@ -41,15 +41,14 @@ database and exports to SQL, CSV and Excel.
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
 
-The catalogue itself is a 443-row spreadsheet in `seed/` (176 read, 267
-unread, 144 series), with a Markdown rendering alongside. `seed/` is
-git-ignored and must stay so: the repository has a GitHub remote and the
-owner's library is not to be published. The spreadsheet is the intended seed
-for F-003 and has not yet been converted to the CSV format in SPEC.md §1; the
-converted CSV belongs in `seed/` too.
+The owner's catalogue began as a 443-row spreadsheet in `seed/` (176 read,
+267 unread, 144 series), with a Markdown rendering alongside; it has been
+converted and imported (see §3). `seed/` is git-ignored and must stay so: the
+repository has a GitHub remote and the owner's library is not to be
+published.
 
-`src/` holds one directory per module (ARCHITECTURE.md §2); `domain/`, `db/`,
-`ui/` and `app/` have code. Each module becomes its own static library as it gains
+`src/` holds one directory per module (ARCHITECTURE.md §2); all but
+`metadata/` have code. Each module becomes its own static library as it gains
 code.
 `design/` holds the UI mock-up with PNG captures of its four screens.
 
@@ -69,8 +68,10 @@ Suggested order:
    only a count or a gap — the owner's choice. 287 volumes, 4 ongoing flags;
    all 144 statuses match the spreadsheet. Loaded into the owner's catalogue
    after a backup (`pinax-2026-10-05-before-series.db`).
-2. Series in the rail with held/known counts (`v_series_status`), as the
-   mock-up's SERIES · 144 section.
+2. ~~Series in the rail with held/known counts (`v_series_status`), as the
+   mock-up's SERIES · 144 section.~~ Done 2026-10-06, with LIBRARY (read
+   states) above it. The mock-up's AUTHORS and NEEDS ATTENTION sections are
+   not built: authors are F-017, "one volume short" is step 5.
 3. Selecting a series lists its entries in position order with missing ones
    inline, in italic and marked (D-010, mock-up screen 2), and the panel
    describes the series.

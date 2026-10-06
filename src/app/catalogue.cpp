@@ -6,8 +6,10 @@
 #include "db/migrations.h"
 #include "db/series_repository.h"
 #include "db/transaction.h"
+#include "domain/sort_title.h"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 
 namespace pinax::app {
@@ -62,6 +64,39 @@ std::optional<domain::BookDetail> Catalogue::detail(std::int64_t id)
             detail.coverFile = std::filesystem::absolute(cover, error).string();
     }
     return detail;
+}
+
+std::int64_t Catalogue::countWithReadStatus(domain::ReadStatus status)
+{
+    return db::BookRepository(connection_).countWithReadStatus(status);
+}
+
+std::vector<domain::SeriesStatus> Catalogue::seriesStatuses()
+{
+    // Filed as titles are, so The Culture sits under C (F-016).
+    auto statuses = db::SeriesRepository(connection_).statuses();
+    auto key = [](const domain::SeriesStatus& series) {
+        std::string filed = domain::makeSortTitle(series.name);
+        for (char& c : filed)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return filed;
+    };
+    std::stable_sort(statuses.begin(), statuses.end(),
+        [&](const auto& a, const auto& b) { return key(a) < key(b); });
+    return statuses;
+}
+
+std::optional<std::vector<std::int64_t>> Catalogue::bookIds(const domain::BookFilter& filter)
+{
+    switch (filter.kind) {
+    case domain::BookFilter::Kind::ReadState:
+        return db::BookRepository(connection_).idsWithReadStatus(filter.readStatus);
+    case domain::BookFilter::Kind::Series:
+        return db::SeriesRepository(connection_).bookIds(filter.seriesId);
+    case domain::BookFilter::Kind::All:
+        break;
+    }
+    return std::nullopt;
 }
 
 domain::ReadStatus Catalogue::toggleRead(const std::vector<std::int64_t>& ids)

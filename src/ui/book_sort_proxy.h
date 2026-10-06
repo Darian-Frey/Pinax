@@ -1,6 +1,9 @@
 #pragma once
 
+#include <QSet>
 #include <QSortFilterProxyModel>
+
+#include <optional>
 
 namespace pinax::ui {
 
@@ -21,8 +24,15 @@ class BookSortProxy : public QSortFilterProxyModel {
 public:
     using QSortFilterProxyModel::QSortFilterProxyModel;
 
+    // Shows only these books; nullopt shows every book (the rail's filter).
+    void showOnly(std::optional<QSet<qint64>> ids);
+
 protected:
     bool lessThan(const QModelIndex& left, const QModelIndex& right) const override;
+    bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override;
+
+private:
+    std::optional<QSet<qint64>> shown_;
 };
 
 } // namespace pinax::ui

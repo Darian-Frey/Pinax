@@ -102,6 +102,20 @@ int compareBooks(int column, const BookSummary& a, const BookSummary& b, bool de
 
 } // namespace
 
+void BookSortProxy::showOnly(std::optional<QSet<qint64>> ids)
+{
+    shown_ = std::move(ids);
+    invalidateFilter();
+}
+
+bool BookSortProxy::filterAcceptsRow(int sourceRow, const QModelIndex&) const
+{
+    if (!shown_)
+        return true;
+    const auto* books = qobject_cast<const BookListModel*>(sourceModel());
+    return books && shown_->contains(books->book(sourceRow).id);
+}
+
 bool BookSortProxy::lessThan(const QModelIndex& left, const QModelIndex& right) const
 {
     const auto* books = qobject_cast<const BookListModel*>(sourceModel());

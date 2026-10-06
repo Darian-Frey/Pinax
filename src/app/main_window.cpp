@@ -1,9 +1,11 @@
 #include "app/main_window.h"
 
 #include "app/catalogue.h"
+#include "ui/book_list_model.h"
 #include "ui/book_list_view.h"
 #include "db/db_error.h"
 #include "ui/detail_panel.h"
+#include "ui/rail_view.h"
 
 #include <QAction>
 #include <QLabel>
@@ -21,27 +23,22 @@ constexpr int railWidth = 190;
 constexpr int listWidth = 600;
 constexpr int detailWidth = 300;
 
-QWidget* makePanel(const QString& name, QWidget* parent)
-{
-    auto* panel = new QWidget(parent);
-    panel->setObjectName(name);
-    return panel;
-}
-
 } // namespace
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , splitter_(new QSplitter(Qt::Horizontal, this))
-    , rail_(makePanel(QStringLiteral("rail"), splitter_))
+    , rail_(new ui::RailView(splitter_))
     , list_(new ui::BookListView(splitter_))
     , detail_(new ui::DetailPanel(splitter_))
 {
     setWindowTitle(QStringLiteral("Pinax"));
+    rail_->setObjectName(QStringLiteral("rail"));
     list_->setObjectName(QStringLiteral("list"));
     detail_->setObjectName(QStringLiteral("detail"));
 
     connect(list_, &ui::BookListView::selectionChangedTo, this, &MainWindow::showSelection);
+    connect(rail_, &ui::RailView::filterChosen, this, &MainWindow::applyFilter);
     connect(detail_, &ui::DetailPanel::saveRequested, this, &MainWindow::saveBook);
     connect(list_, &ui::BookListView::toggleReadRequested, this, &MainWindow::toggleRead);
     connect(list_, &ui::BookListView::ratingRequested, this, &MainWindow::rate);
@@ -84,6 +81,7 @@ void MainWindow::lockWhileBusy()
     if (list_->isEnabled() == !busy)
         return;
     list_->setEnabled(!busy);
+    rail_->setEnabled(!busy);
     addBook_->setEnabled(!busy);
     if (detail_->state() == ui::DetailPanel::State::Editing)
         statusBar()->showMessage(tr("Editing — Ctrl+Enter saves, Esc cancels"));
@@ -97,6 +95,36 @@ void MainWindow::setCatalogue(Catalogue* catalogue)
 {
     catalogue_ = catalogue;
     list_->setBooks(catalogue_ ? catalogue_->summaries() : std::vector<domain::BookSummary> {});
+    refreshRail();
+}
+
+void MainWindow::refreshRail()
+{
+    ui::RailContents contents;
+    if (catalogue_) {
+        contents.all = catalogue_->count();
+        contents.unread = catalogue_->countWithReadStatus(domain::ReadStatus::Unread);
+        contents.reading = catalogue_->countWithReadStatus(domain::ReadStatus::Reading);
+        contents.read = catalogue_->countWithReadStatus(domain::ReadStatus::Read);
+        contents.series = catalogue_->seriesStatuses();
+    }
+    rail_->setContents(contents);
+}
+
+void MainWindow::applyFilter(const domain::BookFilter& filter, const QString& label)
+{
+    if (!catalogue_)
+        return;
+    const auto ids = catalogue_->bookIds(filter);
+    list_->showOnly(ids ? std::optional(QList<qint64>(ids->begin(), ids->end())) : std::nullopt);
+    // A series reads in its own order (D-005); elsewhere the owner's sort stands.
+    if (filter.kind == domain::BookFilter::Kind::Series)
+        list_->sortByColumn(ui::BookListModel::SeriesColumn, Qt::AscendingOrder);
+    list_->clearSelection();
+    statusBar()->showMessage(tr("%1 · %2 of %3 shown")
+                                 .arg(label)
+                                 .arg(list_->shownCount())
+                                 .arg(catalogue_->count()));
 }
 
 void MainWindow::showSelection(const QList<qint64>& ids)
@@ -126,8 +154,11 @@ void MainWindow::saveBook(const domain::BookEdit& edit)
     }
 
     const QString title = QString::fromStdString(edit.book.title);
+    refreshRail();
     if (edit.book.id == 0) {
-        // A new row: reload, then select it, which shows it in the panel.
+        // A new row: back to every book, since a filter chosen before it
+        // existed cannot include it; reload, then select it.
+        rail_->chooseFilter({});
         list_->setBooks(catalogue_->summaries());
         list_->selectBook(result.id);
         statusBar()->showMessage(tr("Added “%1”").arg(title), 4000);
@@ -187,6 +218,7 @@ void MainWindow::deleteBooks(const QList<qint64>& ids)
         return;
     }
     list_->setBooks(catalogue_->summaries());
+    refreshRail();
     detail_->showNothing();
     list_->setFocus();
     statusBar()->showMessage(tr("Deleted %1").arg(subject), 4000);
@@ -204,6 +236,7 @@ void MainWindow::toggleRead(const QList<qint64>& ids)
         return;
     }
     refreshBooks(ids);
+    refreshRail();
 
     const bool read = state == domain::ReadStatus::Read;
     if (ids.size() == 1) {

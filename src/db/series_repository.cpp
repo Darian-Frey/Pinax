@@ -169,6 +169,38 @@ std::vector<domain::SeriesMembership> SeriesRepository::membershipsForBook(std::
     return result;
 }
 
+std::vector<domain::SeriesStatus> SeriesRepository::statuses()
+{
+    Statement select(connection_, R"(
+        SELECT id, name, ongoing, held, known, held_read, status
+          FROM v_series_status
+         ORDER BY name COLLATE NOCASE, id)");
+    std::vector<domain::SeriesStatus> result;
+    while (select.step()) {
+        domain::SeriesStatus series;
+        series.id = select.columnInt(0);
+        series.name = select.columnText(1);
+        series.ongoing = select.columnInt(2) != 0;
+        series.held = static_cast<int>(select.columnInt(3));
+        series.known = static_cast<int>(select.columnInt(4));
+        series.heldRead = static_cast<int>(select.columnInt(5));
+        series.status = select.columnText(6);
+        result.push_back(std::move(series));
+    }
+    return result;
+}
+
+std::vector<std::int64_t> SeriesRepository::bookIds(std::int64_t seriesId)
+{
+    Statement select(connection_,
+        "SELECT book_id FROM series_entry WHERE series_id = :series_id AND book_id IS NOT NULL");
+    select.bind(":series_id", seriesId);
+    std::vector<std::int64_t> result;
+    while (select.step())
+        result.push_back(select.columnInt(0));
+    return result;
+}
+
 std::int64_t SeriesRepository::addEntry(const SeriesEntry& entry)
 {
     Statement insert(connection_, R"(

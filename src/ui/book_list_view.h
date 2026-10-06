@@ -28,6 +28,14 @@ public:
     // Selects the book and scrolls to it, if it is listed.
     void selectBook(std::int64_t id);
 
+    // Shows only these books, or every book for nullopt. The set stays as
+    // given until the next call: a book that stops matching is not snatched
+    // away from under the owner.
+    void showOnly(const std::optional<QList<qint64>>& ids);
+
+    // How many books are listed under the current filter.
+    int shownCount() const;
+
     // Ids of the selected books, in display order.
     QList<qint64> selectedBooks() const;
 

@@ -3,7 +3,9 @@
 #include "db/connection.h"
 #include "domain/book_detail.h"
 #include "domain/book_edit.h"
+#include "domain/book_filter.h"
 #include "domain/book_summary.h"
+#include "domain/series_status.h"
 
 #include <cstdint>
 #include <optional>
@@ -28,6 +30,15 @@ public:
     std::vector<domain::BookSummary> summaries();
     std::optional<domain::BookSummary> summary(std::int64_t id);
     std::optional<domain::BookDetail> detail(std::int64_t id);
+
+    // For the rail: how many books in a read state, and every series with
+    // its completeness (D-004), filed by name with a leading article moved
+    // to the end, as titles are.
+    std::int64_t countWithReadStatus(domain::ReadStatus status);
+    std::vector<domain::SeriesStatus> seriesStatuses();
+
+    // The books a filter selects; nullopt for "all of them".
+    std::optional<std::vector<std::int64_t>> bookIds(const domain::BookFilter& filter);
 
     // F-005. Marks every listed book read; or, if all of them are read
     // already, marks them all unread. Moving into read counts a read through

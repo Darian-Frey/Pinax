@@ -9,9 +9,11 @@
 #include "ui/book_list_view.h"
 #include "ui/book_view.h"
 #include "ui/detail_panel.h"
+#include "ui/rail_view.h"
 
 #include <QAction>
 #include <QLabel>
+#include <QStatusBar>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSignalSpy>
@@ -82,6 +84,13 @@ private slots:
     // IMP-002
     void listStandsStillWhileEditing();
     void listStandsStillWhileConfirmingADelete();
+    // Phase 2 step 2: the rail
+    void seriesAreFiledIgnoringALeadingArticle();
+    void filtersSelectTheRightBooks();
+    void choosingASeriesNarrowsAndOrdersTheList();
+    void railCountsFollowChangesButTheListHoldsStill();
+    void railStandsStillWhileEditing();
+    void addingABookReturnsToAllBooks();
 };
 
 void TestCatalogue::detailCarriesSeriesCompleteness()
@@ -597,6 +606,145 @@ void TestCatalogue::listStandsStillWhileConfirmingADelete()
         Qt::LeftButton);
     QVERIFY(window.bookList()->isEnabled());
     QCOMPARE(catalogue.count(), 3);
+}
+
+namespace {
+
+std::int64_t seriesId(Catalogue& catalogue, const std::string& name)
+{
+    for (const auto& series : catalogue.seriesStatuses()) {
+        if (series.name == name)
+            return series.id;
+    }
+    return 0;
+}
+
+pinax::domain::BookFilter seriesFilter(std::int64_t id)
+{
+    return {pinax::domain::BookFilter::Kind::Series, ReadStatus::Unread, id};
+}
+
+QStringList listedTitles(const MainWindow& window)
+{
+    QStringList titles;
+    const auto* model = window.bookList()->model();
+    for (int row = 0; row < model->rowCount(); ++row)
+        titles << model->index(row, pinax::ui::BookListModel::TitleColumn).data().toString();
+    return titles;
+}
+
+} // namespace
+
+void TestCatalogue::seriesAreFiledIgnoringALeadingArticle()
+{
+    Catalogue catalogue(":memory:");
+    pinax::io::CsvImporter(catalogue.connection()).importText(
+        "title,series,position\nA,The Culture,1\nB,Agent Cormac,1\nC,Dune,1\n");
+
+    std::vector<std::string> names;
+    for (const auto& series : catalogue.seriesStatuses())
+        names.push_back(series.name);
+    QCOMPARE(names, std::vector<std::string>({"Agent Cormac", "The Culture", "Dune"}));
+}
+
+void TestCatalogue::filtersSelectTheRightBooks()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+
+    QVERIFY(!catalogue.bookIds({}));
+    const auto read = catalogue.bookIds({pinax::domain::BookFilter::Kind::ReadState, ReadStatus::Read, 0});
+    QCOMPARE(*read, std::vector<std::int64_t>({idOf(catalogue, "Excession")}));
+    auto culture = *catalogue.bookIds(seriesFilter(seriesId(catalogue, "The Culture")));
+    std::sort(culture.begin(), culture.end());
+    std::vector<std::int64_t> expected {idOf(catalogue, "Excession"), idOf(catalogue, "Surface Detail")};
+    std::sort(expected.begin(), expected.end());
+    QCOMPARE(culture, expected);
+    QCOMPARE(catalogue.countWithReadStatus(ReadStatus::Unread), 2);
+}
+
+void TestCatalogue::choosingASeriesNarrowsAndOrdersTheList()
+{
+    Catalogue catalogue(":memory:");
+    pinax::io::CsvImporter(catalogue.connection()).importText(
+        "title,authors,series,position\n"
+        "Surface Detail,Iain M. Banks,The Culture,9\n"
+        "Consider Phlebas,Iain M. Banks,The Culture,1\n"
+        "Excession,Iain M. Banks,The Culture,5\n"
+        "Tau Zero,Poul Anderson,,\n");
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.rail()->chooseFilter(seriesFilter(seriesId(catalogue, "The Culture")));
+
+    QCOMPARE(listedTitles(window), QStringList({"Consider Phlebas", "Excession", "Surface Detail"}));
+    QVERIFY(window.statusBar()->currentMessage().startsWith(QStringLiteral("The Culture · 3 of 4 shown")));
+
+    window.rail()->chooseFilter({});
+    QCOMPARE(window.bookList()->shownCount(), 4);
+}
+
+void TestCatalogue::railCountsFollowChangesButTheListHoldsStill()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue); // one read, two unread
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    const auto unread = pinax::domain::BookFilter {pinax::domain::BookFilter::Kind::ReadState, ReadStatus::Unread, 0};
+    window.rail()->chooseFilter(unread);
+    QCOMPARE(window.bookList()->shownCount(), 2);
+
+    const std::int64_t id = idOf(catalogue, "Tau Zero");
+    window.bookList()->selectBook(id);
+    QTest::keyClick(window.bookList(), Qt::Key_R);
+
+    // Counted at once in the rail...
+    const QAbstractItemModel* rail = window.rail()->model();
+    const QModelIndex library = rail->index(0, 0);
+    QCOMPARE(rail->index(1, 1, library).data().toString(), QStringLiteral("1")); // Unread
+    QCOMPARE(rail->index(3, 1, library).data().toString(), QStringLiteral("2")); // Read
+    // ...but the book stays where the owner is working, still selected.
+    QCOMPARE(window.bookList()->shownCount(), 2);
+    QCOMPARE(window.bookList()->selectedBooks(), QList<qint64>({id}));
+    QVERIFY(window.rail()->currentFilter() == unread);
+}
+
+void TestCatalogue::railStandsStillWhileEditing()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.bookList()->selectBook(idOf(catalogue, "Excession"));
+    window.detailPanel()->beginEdit();
+    QVERIFY(!window.rail()->isEnabled());
+    emit window.detailPanel()->editor()->cancelled();
+    QVERIFY(window.rail()->isEnabled());
+}
+
+void TestCatalogue::addingABookReturnsToAllBooks()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue);
+
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.rail()->chooseFilter(seriesFilter(seriesId(catalogue, "The Culture")));
+    QCOMPARE(window.bookList()->shownCount(), 2);
+
+    pinax::domain::BookEdit edit;
+    edit.book.title = "Ringworld";
+    emit window.detailPanel()->saveRequested(edit);
+
+    QVERIFY(window.rail()->currentFilter().kind == pinax::domain::BookFilter::Kind::All);
+    QCOMPARE(window.bookList()->shownCount(), 4);
+    QCOMPARE(window.bookList()->selectedBooks(), QList<qint64>({idOf(catalogue, "Ringworld")}));
+    const QModelIndex library = window.rail()->model()->index(0, 0);
+    QCOMPARE(window.rail()->model()->index(0, 1, library).data().toString(), QStringLiteral("4"));
 }
 
 QTEST_MAIN(TestCatalogue)

@@ -101,7 +101,13 @@ No Qt; reaches the database only through `db`'s repositories and
 ### `ui`
 Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
 
-- **Rail** — a `QTreeView` over a filter tree. Selecting a node narrows the list.
+- **Rail** — `RailView`, a `QTreeView` of sections: LIBRARY (all books and
+  each read state, with counts) and SERIES (each with held/known from
+  `v_series_status`, filed as titles are). Choosing an entry emits a
+  `domain::BookFilter`; the composition root asks the Catalogue for the
+  matching ids and the list shows only those. The set holds until the next
+  choice, so a book does not vanish while the owner works on it; counts
+  refresh after every change.
 - **List** — `BookListView`, a `QTableView` over `BookListModel` (a
   `QAbstractTableModel` of `domain::BookSummary`) through `BookSortProxy`. The
   composition root reads summaries from `BookRepository` and hands them over;

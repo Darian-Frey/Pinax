@@ -74,7 +74,8 @@ genre links, and leaves its series entries as missing volumes.
 - [x] Known-but-unowned volumes and ongoing flags loaded from the seed —
       2026-10-05, `--import-series` (D-018); 144 of 144 statuses match the
       spreadsheet
-- [ ] Series list with held, known and status columns backed by `v_series_status`
+- [x] Series list with held, known and status columns backed by `v_series_status`
+      — 2026-10-06, the rail's SERIES section; status in each entry's tooltip
 - [ ] Series detail showing owned and missing entries in position order
 - [ ] Entry editor accepting non-numeric positions
 - [ ] Missing-volumes report backed by `v_missing_entries`

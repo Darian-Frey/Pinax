@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/book_edit.h"
+#include "domain/book_filter.h"
 
 #include <QList>
 #include <QMainWindow>
@@ -12,6 +13,7 @@ class QWidget;
 namespace pinax::ui {
 class BookListView;
 class DetailPanel;
+class RailView;
 }
 
 namespace pinax::app {
@@ -34,6 +36,7 @@ public:
     QSplitter* splitter() const { return splitter_; }
     ui::BookListView* bookList() const { return list_; }
     ui::DetailPanel* detailPanel() const { return detail_; }
+    ui::RailView* rail() const { return rail_; }
 
 private:
     void showSelection(const QList<qint64>& ids);
@@ -41,6 +44,9 @@ private:
     void addBook();
     void askToDelete(const QList<qint64>& ids);
     void deleteBooks(const QList<qint64>& ids);
+    void applyFilter(const domain::BookFilter& filter, const QString& label);
+    // Recounts the rail after anything that changes its numbers.
+    void refreshRail();
     void toggleRead(const QList<qint64>& ids);
     void rate(const QList<qint64>& ids, int rating);
 
@@ -56,7 +62,7 @@ private:
     Catalogue* catalogue_ = nullptr;
     QAction* addBook_ = nullptr;
     QSplitter* splitter_;
-    QWidget* rail_;
+    ui::RailView* rail_;
     ui::BookListView* list_;
     ui::DetailPanel* detail_;
 };

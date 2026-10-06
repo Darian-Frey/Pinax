@@ -2,6 +2,7 @@
 
 #include "domain/series_entry.h"
 #include "domain/series_membership.h"
+#include "domain/series_status.h"
 
 #include <cstdint>
 #include <optional>
@@ -45,6 +46,13 @@ public:
     // Every series the book belongs to, by series name, with completeness and
     // missing volumes read from v_series_status and v_missing_entries.
     std::vector<domain::SeriesMembership> membershipsForBook(std::int64_t bookId);
+
+    // Every series with its completeness, from v_series_status, by name as
+    // stored; filing order is the caller's.
+    std::vector<domain::SeriesStatus> statuses();
+
+    // Ids of the books on the shelf in this series.
+    std::vector<std::int64_t> bookIds(std::int64_t seriesId);
 
     std::int64_t addEntry(const domain::SeriesEntry& entry);
     bool updateEntry(const domain::SeriesEntry& entry);

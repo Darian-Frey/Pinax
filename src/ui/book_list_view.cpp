@@ -118,6 +118,19 @@ void BookListView::keyPressEvent(QKeyEvent* event)
     QTableView::keyPressEvent(event);
 }
 
+void BookListView::showOnly(const std::optional<QList<qint64>>& ids)
+{
+    if (ids)
+        proxy_->showOnly(QSet<qint64>(ids->begin(), ids->end()));
+    else
+        proxy_->showOnly(std::nullopt);
+}
+
+int BookListView::shownCount() const
+{
+    return proxy_->rowCount();
+}
+
 QList<qint64> BookListView::selectedBooks() const
 {
     QList<qint64> ids;

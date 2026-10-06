@@ -8,6 +8,7 @@ add_library(pinax_domain STATIC
     domain/author.h
     domain/book_summary.h
     domain/book_edit.h
+    domain/book_filter.h
     domain/credit.h
     domain/credit_text.cpp
     domain/credit_text.h
@@ -17,6 +18,7 @@ add_library(pinax_domain STATIC
     domain/isbn.h
     domain/series_entry.h
     domain/series_membership.h
+    domain/series_status.h
     domain/sort_name.cpp
     domain/sort_name.h
     domain/sort_title.cpp
@@ -103,6 +105,8 @@ add_library(pinax_ui STATIC
     ui/book_view.h
     ui/detail_panel.cpp
     ui/detail_panel.h
+    ui/rail_view.cpp
+    ui/rail_view.h
     ui/rating_bar.cpp
     ui/rating_bar.h
     ui/style.cpp

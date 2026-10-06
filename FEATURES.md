@@ -128,7 +128,10 @@ rejected, not clamped.
   `Broadcast 6.5`, `1-4` and `3a`.
 - Ordering is correct for half-numbered entries and for omnibuses spanning
   several positions.
-**Status:** Not started
+**Status:** In progress — positions are stored as printed with a separate sort key,
+and a series lists in position order (6.5 between 6 and 7, 10 after 2). A
+book may sit in several series in the data; entries are not yet editable in
+the application (Phase 2 step 4).
 **Notes:** D-005. `position` is free text; `sort_position` is the numeric sort
 key. Never parse one from the other at display time — see AV-006. Derivation
 rules in SPEC.md §1.2.
@@ -283,7 +286,8 @@ last in both directions; within an author, by series then position
 **Acceptance:**
 - The catalogue filters by read state, rating range, genre, series and author.
 - Filters combine, and the active filter set is visible and clearable in one action.
-**Status:** Not started
+**Status:** In progress — the rail filters by read state and by series. Rating,
+genre and author filters, and combining filters, are not built.
 
 ### F-018 Group
 **Priority:** Should

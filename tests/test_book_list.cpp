@@ -72,6 +72,7 @@ private slots:
     void missingValuesSortLastInBothDirections();
     void keysActOnTheSelection();
     void keysWithoutASelectionDoNothing();
+    void showOnlyNarrowsAndRestores();
 };
 
 void TestBookList::showsOneRowPerBookWithItsColumns()
@@ -254,6 +255,23 @@ void TestBookList::keysWithoutASelectionDoNothing()
     QTest::keyClick(&view, Qt::Key_3);
     QCOMPARE(toggled.count(), 0);
     QCOMPARE(rated.count(), 0);
+}
+
+void TestBookList::showOnlyNarrowsAndRestores()
+{
+    BookListView view;
+    view.setBooks({book(1, "Excession"), book(2, "Matter"), book(3, "Tau Zero")});
+    view.sortByColumn(BookListModel::TitleColumn, Qt::AscendingOrder);
+
+    view.showOnly(QList<qint64>({3, 1}));
+    QCOMPARE(view.shownCount(), 2);
+    QCOMPARE(shownTitles(view), QStringList({"Excession", "Tau Zero"}));
+
+    view.showOnly(QList<qint64>());
+    QCOMPARE(view.shownCount(), 0);
+
+    view.showOnly(std::nullopt);
+    QCOMPARE(view.shownCount(), 3);
 }
 
 QTEST_MAIN(TestBookList)

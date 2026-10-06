@@ -54,6 +54,12 @@ public:
 
     std::int64_t count();
 
+    // How many books are in this read state.
+    std::int64_t countWithReadStatus(domain::ReadStatus status);
+
+    // Ids of the books in this read state.
+    std::vector<std::int64_t> idsWithReadStatus(domain::ReadStatus status);
+
     // One book as the list view shows it.
     std::optional<domain::BookSummary> summary(std::int64_t id);
 

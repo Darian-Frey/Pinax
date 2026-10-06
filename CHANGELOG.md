@@ -14,6 +14,13 @@ change can be traced to the capability or decision that motivated it.
 Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) in progress.
 
 ### Added
+- The filter rail (Phase 2 step 2, D-010): LIBRARY with All books and each
+  read state, SERIES · 144 with each series' held/known from
+  `v_series_status` and its status in the tooltip, filed as titles are so The
+  Culture sits under C. Choosing an entry narrows the list; a series lists in
+  position order. Counts refresh after every change, while the list keeps
+  what was chosen until the next choice. The rail locks with the list while
+  an edit is open (IMP-002).
 - Series import (Phase 2 step 1, D-018): `pinax --import-series series.csv`
   records volumes a series is known to contain and which series are still
   being written (SPEC.md §1.6), idempotently, never touching a volume on the

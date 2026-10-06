@@ -351,6 +351,24 @@ std::vector<domain::BookSummary> BookRepository::summaries()
     return result;
 }
 
+std::int64_t BookRepository::countWithReadStatus(domain::ReadStatus status)
+{
+    Statement select(connection_, "SELECT COUNT(*) FROM book WHERE read_status = :status");
+    select.bind(":status", domain::toString(status));
+    select.step();
+    return select.columnInt(0);
+}
+
+std::vector<std::int64_t> BookRepository::idsWithReadStatus(domain::ReadStatus status)
+{
+    Statement select(connection_, "SELECT id FROM book WHERE read_status = :status");
+    select.bind(":status", domain::toString(status));
+    std::vector<std::int64_t> result;
+    while (select.step())
+        result.push_back(select.columnInt(0));
+    return result;
+}
+
 std::int64_t BookRepository::count()
 {
     Statement statement(connection_, "SELECT COUNT(*) FROM book");
