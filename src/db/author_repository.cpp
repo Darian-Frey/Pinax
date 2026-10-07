@@ -85,4 +85,18 @@ std::vector<std::string> AuthorRepository::names()
     return result;
 }
 
+std::vector<domain::FilterOption> AuthorRepository::withCounts()
+{
+    Statement select(connection_, R"(
+        SELECT a.id, a.name, COUNT(DISTINCT ba.book_id)
+          FROM author a
+          JOIN book_author ba ON ba.author_id = a.id AND ba.role = 'author'
+         GROUP BY a.id
+         ORDER BY a.sort_name COLLATE NOCASE)");
+    std::vector<domain::FilterOption> result;
+    while (select.step())
+        result.push_back({select.columnInt(0), select.columnText(1), static_cast<int>(select.columnInt(2))});
+    return result;
+}
+
 } // namespace pinax::db

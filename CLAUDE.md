@@ -30,7 +30,7 @@ database and exports to SQL, CSV and Excel.
 | `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save(Book)`, `save(BookEdit)` which creates at id 0 and resolves credits, `remove`, `toggleRead`, `setRating`). Also `countWithReadStatus`, `seriesStatuses` (filed as titles), `bookIds(BookFilter)`, `seriesRows`, `seriesDetail`, `entry`, `saveEntry`, `removeEntry`, `attach`, `seriesCredits`, `nextSortPosition`; `save(BookEdit, attachTo)` for Mark as owned; `missingVolumes`, `libraryTotals`; for Add by ISBN `bookWithIsbn`, `creditsFor`, `booksLike`, `seriesProposals`, `addBook`, `giveIsbn`; `dataDirectory`, `setCover` (never over a manual cover), `enrich` (a chosen candidate, one transaction, returns the cover URL), `markLookupFailed`. `Enricher` asks the providers (ISBN then title, Open Library then Google with a key; one queue per host), completes a searched candidate's synopsis, fetches covers, and `cancel`s; it writes nothing. `findGoogleBooksKey` (D-021). `BatchEnricher` runs Fetch all over unmatched books (D-023): takes an ISBN's single title-agreeing answer, queues the rest in memory for review, marks misses failed, stops on unreachable providers. Toolbar: Add a book, Add by ISBN (Ctrl+I), Fetch all metadata, Review matches (n); a progress bar in the status bar. `MainWindow`: splitter of `rail`, `list`, `detail`; rail choice → Catalogue ids → list; selection → panel; panel save → Catalogue → row and rail refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import` and `--import-series`, finds the Google key, builds the `Enricher` over a `NetworkFetcher`, shows the count. |
 | `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_rail`, `test_series_page`, `test_entry_editor`, `test_import` and `test_series_import` (their seed tests skip without `seed/`), `test_metadata` (recorded responses only; see `tests/fixtures/README.md`), `test_detail_panel`, `test_catalogue`, `test_enricher` (providers, the panel flow and the batch run end to end, over `fake_fetcher.h`, whose replies die with it). Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
-| `FEATURES.md` | Complete. F-001 to F-025. F-001 to F-011, F-016 and F-024 Complete; F-012, F-013, F-014, F-015, F-017 In progress; the rest Not started. |
+| `FEATURES.md` | Complete. F-001 to F-025. F-001 to F-011, F-016, F-017 and F-024 Complete; F-012, F-013, F-014, F-015 In progress; the rest Not started. |
 | `ROADMAP.md` | Complete. Phases 0–2 done; Phase 3 in progress; Phases 4–5 not started; Phase 5 (webcam scanning) waits on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
 | `DECISIONS.md` | Complete. D-001 to D-024; D-008 superseded by D-019, the rest Accepted. |
@@ -239,12 +239,19 @@ Not vectors, but worth knowing:
 - **A new book for a missing volume** is saved with `attachTo`; the window
   keeps the entry id in `pendingAttach_` between "Add it as a new book" and
   Save, and clears it on any dismissal.
-- **The middle panel is a stack** of three: the book list, a series' page and
-  the shopping list. `showingSeries()` and `showingMissing()` say which is
+- **The middle panel is a stack** of three: the book list (under its
+  `FilterBar`, in `listPage_`), a series' page and the shopping list. `showingSeries()` and `showingMissing()` say which is
   live; selection, refresh and focus go through `refreshPanel()` and
   `showSeriesPage()` so both views stay in step. `refreshPanel()` never
   redraws over an open form, but does redraw over a pending delete question —
   that is how Keep returns.
+- **The list's filters live in `MainWindow::query_`** (F-017). The rail's
+  read states set `query_.readStatus` and keep the rest; All books clears
+  it; anything that sends the owner back to every book (`chooseFilter({})`)
+  therefore clears the filters too. `applyQuery()` narrows the list and
+  shows the read state in the rail silently (`RailView::showFilter`), so it
+  never re-emits. Like the rail, filters apply when chosen: the list holds
+  still while books are rated or marked read.
 - **`v_book_display.authors` is not an author list.** Where a book has no
   author it shows the editors, "(ed.)" and all (IMP-004). Count or filter
   authors from role 'author' rows in `book_author`.

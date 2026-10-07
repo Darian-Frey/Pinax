@@ -175,6 +175,17 @@ void RailView::chooseFilter(const BookFilter& filter)
         selectItem(item); // emits through currentRowChanged
 }
 
+void RailView::showFilter(const BookFilter& filter)
+{
+    QStandardItem* item = itemFor(filter);
+    if (!item)
+        return;
+    rebuilding_ = true;
+    current_ = filter;
+    selectItem(item);
+    rebuilding_ = false;
+}
+
 QStandardItem* RailView::itemFor(const BookFilter& filter) const
 {
     for (int section = 0; section < model_->rowCount(); ++section) {

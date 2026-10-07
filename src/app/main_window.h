@@ -6,6 +6,7 @@
 #include "ui/add_by_isbn_view.h"
 #include "domain/candidate.h"
 #include "domain/book_filter.h"
+#include "domain/book_query.h"
 #include "domain/missing_row.h"
 #include "domain/series_entry.h"
 
@@ -23,6 +24,7 @@ class QWidget;
 
 namespace pinax::ui {
 class BookListView;
+class FilterBar;
 class DetailPanel;
 class MissingPage;
 class RailView;
@@ -56,6 +58,8 @@ public:
     ui::RailView* rail() const { return rail_; }
     ui::SeriesPage* seriesPage() const { return seriesPage_; }
     ui::MissingPage* missingPage() const { return missingPage_; }
+    ui::FilterBar* filterBar() const { return filterBar_; }
+    const domain::BookQuery& query() const { return query_; }
     BatchEnricher* batch() const { return batch_; }
     QAction* fetchAllAction() const { return fetchAll_; }
     QAction* reviewAction() const { return review_; }
@@ -96,6 +100,10 @@ private:
     void askToDelete(const QList<qint64>& ids);
     void deleteBooks(const QList<qint64>& ids);
     void applyFilter(const domain::BookFilter& filter, const QString& label);
+    // Narrows the book list to the combined filters (F-017), and shows the
+    // read state they hold in the rail.
+    void applyQuery();
+    void refreshFilterOptions();
     // Recounts the rail after anything that changes its numbers.
     void refreshRail();
     void toggleRead(const QList<qint64>& ids);
@@ -177,7 +185,10 @@ private:
     QStackedWidget* centre_;
     ui::SeriesPage* seriesPage_;
     ui::MissingPage* missingPage_;
+    QWidget* listPage_;
+    ui::FilterBar* filterBar_;
     ui::BookListView* list_;
+    domain::BookQuery query_;
     ui::DetailPanel* detail_;
 };
 

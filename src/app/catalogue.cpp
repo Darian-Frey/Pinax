@@ -184,6 +184,34 @@ std::optional<std::vector<std::int64_t>> Catalogue::bookIds(const domain::BookFi
     return std::nullopt;
 }
 
+std::optional<std::vector<std::int64_t>> Catalogue::matchingIds(const domain::BookQuery& query)
+{
+    if (query.empty())
+        return std::nullopt;
+    return db::BookRepository(connection_).idsMatching(query);
+}
+
+std::vector<domain::FilterOption> Catalogue::genreOptions()
+{
+    return db::GenreRepository(connection_).withCounts();
+}
+
+std::vector<domain::FilterOption> Catalogue::authorOptions()
+{
+    return db::AuthorRepository(connection_).withCounts();
+}
+
+std::vector<domain::FilterOption> Catalogue::seriesOptions()
+{
+    // Filed as the rail files them, counted by books held.
+    std::vector<domain::FilterOption> options;
+    for (const auto& status : seriesStatuses()) {
+        if (status.held > 0)
+            options.push_back({status.id, status.name, status.held});
+    }
+    return options;
+}
+
 domain::ReadStatus Catalogue::toggleRead(const std::vector<std::int64_t>& ids)
 {
     using domain::ReadStatus;

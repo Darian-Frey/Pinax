@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/author.h"
+#include "domain/book_query.h"
 
 #include <cstdint>
 #include <optional>
@@ -30,6 +31,10 @@ public:
     int removeUncredited();
 
     std::int64_t count();
+
+    // Authors credited as author of at least one book — not those who only
+    // edit or translate (IMP-004) — by filing name, with how many (F-017).
+    std::vector<domain::FilterOption> withCounts();
 
     // Every author's name, for matching a provider's spelling (F-024).
     std::vector<std::string> names();

@@ -5,6 +5,7 @@
 #include "domain/book_edit.h"
 #include "domain/book_filter.h"
 #include "domain/book_summary.h"
+#include "domain/book_query.h"
 #include "domain/candidate.h"
 #include "domain/series_proposal.h"
 #include "domain/missing_row.h"
@@ -56,6 +57,14 @@ public:
 
     // The books a filter selects; nullopt for "all of them".
     std::optional<std::vector<std::int64_t>> bookIds(const domain::BookFilter& filter);
+
+    // The list's combined filters (F-017): the ids meeting them all, or
+    // nullopt when none is set.
+    std::optional<std::vector<std::int64_t>> matchingIds(const domain::BookQuery& query);
+    // The choices for the filter bar, each with its count of books.
+    std::vector<domain::FilterOption> genreOptions();
+    std::vector<domain::FilterOption> authorOptions();
+    std::vector<domain::FilterOption> seriesOptions();
 
     // F-005. Marks every listed book read; or, if all of them are read
     // already, marks them all unread. Moving into read counts a read through

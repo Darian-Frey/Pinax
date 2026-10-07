@@ -8,6 +8,7 @@
 #include "db/db_error.h"
 #include "domain/placeholder.h"
 #include "ui/detail_panel.h"
+#include "ui/filter_bar.h"
 #include "ui/add_by_isbn_view.h"
 #include "ui/rail_view.h"
 #include "ui/missing_page.h"
@@ -21,6 +22,7 @@
 #include <QStackedWidget>
 #include <QStatusBar>
 #include <QToolBar>
+#include <QVBoxLayout>
 
 #include <algorithm>
 
@@ -43,7 +45,9 @@ MainWindow::MainWindow(QWidget* parent)
     , centre_(new QStackedWidget(splitter_))
     , seriesPage_(new ui::SeriesPage(centre_))
     , missingPage_(new ui::MissingPage(centre_))
-    , list_(new ui::BookListView(centre_))
+    , listPage_(new QWidget(centre_))
+    , filterBar_(new ui::FilterBar(listPage_))
+    , list_(new ui::BookListView(listPage_))
     , detail_(new ui::DetailPanel(splitter_))
 {
     setWindowTitle(QStringLiteral("Pinax"));
@@ -51,7 +55,18 @@ MainWindow::MainWindow(QWidget* parent)
     centre_->setObjectName(QStringLiteral("centre"));
     list_->setObjectName(QStringLiteral("list"));
     seriesPage_->setObjectName(QStringLiteral("seriesPage"));
-    centre_->addWidget(list_);
+    // The book list under its filters (F-017).
+    filterBar_->setObjectName(QStringLiteral("filterBar"));
+    auto* listLayout = new QVBoxLayout(listPage_);
+    listLayout->setContentsMargins(0, 0, 0, 0);
+    listLayout->setSpacing(0);
+    listLayout->addWidget(filterBar_);
+    listLayout->addWidget(list_, 1);
+    connect(filterBar_, &ui::FilterBar::queryChanged, this, [this](const domain::BookQuery& query) {
+        query_ = query;
+        applyQuery();
+    });
+    centre_->addWidget(listPage_);
     centre_->addWidget(seriesPage_);
     missingPage_->setObjectName(QStringLiteral("missingPage"));
     centre_->addWidget(missingPage_);
@@ -205,6 +220,7 @@ void MainWindow::lockWhileBusy()
     seriesPage_->setEnabled(!busy);
     missingPage_->setEnabled(!busy);
     rail_->setEnabled(!busy);
+    filterBar_->setEnabled(!busy);
     addBook_->setEnabled(!busy);
     addByIsbn_->setEnabled(!busy && enricher_ && catalogue_);
     if (fetchAll_)
@@ -226,6 +242,8 @@ void MainWindow::lockWhileBusy()
 void MainWindow::setCatalogue(Catalogue* catalogue)
 {
     catalogue_ = catalogue;
+    query_ = {};
+    filterBar_->setQuery(query_);
     list_->setBooks(catalogue_ ? catalogue_->summaries() : std::vector<domain::BookSummary> {});
     refreshRail();
     // The batch run belongs to a catalogue; make it afresh for this one.
@@ -728,6 +746,7 @@ void MainWindow::refreshRail()
         contents.missingVolumes = totals.volumesNotOwned;
     }
     rail_->setContents(contents);
+    refreshFilterOptions();
 }
 
 void MainWindow::applyFilter(const domain::BookFilter& filter, const QString& label)
@@ -758,14 +777,40 @@ void MainWindow::applyFilter(const domain::BookFilter& filter, const QString& la
         statusBar()->showMessage(label);
         return;
     }
-    centre_->setCurrentWidget(list_);
-    const auto ids = catalogue_->bookIds(filter);
+    // The book list: All books clears every filter; a read state sets that
+    // one and keeps the others (F-017).
+    if (filter.kind == domain::BookFilter::Kind::All)
+        query_ = {};
+    else if (filter.kind == domain::BookFilter::Kind::ReadState)
+        query_.readStatus = filter.readStatus;
+    centre_->setCurrentWidget(listPage_);
+    applyQuery();
+}
+
+void MainWindow::applyQuery()
+{
+    if (!catalogue_)
+        return;
+    centre_->setCurrentWidget(listPage_);
+    const auto ids = catalogue_->matchingIds(query_);
     list_->showOnly(ids ? std::optional(QList<qint64>(ids->begin(), ids->end())) : std::nullopt);
     list_->clearSelection();
-    statusBar()->showMessage(tr("%1 · %2 of %3 shown")
-                                 .arg(label)
-                                 .arg(list_->shownCount())
-                                 .arg(catalogue_->count()));
+    filterBar_->setQuery(query_);
+    const int total = static_cast<int>(catalogue_->count());
+    filterBar_->setShown(list_->shownCount(), total);
+    // The rail shows the read state held, or All books.
+    rail_->showFilter(query_.readStatus
+            ? domain::BookFilter {domain::BookFilter::Kind::ReadState, *query_.readStatus, 0}
+            : domain::BookFilter {});
+    statusBar()->showMessage(query_.empty() ? tr("All books · %1").arg(total)
+                                            : tr("%1 of %2 shown").arg(list_->shownCount()).arg(total));
+}
+
+void MainWindow::refreshFilterOptions()
+{
+    if (!catalogue_)
+        return;
+    filterBar_->setOptions(catalogue_->genreOptions(), catalogue_->authorOptions(), catalogue_->seriesOptions());
 }
 
 bool MainWindow::showingSeries() const

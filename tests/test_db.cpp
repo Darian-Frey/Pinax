@@ -1,4 +1,6 @@
 #include "db/book_repository.h"
+#include "db/genre_repository.h"
+#include "db/author_repository.h"
 #include "db/connection.h"
 #include "db/db_error.h"
 #include "db/migrations.h"
@@ -7,6 +9,8 @@
 #include <QFile>
 #include <QTemporaryDir>
 #include <QTest>
+
+#include <algorithm>
 
 #include <sqlite3.h>
 
@@ -102,6 +106,9 @@ private slots:
     void summariesCarrySeriesSortKeys();
     void severalSeriesJoinInStableOrder();
     void editorsStandInWhenThereIsNoAuthor();
+
+    // F-017
+    void filtersCombine();
 };
 
 void TestDb::migrateCreatesSchemaOnEmptyDatabase()
@@ -492,6 +499,76 @@ void TestDb::editorsStandInWhenThereIsNoAuthor()
     // No credit of any kind stays empty.
     const std::string none = std::to_string(books.create(titled("Practical Algebra")));
     QCOMPARE(scalar(connection, "SELECT authors IS NULL AND author_sort IS NULL FROM v_book_display WHERE id = " + none), 1);
+}
+
+void TestDb::filtersCombine()
+{
+    Connection connection(":memory:");
+    pinax::db::migrate(connection);
+    connection.exec(
+        "INSERT INTO book (id, title, sort_title, read_status, times_read, rating) VALUES"
+        " (1, 'Excession', 'Excession', 'read', 1, 9),"
+        " (2, 'Matter', 'Matter', 'unread', 0, NULL),"
+        " (3, 'Surface Detail', 'Surface Detail', 'read', 1, 6),"
+        " (4, 'Lost Mars', 'Lost Mars', 'unread', 0, 8);"
+        "INSERT INTO author (id, name, sort_name) VALUES (1, 'Iain M. Banks', 'Banks, Iain M.'),"
+        " (2, 'Mike Ashley', 'Ashley, Mike');"
+        "INSERT INTO book_author (book_id, author_id, ordinal, role) VALUES"
+        " (1, 1, 0, 'author'), (2, 1, 0, 'author'), (3, 1, 0, 'author'), (4, 2, 0, 'editor');"
+        "INSERT INTO genre (id, name) VALUES (1, 'Space opera'), (2, 'Science fiction');"
+        "INSERT INTO book_genre (book_id, genre_id, source) VALUES"
+        " (1, 1, 'manual'), (3, 1, 'open_library'), (4, 2, 'british_library');"
+        "INSERT INTO series (id, name) VALUES (1, 'The Culture');"
+        "INSERT INTO series_entry (series_id, book_id, position, sort_position) VALUES"
+        " (1, 1, '5', 5), (1, 3, '9', 9), (1, 2, '8', 8);");
+    BookRepository books(connection);
+    auto ids = [&](const pinax::domain::BookQuery& query) {
+        auto found = books.idsMatching(query);
+        std::sort(found.begin(), found.end());
+        return found;
+    };
+    using Ids = std::vector<std::int64_t>;
+    pinax::domain::BookQuery query;
+    QCOMPARE(ids(query), (Ids {1, 2, 3, 4}));
+
+    query.readStatus = ReadStatus::Read;
+    QCOMPARE(ids(query), (Ids {1, 3}));
+    query.ratingFrom = 8;
+    query.ratingTo = 10;
+    QCOMPARE(ids(query), (Ids {1}));                // read, and rated 8-10
+
+    pinax::domain::BookQuery unrated;
+    unrated.unratedOnly = true;
+    QCOMPARE(ids(unrated), (Ids {2}));
+
+    pinax::domain::BookQuery genre;
+    genre.genreId = 1;
+    QCOMPARE(ids(genre), (Ids {1, 3}));
+    genre.ratingTo = 7;
+    QCOMPARE(ids(genre), (Ids {3}));                // space opera rated at most 7
+
+    // An editor is not an author (IMP-004): Mike Ashley wrote none of these.
+    pinax::domain::BookQuery author;
+    author.authorId = 2;
+    QVERIFY(ids(author).empty());
+    author.authorId = 1;
+    author.readStatus = ReadStatus::Unread;
+    QCOMPARE(ids(author), (Ids {2}));
+
+    pinax::domain::BookQuery series;
+    series.seriesId = 1;
+    series.unratedOnly = true;
+    QCOMPARE(ids(series), (Ids {2}));               // unrated Culture books
+
+    // The choices, with counts; editors are not offered as authors.
+    const auto authors = pinax::db::AuthorRepository(connection).withCounts();
+    QCOMPARE(authors.size(), std::size_t(1));
+    QCOMPARE(authors.front().name, std::string("Iain M. Banks"));
+    QCOMPARE(authors.front().count, 3);
+    const auto genres = pinax::db::GenreRepository(connection).withCounts();
+    QCOMPARE(genres.size(), std::size_t(2));
+    QCOMPARE(genres.front().name, std::string("Science fiction"));
+    QCOMPARE(genres.back().count, 2);
 }
 
 QTEST_APPLESS_MAIN(TestDb)

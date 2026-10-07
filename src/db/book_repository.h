@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/book.h"
+#include "domain/book_query.h"
 #include "domain/book_summary.h"
 #include "domain/credit.h"
 
@@ -60,6 +61,10 @@ public:
 
     // Ids of the books in this read state.
     std::vector<std::int64_t> idsWithReadStatus(domain::ReadStatus status);
+
+    // The books meeting every filter set in the query (F-017). An author
+    // matches only through an 'author' credit, never an editor's (IMP-004).
+    std::vector<std::int64_t> idsMatching(const domain::BookQuery& query);
 
     // One book as the list view shows it.
     std::optional<domain::BookSummary> summary(std::int64_t id);

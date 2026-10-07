@@ -53,4 +53,18 @@ std::vector<GenreLink> GenreRepository::forBook(std::int64_t bookId)
     return result;
 }
 
+std::vector<domain::FilterOption> GenreRepository::withCounts()
+{
+    Statement select(connection_, R"(
+        SELECT g.id, g.name, COUNT(*)
+          FROM genre g
+          JOIN book_genre bg ON bg.genre_id = g.id
+         GROUP BY g.id
+         ORDER BY g.name COLLATE NOCASE)");
+    std::vector<domain::FilterOption> result;
+    while (select.step())
+        result.push_back({select.columnInt(0), select.columnText(1), static_cast<int>(select.columnInt(2))});
+    return result;
+}
+
 } // namespace pinax::db

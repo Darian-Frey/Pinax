@@ -324,8 +324,12 @@ books imported as read have none (IMP-010).
 **Acceptance:**
 - The catalogue filters by read state, rating range, genre, series and author.
 - Filters combine, and the active filter set is visible and clearable in one action.
-**Status:** In progress — the rail filters by read state and by series. Rating,
-genre and author filters, and combining filters, are not built.
+**Status:** Complete (2026-10-07) — a filter bar above the book list: read
+state, rating (unrated, or a range from–to), genre, author and series, each
+with its count of books, combined; "n of N shown" and Clear filters beside
+them. The rail's read states set the bar's and keep the rest; All books
+clears every filter; choosing a series in the rail still opens its page.
+Authors are offered and matched through 'author' credits only.
 **Notes:** An author filter and its counts must use role 'author' credits
 in `book_author`, not `v_book_display.authors`, which shows editors where a
 book has no author (IMP-004).

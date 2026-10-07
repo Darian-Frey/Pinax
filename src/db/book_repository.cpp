@@ -379,6 +379,47 @@ std::vector<std::int64_t> BookRepository::idsWithReadStatus(domain::ReadStatus s
     return result;
 }
 
+std::vector<std::int64_t> BookRepository::idsMatching(const domain::BookQuery& query)
+{
+    std::string sql = "SELECT b.id FROM book b WHERE 1 = 1";
+    if (query.readStatus)
+        sql += " AND b.read_status = :read_status";
+    if (query.unratedOnly)
+        sql += " AND b.rating IS NULL";
+    if (query.ratingFrom)
+        sql += " AND b.rating >= :rating_from";
+    if (query.ratingTo)
+        sql += " AND b.rating <= :rating_to";
+    if (query.genreId)
+        sql += " AND EXISTS (SELECT 1 FROM book_genre bg WHERE bg.book_id = b.id AND bg.genre_id = :genre_id)";
+    if (query.authorId) {
+        sql += " AND EXISTS (SELECT 1 FROM book_author ba WHERE ba.book_id = b.id"
+               " AND ba.author_id = :author_id AND ba.role = 'author')";
+    }
+    if (query.seriesId) {
+        sql += " AND EXISTS (SELECT 1 FROM series_entry se WHERE se.book_id = b.id"
+               " AND se.series_id = :series_id)";
+    }
+
+    Statement select(connection_, sql);
+    if (query.readStatus)
+        select.bind(":read_status", domain::toString(*query.readStatus));
+    if (query.ratingFrom)
+        select.bind(":rating_from", static_cast<std::int64_t>(*query.ratingFrom));
+    if (query.ratingTo)
+        select.bind(":rating_to", static_cast<std::int64_t>(*query.ratingTo));
+    if (query.genreId)
+        select.bind(":genre_id", *query.genreId);
+    if (query.authorId)
+        select.bind(":author_id", *query.authorId);
+    if (query.seriesId)
+        select.bind(":series_id", *query.seriesId);
+    std::vector<std::int64_t> result;
+    while (select.step())
+        result.push_back(select.columnInt(0));
+    return result;
+}
+
 std::int64_t BookRepository::count()
 {
     Statement statement(connection_, "SELECT COUNT(*) FROM book");

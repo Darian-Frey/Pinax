@@ -15,6 +15,13 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- Filters that combine (F-017): a bar above the book list filters by read
+  state, rating (unrated, or a range), genre, author and series together,
+  each choice with its count, and shows how many books are left; Clear
+  filters resets them in one click. The rail's Unread, Reading and Read set
+  the bar's read state and keep the other filters; All books clears them
+  all. Authors are matched through author credits only, so an anthology's
+  editor is not counted as its author. F-017 is complete.
 - A Finished column in the book list (F-016): the date a book was last
   finished, recorded when it is marked read, sortable like every other
   column with the never-finished last either way. The default window is

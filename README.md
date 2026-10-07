@@ -43,6 +43,9 @@ first. Selecting a book shows
 it in the detail panel; F2 or Edit opens its fields for editing in place. In
 the list, R toggles read, 1–9 or 0 rate and Delete deletes (after asking in
 the panel) the selected books; the panel's rating squares are clickable.
+Above the list, filters for read state, rating, genre, author and series
+combine — unread Pratchett, say, or space opera rated eight or more — and
+Clear filters shows everything again.
 Ctrl+N adds a book by hand. Fetch metadata, in the panel, looks the book up
 on Open Library — by ISBN, or by title and author — and, for an ISBN, in the
 British Library's catalogue too, which fills in UK editions' page counts and

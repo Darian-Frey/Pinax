@@ -13,6 +13,7 @@
 #include "ui/book_list_model.h"
 #include "ui/book_list_view.h"
 #include "ui/book_view.h"
+#include "ui/filter_bar.h"
 #include "ui/detail_panel.h"
 #include "ui/rail_view.h"
 #include "ui/series_entry_model.h"
@@ -30,6 +31,8 @@
 #include <QStatusBar>
 #include <QToolButton>
 #include <QLineEdit>
+#include <QComboBox>
+#include <QSpinBox>
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QTest>
@@ -137,6 +140,9 @@ private slots:
 
     // F-024, D-012
     void addingFillsTheMissingVolumeItMatches();
+
+    // F-017
+    void filtersCombineWithTheRail();
     void aSeriesTheProviderNamesIsProposed();
     void anIsbnHeldIsNotAddedTwice();
     void aHeldCopyWithoutAnIsbnIsRecognised();
@@ -1542,6 +1548,66 @@ void TestCatalogue::aHeldCopyWithoutAnIsbnIsRecognised()
     const auto other = catalogue.booksLike("Surface Detail", credits).front().id;
     QVERIFY(catalogue.giveIsbn(other, "9780316005388", std::nullopt, candidate, true).problem);
     QVERIFY(catalogue.giveIsbn(id, "9780575078017", std::nullopt, candidate, true).problem);
+}
+
+void TestCatalogue::filtersCombineWithTheRail()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue); // Excession (read), Surface Detail (unread), both Banks; Tau Zero (unread), Anderson
+    catalogue.setRating({idOf(catalogue, "Excession")}, 9);
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+
+    auto* bar = window.filterBar();
+    auto* author = bar->findChild<QComboBox*>(QStringLiteral("filter.author"));
+    auto* rating = bar->findChild<QComboBox*>(QStringLiteral("filter.rating"));
+    auto* clear = bar->findChild<QPushButton*>(QStringLiteral("filter.clear"));
+    auto* shown = bar->findChild<QLabel*>(QStringLiteral("filter.shown"));
+    auto* list = window.bookList();
+    QVERIFY(!clear->isEnabled());
+
+    // The choices carry their counts; only author credits count.
+    QVERIFY(author->findText(QStringLiteral("Iain M. Banks (2)")) > 0);
+    QVERIFY(author->findText(QStringLiteral("Poul Anderson (1)")) > 0);
+
+    author->setCurrentIndex(author->findText(QStringLiteral("Iain M. Banks (2)")));
+    QCOMPARE(list->shownCount(), 2);
+    QCOMPARE(shown->text(), QStringLiteral("2 of 3 shown"));
+    QVERIFY(clear->isEnabled());
+
+    // The rail's read state joins the bar's author, not replacing it.
+    window.rail()->chooseFilter({pinax::domain::BookFilter::Kind::ReadState, ReadStatus::Unread, 0});
+    QCOMPARE(list->shownCount(), 1);
+    QVERIFY(window.query().authorId);
+    QVERIFY(window.query().readStatus == ReadStatus::Unread);
+    QCOMPARE(bar->findChild<QComboBox*>(QStringLiteral("filter.read"))->currentText(), QStringLiteral("Unread"));
+
+    // A rating range: Banks, any read state, rated 8 to 10 -> Excession.
+    bar->findChild<QComboBox*>(QStringLiteral("filter.read"))->setCurrentIndex(0);
+    rating->setCurrentIndex(2);
+    bar->findChild<QSpinBox*>(QStringLiteral("filter.ratingFrom"))->setValue(8);
+    QCOMPARE(list->shownCount(), 1);
+    QCOMPARE(list->model()->index(0, pinax::ui::BookListModel::TitleColumn).data().toString(),
+        QStringLiteral("Excession"));
+    // The rail follows the bar: no read state, so All books.
+    QVERIFY(window.rail()->currentFilter() == pinax::domain::BookFilter {});
+
+    // Clear filters: every book, in one action.
+    QTest::mouseClick(clear, Qt::LeftButton);
+    QCOMPARE(list->shownCount(), 3);
+    QVERIFY(window.query().empty());
+    QCOMPARE(author->currentIndex(), 0);
+    QVERIFY(shown->text().isEmpty());
+
+    // All books in the rail does the same.
+    author->setCurrentIndex(author->findText(QStringLiteral("Poul Anderson (1)")));
+    QCOMPARE(list->shownCount(), 1);
+    window.rail()->chooseFilter({pinax::domain::BookFilter::Kind::ReadState, ReadStatus::Read, 0});
+    window.rail()->chooseFilter({});
+    QCOMPARE(list->shownCount(), 3);
+    QVERIFY(window.query().empty());
 }
 
 QTEST_MAIN(TestCatalogue)

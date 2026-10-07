@@ -10,6 +10,7 @@ add_library(pinax_domain STATIC
     domain/candidate.h
     domain/book_edit.h
     domain/book_filter.h
+    domain/book_query.h
     domain/credit.h
     domain/credit_text.cpp
     domain/credit_text.h
@@ -144,6 +145,8 @@ add_library(pinax_ui STATIC
     ui/detail_panel.h
     ui/entry_editor.cpp
     ui/entry_editor.h
+    ui/filter_bar.cpp
+    ui/filter_bar.h
     ui/list_keys.cpp
     ui/list_keys.h
     ui/missing_page.cpp

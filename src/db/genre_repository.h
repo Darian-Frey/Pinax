@@ -1,5 +1,6 @@
 #pragma once
 
+#include "domain/book_query.h"
 #include "domain/enums.h"
 
 #include <cstdint>
@@ -30,6 +31,9 @@ public:
     void addToBook(std::int64_t bookId, const std::string& name, domain::Source source);
 
     std::vector<GenreLink> forBook(std::int64_t bookId);
+
+    // Every genre some book carries, by name, with how many books (F-017).
+    std::vector<domain::FilterOption> withCounts();
 
 private:
     Connection& connection_;

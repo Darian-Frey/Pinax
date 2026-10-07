@@ -155,6 +155,9 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
   `AddByIsbnView` is Add by ISBN (D-024): the ISBN, the lookup, the
   confirmation card with held copies and series proposals, and the search
   and hand-entry fall-backs; it asks and is told, issuing nothing itself.
+  `FilterBar` sits above the book list: read state, rating, genre, author
+  and series, combined into a `domain::BookQuery` (F-017); fed its choices
+  with counts, it issues no SQL — `BookRepository::idsMatching` answers.
   For a book, `CandidateView` is Fetch metadata: the lookup under way, then
   the candidates to choose from, with nothing preselected for a search
   (AV-010); the panel is busy meanwhile. Series completeness on show comes from the views, not from

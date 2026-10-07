@@ -40,6 +40,9 @@ public:
 
     // Chooses a filter as if clicked, emitting filterChosen.
     void chooseFilter(const domain::BookFilter& filter);
+    // Shows a filter as chosen without emitting: the list's own filters
+    // changed what the rail should show (F-017).
+    void showFilter(const domain::BookFilter& filter);
 
     domain::BookFilter currentFilter() const { return current_; }
 
