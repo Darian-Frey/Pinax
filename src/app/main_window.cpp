@@ -220,6 +220,11 @@ MainWindow::MainWindow(QWidget* parent)
             tr("Three sheets — Books, Series status, Authors — with the figures Pinax shows: series "
                "status and missing volumes as computed values, not formulas. Opens in Excel and "
                "LibreOffice.")},
+        {tr("CSV of the book list"), QStringLiteral("csv"),
+            tr("The books the list shows now — filters, search and sort as they are — in Pinax's "
+               "import format, so the file can be imported again; checked by doing so before it is "
+               "kept. It carries what that format carries: not synopses, genres or covers, which the "
+               "SQL dump keeps.")},
     });
     connect(detail_->exportView(), &ui::ExportView::exportRequested, this, &MainWindow::exportTo);
     connect(detail_->exportView(), &ui::ExportView::closed, this, [this] {
@@ -766,6 +771,12 @@ void MainWindow::exportTo(int format, const QString& path)
         result = catalogue_->exportWorkbook(target.toStdString());
         what = tr("as an Excel workbook");
         break;
+    case 2: {
+        const auto shown = list_->shownBooks();
+        result = catalogue_->exportCsv(std::vector<std::int64_t>(shown.begin(), shown.end()), target.toStdString());
+        what = tr("as CSV");
+        break;
+    }
     default:
         return;
     }
@@ -774,9 +785,11 @@ void MainWindow::exportTo(int format, const QString& path)
         return;
     }
     lastExportFolder_ = QFileInfo(QString::fromStdString(result.path)).absolutePath();
-    const QString checked = format == 0 ? tr(" Checked by restoring it into an empty database: everything "
-                                             "came back as it is.")
-                                        : QString();
+    QString checked;
+    if (format == 0)
+        checked = tr(" Checked by restoring it into an empty database: everything came back as it is.");
+    else if (format == 2)
+        checked = tr(" Checked by importing it into an empty catalogue: it reads back without loss.");
     view->showDone(tr("Wrote %1 books %2 to %3.%4")
                        .arg(result.books)
                        .arg(what, QString::fromStdString(result.path), checked));

@@ -38,6 +38,9 @@ Toolchain fixed by D-001: C++20, Qt6 Widgets, SQLite.
 
 `db::backupTo` is the only way a copy of the database is taken (F-020,
 AV-003): `VACUUM INTO` a partial file, checked, then renamed into place.
+`io::writeBooksCsv` and `exportBooksCsv` write books in the import format,
+the latter re-importing each file into an empty catalogue and requiring it
+to export back identically (F-023, D-026).
 `io::writeWorkbook` lays a `domain::Workbook` out as `.xlsx` with
 libxlsxwriter (F-022, D-025); `pinax_io` alone links the library, and the
 figures come from `Catalogue::workbook()`, which reads the views.

@@ -158,6 +158,20 @@ QList<qint64> BookListView::selectedBooks() const
     return ids;
 }
 
+QList<qint64> BookListView::shownBooks() const
+{
+    QList<qint64> ids;
+    QSet<qint64> seen;
+    for (int row = 0; row < groups_->rowCount(); ++row) {
+        const auto id = bookAt(groups_->index(row, 0));
+        if (id && !seen.contains(*id)) {
+            seen.insert(*id);
+            ids << *id;
+        }
+    }
+    return ids;
+}
+
 std::optional<std::int64_t> BookListView::bookAt(const QModelIndex& index) const
 {
     const QModelIndex sorted = groups_->mapToSource(index);

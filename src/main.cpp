@@ -100,6 +100,11 @@ int main(int argc, char* argv[])
                        "without opening the window."),
         QStringLiteral("file.xlsx"));
     parser.addOption(xlsxOption);
+    const QCommandLineOption csvOption(QStringLiteral("csv"),
+        QStringLiteral("Write every book as CSV in the import format (F-023), checked by importing it, "
+                       "then quit without opening the window."),
+        QStringLiteral("file.csv"));
+    parser.addOption(csvOption);
     parser.addPositionalArgument(QStringLiteral("database"),
         QStringLiteral("Catalogue file to open. Default: ~/.local/share/pinax/pinax.db"),
         QStringLiteral("[database]"));
@@ -137,6 +142,16 @@ int main(int argc, char* argv[])
             return 0;
         }
 
+        if (parser.isSet(csvOption)) {
+            const auto result = catalogue->exportCsv(catalogue->booksInListOrder(), parser.value(csvOption).toStdString());
+            if (result.problem) {
+                std::fprintf(stderr, "%s: not written: %s\n", result.path.c_str(), result.problem->c_str());
+                return 1;
+            }
+            std::printf("Wrote %lld books as CSV to %s (re-imported and checked)\n",
+                static_cast<long long>(result.books), result.path.c_str());
+            return 0;
+        }
         if (parser.isSet(xlsxOption)) {
             const auto result = catalogue->exportWorkbook(parser.value(xlsxOption).toStdString());
             if (result.problem) {

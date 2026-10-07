@@ -956,3 +956,43 @@ numbers as numbers — writing a partial file renamed into place on success.
 
 **Reversal conditions.** Revisit if the library leaves the distribution, or
 if Pinax ever needs to read spreadsheets, which it cannot.
+
+---
+
+### D-026 A book in several series is a CSV row per series
+**Decided:** 2026-10-07
+**Recorded:** 2026-10-07
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-07)
+**Related:** D-016, F-003, F-008, F-023, AV-002, BUG-005
+
+**Context.** F-023 requires an exported CSV to re-import without loss. The
+import format (SPEC.md §1) has one `series` column, and since BUG-005 a book
+can be put in several series from the edit form. The importer refused any
+second row resolving to a book an earlier row had written — a rule that
+catches mistakes in a hand-made file.
+
+**Options.**
+- **A. A row per series; a further row for a book may add a series and
+  nothing else.** Chosen.
+- **B. Several series in one cell, separated somehow.** Rejected: a new
+  notation inside the format, with positions and sort numbers to pair up,
+  and a separator a series name might contain.
+- **C. Export only a book's first series.** Rejected: loss, and silent.
+
+**Decision.** Option A. The exporter writes a row per series, identical but
+for `series`, `position` and `sort_position`. The importer accepts a
+further row for a book already written by the file only if applying it
+would change nothing about the book or its credits and it names a series not
+yet given for that book in the file; that row adds the series. Any other
+repeat is still refused, by line, as before.
+
+**Consequences.**
+- The owner's seed, with one series per book, imports exactly as before.
+- A hand-made file can now give a book a second series by repeating its row.
+- Two copies of one book without an ISBN cannot round-trip through CSV —
+  the importer takes them for one — and the export refuses rather than
+  merge them (D-003); the SQL dump keeps both.
+
+**Reversal conditions.** Revisit if the import format ever gains a column
+that identifies a book outright, such as a catalogue id.

@@ -133,7 +133,8 @@ moves the series to complete, without creating a second record.
 
 ## Phase 4 — Browsing and export
 **Goal:** Get data in and out, and find things in it.
-**Status:** Not started
+**Status:** In progress — every deliverable done (2026-10-07); closing the
+phase is the owner's call
 **Features delivered:** F-016, F-017, F-018, F-019, F-020, F-021, F-022, F-023
 **Deliverables:**
 - [x] Sort, filter and group controls over the list view — 2026-10-07:
@@ -146,7 +147,8 @@ moves the series to complete, without creating a second record.
       restoring it
 - [x] `.xlsx` writer: books, series status, authors — 2026-10-07 (F-022,
       D-025), Export or `--xlsx`
-- [ ] CSV export of the current view
+- [x] CSV export of the current view — 2026-10-07 (F-023), checked by
+      re-importing it; a book in several series is a row per series (D-026)
 **Acceptance:** An exported workbook matches the application's own counts for
 books, read/unread split and series completeness. A dump restores onto an
 empty database and reproduces those same counts.

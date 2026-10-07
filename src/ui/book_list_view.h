@@ -51,6 +51,10 @@ public:
     // How many books are listed under the current filter.
     int shownCount() const;
 
+    // Ids of the books listed now — filters, search and sort applied — in
+    // display order, each once however many groups show it (F-023).
+    QList<qint64> shownBooks() const;
+
     // Ids of the selected books, in display order.
     QList<qint64> selectedBooks() const;
 

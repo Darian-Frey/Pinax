@@ -101,7 +101,10 @@ that does not parse, a rating outside 1–10, an ISBN-13 failing its check
 digit, a credit role not in §1.1, a `position` with no `series`, a constraint
 such as a duplicate ISBN-13, or a second row resolving to a book an earlier
 row of the same file already wrote — is rolled back alone and reported with
-the physical line it starts on. Any other database error rolls back the whole
+the physical line it starts on. The one exception to the last (D-026): a
+further row for a book that changes nothing about it and names a series not
+yet given for it in this file adds that series. A book in several series is
+a row per series. Any other database error rolls back the whole
 run; a partial import is a failed import.
 
 ### 1.5 Running an import
@@ -425,6 +428,25 @@ numbers are numbers; an absent value is an empty cell. Written to
 ### 5.2 CSV — F-023
 The current view, filters and sort applied, in the column order of §1, so a
 round trip through F-003 loses nothing.
+
+- Rows: the books the list shows, in its order — filters, search and sort
+  applied; group headings left out, and a book under two genres written
+  once. `pinax --csv` writes every book in the list's opening order.
+- Columns: all of §1's, in its order, with the header. `authors` in the
+  credit notation of §1.1, roles included; `shelf`, `binding` as their enum
+  words; `times_read` and `sort_position` always written, so nothing is
+  re-derived on import (AV-005, AV-006); reals with the fewest digits that
+  round-trip. RFC 4180 quoting, only where needed.
+- A book in several series is a row per series, identical but for `series`,
+  `position` and `sort_position` (D-026).
+- Not carried, because §1 has no column for them: ISBN-10, synopsis,
+  genres, covers, dates, acquisition. The SQL dump (§5.3) carries
+  everything.
+
+Written to `<file>.partial`, imported into an empty catalogue, exported
+again from there, and kept only if the two files are identical. Two books
+the importer would take for one — same title and first author, no ISBN —
+refuse the export by line, rather than lose a book.
 
 ### 5.3 SQL dump — F-021
 Plain text, equivalent to `sqlite3 pinax.db .dump`: schema plus `INSERT`

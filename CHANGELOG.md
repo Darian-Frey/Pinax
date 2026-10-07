@@ -15,6 +15,13 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- CSV export (F-023): Export (Ctrl+E) now offers "CSV of the book list" —
+  the books the list shows, with its filters, search and sort — in Pinax's
+  own import format, so the file can be imported again; each file is
+  re-imported into an empty catalogue and must come back identical before
+  it is kept. `pinax --csv file.csv` writes every book. A book in several
+  series is a row per series, and the importer now accepts a further row
+  for a book when it only adds a series (D-026).
 - Excel export (F-022): Export (Ctrl+E) now offers an Excel workbook with
   three sheets — Books, Series status, Authors — whose figures are the ones
   Pinax shows, read from its views rather than recounted; `pinax --xlsx

@@ -212,6 +212,13 @@ public:
     // That workbook as an .xlsx file (F-022).
     ExportResult exportWorkbook(const std::string& path);
 
+    // These books, in this order, as CSV in the import format (F-023),
+    // checked by re-importing it.
+    ExportResult exportCsv(const std::vector<std::int64_t>& bookIds, const std::string& path);
+    // Every book in the list's opening order: author, then series and
+    // position, then title.
+    std::vector<std::int64_t> booksInListOrder();
+
     // The folder holding the database, where covers are kept beside it
     // (SPEC.md §4); nullopt for an in-memory catalogue.
     std::optional<std::string> dataDirectory() const;

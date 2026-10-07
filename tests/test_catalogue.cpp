@@ -170,6 +170,8 @@ private slots:
     // F-022, AV-011
     void theWorkbookAgreesWithTheViews();
     void exportingAnExcelWorkbook();
+    // F-023
+    void exportingTheListAsCsv();
     void aSeriesTheProviderNamesIsProposed();
     void anIsbnHeldIsNotAddedTwice();
     void aHeldCopyWithoutAnIsbnIsRecognised();
@@ -2031,6 +2033,37 @@ void TestCatalogue::exportingAnExcelWorkbook()
     QVERIFY(lines.at(1).startsWith("1,Consider Phlebas,"));
     QVERIFY(QFile::exists(disk.dir.filePath(QStringLiteral("exports/pinax-Series status.csv"))));
     QVERIFY(QFile::exists(disk.dir.filePath(QStringLiteral("exports/pinax-Authors.csv"))));
+}
+
+void TestCatalogue::exportingTheListAsCsv()
+{
+    QTemporaryDir dir;
+    Catalogue catalogue(dir.filePath(QStringLiteral("pinax.db")).toStdString());
+    seedCulture(catalogue); // Surface Detail (unread), Excession (read); Tau Zero (unread)
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+
+    // The view as it stands: unread only, sorted by title.
+    window.rail()->chooseFilter({pinax::domain::BookFilter::Kind::ReadState, ReadStatus::Unread, 0});
+    window.bookList()->sortByColumn(pinax::ui::BookListModel::TitleColumn, Qt::AscendingOrder);
+    QTest::keyClick(&window, Qt::Key_E, Qt::ControlModifier);
+    auto* view = window.detailPanel()->exportView();
+    auto* format = view->findChild<QComboBox*>(QStringLiteral("export.format"));
+    format->setCurrentIndex(format->findText(QStringLiteral("CSV of the book list")));
+    const QString target = dir.filePath(QStringLiteral("unread.csv"));
+    view->findChild<QLineEdit*>(QStringLiteral("export.path"))->setText(target);
+    QTest::mouseClick(view->findChild<QPushButton*>(QStringLiteral("export.go")), Qt::LeftButton);
+    QVERIFY2(view->findChild<QLabel*>(QStringLiteral("export.outcome"))->text().contains(QStringLiteral("Wrote 2 books as CSV")),
+        qPrintable(view->findChild<QLabel*>(QStringLiteral("export.outcome"))->text()));
+
+    QFile file(target);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    const QList<QByteArray> lines = file.readAll().trimmed().split('\n');
+    QCOMPARE(lines.size(), 3);
+    QVERIFY(lines.at(1).startsWith("Surface Detail,,Iain M. Banks,The Culture,9,9,unread,0"));
+    QVERIFY(lines.at(2).startsWith("Tau Zero,,Poul Anderson,,,,unread,0"));
 }
 
 QTEST_MAIN(TestCatalogue)

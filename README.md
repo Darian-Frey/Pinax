@@ -66,7 +66,8 @@ Never commit it; `.gitignore` covers `*.key`. Back up (Ctrl+B) writes a checked 
 catalogue wherever you choose, without closing it; from a script or a cron
 job, `build/src/pinax --backup ~/backups/pinax.db` does the same and exits.
 Export (Ctrl+E) writes an Excel workbook — books, series status, authors —
-or the catalogue as plain SQL, readable and fit for
+a CSV of the books the list shows, in the format `--import` reads, or the
+catalogue as plain SQL, readable and fit for
 version control, that rebuilds it with nothing but `sqlite3`;
 `build/src/pinax --dump catalogue.sql` does the same from a script. Never
 back up by copying `pinax.db` while Pinax is open: the newest changes

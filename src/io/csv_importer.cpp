@@ -20,6 +20,7 @@
 #include <fstream>
 #include <map>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <unordered_map>
 
@@ -201,14 +202,19 @@ public:
     // still be rolled back, and SQLite would reuse a rolled-back id.
     void rowCommitted(int line)
     {
-        if (pendingBookId_)
+        if (pendingBookId_) {
             linesWritten_.try_emplace(*pendingBookId_, line);
+            if (pendingSeries_)
+                seriesGiven_[*pendingBookId_].insert(*pendingSeries_);
+        }
         pendingBookId_.reset();
+        pendingSeries_.reset();
     }
 
     Outcome import(const Row& row)
     {
         pendingBookId_.reset();
+        pendingSeries_ = row.series;
         bool changed = false;
         const std::int64_t bookId = writeBook(row, changed);
         if (row.credits)
@@ -242,12 +248,24 @@ private:
         const std::optional<Book> existing = match(row);
 
         // Two rows of one file resolving to one book is a mistake in the
-        // file; letting the second overwrite the first would hide it.
+        // file; letting the second overwrite the first would hide it. The
+        // one exception (D-026): a row that changes nothing about the book
+        // and names a series not yet given for it — a book in several
+        // series is a row per series, as the export writes it.
         if (existing) {
             if (const auto earlier = linesWritten_.find(existing->id); earlier != linesWritten_.end()) {
-                throw RowError { "same book as line " + std::to_string(earlier->second)
-                    + " (matched on " + (row.isbn13 && existing->isbn13 == row.isbn13 ? "ISBN" : "title and author")
-                    + ")" };
+                Book book = *existing;
+                applyRow(row, book);
+                const auto given = seriesGiven_.find(existing->id);
+                const bool newSeries = row.series
+                    && (given == seriesGiven_.end() || !given->second.count(*row.series));
+                if (!(book == *existing && sameCredits(row, existing->id) && newSeries)) {
+                    throw RowError { "same book as line " + std::to_string(earlier->second)
+                        + " (matched on " + (row.isbn13 && existing->isbn13 == row.isbn13 ? "ISBN" : "title and author")
+                        + "); a further row for a book may only add a series" };
+                }
+                pendingBookId_ = existing->id;
+                return existing->id;
             }
         }
 
@@ -283,6 +301,22 @@ private:
             }
         }
         return existing->id;
+    }
+
+    // Whether the row's credits are the book's as they stand, without
+    // creating any author.
+    bool sameCredits(const Row& row, std::int64_t bookId)
+    {
+        if (!row.credits)
+            return true;
+        std::vector<Credit> credits;
+        for (std::size_t i = 0; i < row.credits->size(); ++i) {
+            const auto author = authors_.findByName((*row.credits)[i].name);
+            if (!author)
+                return false;
+            credits.push_back({author->id, (*row.credits)[i].role, static_cast<int>(i)});
+        }
+        return credits == books_.credits(bookId);
     }
 
     void writeCredits(std::int64_t bookId, const std::vector<ParsedCredit>& parsed, bool& changed)
@@ -341,6 +375,8 @@ private:
     db::AuthorRepository authors_;
     db::SeriesRepository series_;
     bool inserted_ = false;
+    std::optional<std::string> pendingSeries_;
+    std::map<std::int64_t, std::set<std::string>> seriesGiven_; // per book, this file
     std::optional<std::int64_t> pendingBookId_;
     std::unordered_map<std::int64_t, int> linesWritten_; // book id -> first line this run
 };

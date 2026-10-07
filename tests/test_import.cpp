@@ -4,12 +4,17 @@
 #include "db/migrations.h"
 #include "db/series_repository.h"
 #include "db/statement.h"
+#include "io/csv_exporter.h"
 #include "io/csv_importer.h"
 #include "io/csv_reader.h"
 #include "io/sort_position.h"
 
+#include <QFile>
 #include <QFileInfo>
+#include <QTemporaryDir>
 #include <QTest>
+
+#include <sstream>
 
 using pinax::db::AuthorRepository;
 using pinax::db::BookRepository;
@@ -62,6 +67,10 @@ class TestImport : public QObject {
     Q_OBJECT
 
 private slots:
+    // F-023
+    void exportedCsvReimportsWithoutLoss();
+    void anExportThatWouldMergeBooksIsRefused();
+    void aFurtherRowMayOnlyAddASeries();
     // CSV reading
     void csvHandlesQuotesAndLineBreaks();
     void csvRejectsUnclosedQuote();
@@ -386,6 +395,119 @@ void TestImport::seedCatalogueImportsInOnePass()
     const ImportReport second = importer.importFile(seed.toStdString());
     QCOMPARE(second.unchanged, 443);
     QCOMPARE(catalogue.count("book"), 443);
+}
+
+void TestImport::exportedCsvReimportsWithoutLoss()
+{
+    Connection original(":memory:");
+    pinax::db::migrate(original);
+    const auto report = CsvImporter(original).importText(
+        "title,subtitle,authors,series,position,sort_position,shelf,times_read,rating,isbn13,publisher,"
+        "published_year,binding,edition_note,condition_note,notes\n"
+        "\"Mort\",,Terry Pratchett,Discworld,4,4,read,2,8,,Corgi,1987,paperback,First edition,Foxed,"
+        "\"Signed, \"\"with love\"\".\nSecond line.\"\n"
+        "Lost Mars,,Mike Ashley (editor),,,,unread,0,,,,,,,,\n"
+        "Omnibus,The Third,Iain M. Banks,The Culture,Broadcast 6.5,6.5,reading,1,,9780316005388,,,omnibus,,,\n");
+    QVERIFY(report.failures.empty());
+    // A second series for Mort, as the edit form may give it.
+    {
+        pinax::db::SeriesRepository series(original);
+        pinax::domain::SeriesEntry entry;
+        entry.seriesId = series.findOrCreate("Death");
+        entry.bookId = BookRepository(original).findByTitleAndFirstAuthor("Mort", std::string("Terry Pratchett"))->id;
+        entry.position = "1";
+        entry.sortPosition = 1;
+        series.addEntry(entry);
+    }
+    std::vector<std::int64_t> ids;
+    for (const auto& summary : BookRepository(original).summaries())
+        ids.push_back(summary.id);
+    std::sort(ids.begin(), ids.end());
+
+    std::ostringstream exported;
+    pinax::io::writeBooksCsv(original, ids, exported);
+    const std::string csv = exported.str();
+    QVERIFY(csv.rfind("title,subtitle,authors,series,position,sort_position,shelf,times_read", 0) == 0);
+    QVERIFY(csv.find("Mike Ashley (editor)") != std::string::npos);   // the role kept
+    QVERIFY(csv.find("Broadcast 6.5,6.5,reading,1") != std::string::npos);
+    QVERIFY(csv.find("\"Signed, \"\"with love\"\".\nSecond line.\"") != std::string::npos);
+    QCOMPARE(pinax::io::parseCsv(csv).size(), std::size_t(5)); // the header, then Mort twice: two series
+
+    // Into an empty catalogue: three books, each as it was.
+    Connection restored(":memory:");
+    pinax::db::migrate(restored);
+    const auto again = CsvImporter(restored).importText(csv);
+    QVERIFY(again.failures.empty());
+    QCOMPARE(BookRepository(restored).count(), 3);
+    const auto mort = BookRepository(restored).findByTitleAndFirstAuthor("Mort", std::string("Terry Pratchett"));
+    QCOMPARE(mort->timesRead, 2);
+    QVERIFY(mort->conditionNote == std::optional<std::string>("Foxed"));
+    QCOMPARE(pinax::db::SeriesRepository(restored).membershipsForBook(mort->id).size(), std::size_t(2));
+    std::ostringstream reexported;
+    std::vector<std::int64_t> restoredIds;
+    for (const auto& summary : BookRepository(restored).summaries())
+        restoredIds.push_back(summary.id);
+    std::sort(restoredIds.begin(), restoredIds.end());
+    pinax::io::writeBooksCsv(restored, restoredIds, reexported);
+    QVERIFY(reexported.str() == csv);
+
+    // Into the catalogue it came from: nothing changes (AV-002).
+    const auto onto = CsvImporter(original).importText(csv);
+    QCOMPARE(onto.inserted, 0);
+    QCOMPARE(onto.updated, 0);
+
+    // To a file, checked.
+    QTemporaryDir dir;
+    pinax::io::CsvExportReport written;
+    QVERIFY(!pinax::io::exportBooksCsv(original, ids, dir.filePath(QStringLiteral("out/books.csv")).toStdString(), written));
+    QCOMPARE(written.books, 3);
+    QVERIFY(QFile::exists(dir.filePath(QStringLiteral("out/books.csv"))));
+    QVERIFY(!QFile::exists(dir.filePath(QStringLiteral("out/books.csv.partial"))));
+}
+
+void TestImport::anExportThatWouldMergeBooksIsRefused()
+{
+    // Two copies of one book with no ISBN (D-003): the importer would read
+    // them back as one, so the export says so rather than lose one. A
+    // further row may add a series to a book, never change it (D-026).
+    Connection connection(":memory:");
+    pinax::db::migrate(connection);
+    BookRepository books(connection);
+    pinax::domain::Book copy;
+    copy.title = "Dune";
+    const auto first = books.create(copy);
+    copy.conditionNote = "Second copy";
+    const auto second = books.create(copy);
+    QTemporaryDir dir;
+    pinax::io::CsvExportReport report;
+    const auto problem = pinax::io::exportBooksCsv(connection, {first, second},
+        dir.filePath(QStringLiteral("books.csv")).toStdString(), report);
+    QVERIFY(problem);
+    // Refused by name: the importer itself sees the second copy as the first.
+    QVERIFY(problem->find("line 3") != std::string::npos);
+    QVERIFY(!QFile::exists(dir.filePath(QStringLiteral("books.csv"))));
+}
+
+void TestImport::aFurtherRowMayOnlyAddASeries()
+{
+    // D-026: a book in several series is a row per series; anything else a
+    // second row says about the same book is still a mistake in the file.
+    Connection connection(":memory:");
+    pinax::db::migrate(connection);
+    const auto report = CsvImporter(connection).importText(
+        "title,authors,series,position,shelf\n"
+        "Mort,Terry Pratchett,Discworld,4,read\n"
+        "Mort,Terry Pratchett,Death,1,read\n"      // a second series: accepted
+        "Mort,Terry Pratchett,Death,2,read\n"      // the same series again: refused
+        "Mort,Terry Pratchett,Witches,1,unread\n"); // changes the book: refused
+    QCOMPARE(report.inserted, 1);
+    QCOMPARE(report.failures.size(), std::size_t(2));
+    QCOMPARE(report.failures[0].line, 4);
+    QCOMPARE(report.failures[1].line, 5);
+    QVERIFY(report.failures[0].message.find("may only add a series") != std::string::npos);
+    const auto mort = BookRepository(connection).findByTitleAndFirstAuthor("Mort", std::string("Terry Pratchett"));
+    QVERIFY(mort->readStatus == pinax::domain::ReadStatus::Read);
+    QCOMPARE(pinax::db::SeriesRepository(connection).membershipsForBook(mort->id).size(), std::size_t(2));
 }
 
 QTEST_APPLESS_MAIN(TestImport)

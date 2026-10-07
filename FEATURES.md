@@ -417,7 +417,13 @@ test reads it back where LibreOffice is installed.
 **Acceptance:**
 - The current view — filters and sort applied — exports as CSV.
 - The output re-imports under F-003 without loss.
-**Status:** Not started
+**Status:** Complete (2026-10-07) — Export (Ctrl+E), format "CSV of the book
+list": the books the list shows, filters, search and sort applied, in the
+import format (SPEC.md §5.2); `pinax --csv file.csv` writes every book. Each
+file is imported into an empty catalogue and must export back identically
+before it is kept; a book in several series is a row per series (D-026). On
+the owner's catalogue, re-importing the export changed nothing: 443
+unchanged.
 
 ---
 

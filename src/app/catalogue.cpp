@@ -13,6 +13,7 @@
 #include "domain/isbn.h"
 #include "domain/name_match.h"
 #include "domain/placeholder.h"
+#include "io/csv_exporter.h"
 #include "io/sort_position.h"
 #include "io/xlsx_writer.h"
 #include "domain/sort_title.h"
@@ -844,26 +845,20 @@ domain::Workbook Catalogue::workbook()
         {"#", "Title", "Author", "Series", "Vol.", "Shelf", "Series status", "Still missing", "Rating",
             "Times read", "Year", "Publisher", "ISBN"},
         {}};
-    // In the list's own order: by author, then series and position.
-    auto summaries = books.summaries();
-    std::stable_sort(summaries.begin(), summaries.end(), [](const auto& a, const auto& b) {
-        const auto key = [](const domain::BookSummary& s) {
-            return std::make_tuple(s.authorSort.value_or("\x7f"), s.seriesSort.value_or("\x7f"),
-                s.seriesSortPosition.value_or(1e9), s.sortTitle);
-        };
-        return key(a) < key(b);
-    });
     std::int64_t index = 0;
-    for (const auto& summary : summaries) {
-        const auto book = books.find(summary.id);
+    for (const auto id : booksInListOrder()) {
+        const auto summary = books.summary(id);
+        const auto book = books.find(id);
+        if (!summary)
+            continue;
         if (!book)
             continue;
-        const auto memberships = series.membershipsForBook(summary.id);
+        const auto memberships = series.membershipsForBook(id);
         const domain::SeriesMembership* first = memberships.empty() ? nullptr : &memberships.front();
         std::vector<Cell> row;
         row.push_back(++index);
-        row.push_back(summary.title);
-        row.push_back(text(summary.authors));
+        row.push_back(summary->title);
+        row.push_back(text(summary->authors));
         row.push_back(first ? Cell(first->name) : Cell());
         row.push_back(first ? text(first->position) : Cell());
         row.push_back(shelfName(book->readStatus));
@@ -897,6 +892,30 @@ domain::Workbook Catalogue::workbook()
     }
     workbook.sheets.push_back(std::move(authorsSheet));
     return workbook;
+}
+
+std::vector<std::int64_t> Catalogue::booksInListOrder()
+{
+    auto summaries = db::BookRepository(connection_).summaries();
+    std::stable_sort(summaries.begin(), summaries.end(), [](const auto& a, const auto& b) {
+        const auto key = [](const domain::BookSummary& s) {
+            return std::make_tuple(s.authorSort.value_or("\x7f"), s.seriesSort.value_or("\x7f"),
+                s.seriesSortPosition.value_or(1e9), s.sortTitle);
+        };
+        return key(a) < key(b);
+    });
+    std::vector<std::int64_t> ids;
+    for (const auto& summary : summaries)
+        ids.push_back(summary.id);
+    return ids;
+}
+
+Catalogue::ExportResult Catalogue::exportCsv(const std::vector<std::int64_t>& bookIds, const std::string& path)
+{
+    io::CsvExportReport report;
+    if (const auto problem = io::exportBooksCsv(connection_, bookIds, path, report))
+        return {0, path, problem};
+    return {report.books, report.path, std::nullopt};
 }
 
 Catalogue::ExportResult Catalogue::exportWorkbook(const std::string& path)

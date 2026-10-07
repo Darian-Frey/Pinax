@@ -96,6 +96,8 @@ set_target_properties(pinax_db PROPERTIES AUTOMOC OFF)
 # io: files in and out. Talks to the database only through db's
 # repositories; no Qt.
 add_library(pinax_io STATIC
+    io/csv_exporter.cpp
+    io/csv_exporter.h
     io/csv_importer.cpp
     io/csv_importer.h
     io/csv_reader.cpp
