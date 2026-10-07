@@ -30,14 +30,14 @@ database and exports to SQL, CSV and Excel.
 | `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save(Book)`, `save(BookEdit)` which creates at id 0 and resolves credits, `remove`, `toggleRead`, `setRating`). Also `countWithReadStatus`, `seriesStatuses` (filed as titles), `bookIds(BookFilter)`, `seriesRows`, `seriesDetail`, `entry`, `saveEntry`, `removeEntry`, `attach`, `seriesCredits`, `nextSortPosition`; `save(BookEdit, attachTo)` for Mark as owned; `missingVolumes`, `libraryTotals`; for Add by ISBN `bookWithIsbn`, `creditsFor`, `booksLike`, `seriesProposals`, `addBook`, `giveIsbn`; `dataDirectory`, `setCover` (never over a manual cover), `enrich` (a chosen candidate, one transaction, returns the cover URL), `markLookupFailed`. `Enricher` asks the providers (ISBN then title, Open Library then Google with a key; one queue per host), completes a searched candidate's synopsis, fetches covers, and `cancel`s; it writes nothing. `findGoogleBooksKey` (D-021). `BatchEnricher` runs Fetch all over unmatched books (D-023): takes an ISBN's single title-agreeing answer, queues the rest in memory for review, marks misses failed, stops on unreachable providers. Toolbar: Add a book, Add by ISBN (Ctrl+I), Fetch all metadata, Review matches (n); a progress bar in the status bar. `MainWindow`: splitter of `rail`, `list`, `detail`; rail choice → Catalogue ids → list; selection → panel; panel save → Catalogue → row and rail refreshed. `main` opens `~/.local/share/pinax/pinax.db` or argv[1], runs `--import` and `--import-series`, finds the Google key, builds the `Enricher` over a `NetworkFetcher`, shows the count. |
 | `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_rail`, `test_series_page`, `test_entry_editor`, `test_import` and `test_series_import` (their seed tests skip without `seed/`), `test_metadata` (recorded responses only; see `tests/fixtures/README.md`), `test_detail_panel`, `test_catalogue`, `test_enricher` (providers, the panel flow and the batch run end to end, over `fake_fetcher.h`, whose replies die with it). Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
-| `FEATURES.md` | Complete. F-001 to F-025. F-001 to F-011 and F-024 Complete; F-012, F-013, F-014, F-015, F-016, F-017 In progress; the rest Not started. |
+| `FEATURES.md` | Complete. F-001 to F-025. F-001 to F-011, F-016 and F-024 Complete; F-012, F-013, F-014, F-015, F-017 In progress; the rest Not started. |
 | `ROADMAP.md` | Complete. Phases 0–2 done; Phase 3 in progress; Phases 4–5 not started; Phase 5 (webcam scanning) waits on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
 | `DECISIONS.md` | Complete. D-001 to D-024; D-008 superseded by D-019, the rest Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, what a fetch writes (§3.5), cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-013. Detection implemented for AV-001, AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007, AV-010, AV-012, AV-013; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001 to BUG-004 fixed. |
-| `IMPROVEMENTS.md` | IMP-007 suggested (free-text fallback for Google, whose qualified queries return nothing); IMP-008 suggested (leave Open Library's library-service subjects such as "Accessible book" out of genres); IMP-009 suggested (genres differing only in case are one). IMP-001 to IMP-005 applied; IMP-006 deferred. |
+| `IMPROVEMENTS.md` | IMP-007 suggested (free-text fallback for Google, whose qualified queries return nothing); IMP-008 suggested (leave Open Library's library-service subjects such as "Accessible book" out of genres); IMP-009 suggested (genres differing only in case are one); IMP-010 suggested (a finish date for books read before Pinax). IMP-001 to IMP-005 applied; IMP-006 deferred. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
@@ -102,7 +102,7 @@ Suggested order:
 
 Every Phase 3 deliverable is ticked; closing the phase is the owner's call.
 
-Open with the owner: IMP-007, IMP-008, IMP-009; whether to ask metadata@bl.uk
+Open with the owner: IMP-007, IMP-008, IMP-009, IMP-010; whether to ask metadata@bl.uk
 about the open SRU endpoint (D-022). IMP-006 is deferred.
 
 The seed: `seed/library.csv` and `seed/series.csv`, made by

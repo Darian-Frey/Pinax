@@ -95,6 +95,7 @@ QVariant BookListModel::data(const QModelIndex& index, int role) const
         case RatingColumn: return row.rating ? QString::number(*row.rating) : QStringLiteral("–");
         case YearColumn: return row.publishedYear ? QString::number(*row.publishedYear) : QString();
         case TimesReadColumn: return row.timesRead > 0 ? QString::number(row.timesRead) : QString();
+        case FinishedColumn: return text(row.dateFinished);
         }
         break;
 
@@ -134,12 +135,15 @@ QVariant BookListModel::headerData(int section, Qt::Orientation orientation, int
         case RatingColumn: return tr("Rating");
         case YearColumn: return tr("Year");
         case TimesReadColumn: return tr("Reads");
+        case FinishedColumn: return tr("Finished");
         }
     }
     if (role == Qt::ToolTipRole && section == ReadColumn)
         return tr("Read state");
     if (role == Qt::ToolTipRole && section == TimesReadColumn)
         return tr("Times read");
+    if (role == Qt::ToolTipRole && section == FinishedColumn)
+        return tr("When last finished — recorded when a book is marked read");
     if (role == Qt::TextAlignmentRole
         && (section == RatingColumn || section == YearColumn || section == TimesReadColumn))
         return int(Qt::AlignRight | Qt::AlignVCenter);

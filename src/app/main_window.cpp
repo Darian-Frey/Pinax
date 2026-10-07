@@ -31,7 +31,7 @@ namespace {
 // Panel widths taken from the mock-up in design/: a narrow rail, a list that
 // takes the slack, and a detail panel wide enough for the edition fields.
 constexpr int railWidth = 190;
-constexpr int listWidth = 600;
+constexpr int listWidth = 690;
 constexpr int detailWidth = 300;
 
 } // namespace

@@ -312,11 +312,12 @@ for misreads. Books printed before barcodes were common — roughly pre-1975,
   date finished and times read.
 - Title sorting ignores a leading article.
 - Null values sort predictably and consistently in one direction.
-**Status:** In progress — the list view sorts by title, author, series
-position, rating, year and read state by column header, with missing values
-last in both directions; within an author, by series then position
-(IMP-001). Date finished and times read are in
-`v_book_display` but have no column or sort control yet.
+**Status:** Complete (2026-10-07) — the list view sorts by any column
+header: read state, title (ignoring a leading article), author (by filing
+name, then series and position, IMP-001), series position, rating, year,
+times read (Reads) and date finished (Finished), with missing values last in
+both directions. A finish date is recorded when a book is marked read; the
+books imported as read have none (IMP-010).
 
 ### F-017 Filter
 **Priority:** Must

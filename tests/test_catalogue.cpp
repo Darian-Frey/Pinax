@@ -23,6 +23,7 @@
 #include "ui/missing_page.h"
 
 #include <QAction>
+#include <QDateTime>
 #include <QImage>
 #include <QLabel>
 #include <QTemporaryDir>
@@ -537,6 +538,14 @@ void TestCatalogue::readsColumnShowsAndSortsTheCount()
     QCOMPARE(cell(0, pinax::ui::BookListModel::TimesReadColumn), QStringLiteral("2"));
     QCOMPARE(cell(1, pinax::ui::BookListModel::TimesReadColumn), QStringLiteral("1"));
     QCOMPARE(cell(2, pinax::ui::BookListModel::TimesReadColumn), QString()); // never read
+
+    // F-016: marking it read recorded the day (UTC, as SQLite's date('now')),
+    // and the Finished column sorts it ahead of the books never finished.
+    view->sortByColumn(pinax::ui::BookListModel::FinishedColumn, Qt::DescendingOrder);
+    QCOMPARE(cell(0, pinax::ui::BookListModel::TitleColumn), QStringLiteral("Surface Detail"));
+    QCOMPARE(cell(0, pinax::ui::BookListModel::FinishedColumn),
+        QDateTime::currentDateTimeUtc().date().toString(Qt::ISODate));
+    QVERIFY(cell(2, pinax::ui::BookListModel::FinishedColumn).isEmpty());
 }
 
 namespace {

@@ -100,6 +100,30 @@ change. Leaving it means duplicate genres to tidy by hand later.
 **Notes.** Only exact case variants; "Fiction, science fiction, general" and
 "Science fiction" remain different genres, as D-009 intends.
 
+### IMP-010 Let a finish date be entered for books read before Pinax
+
+**Status:** suggested
+**Found:** 2026-10-07 (F-016, adding the Finished column)
+**Location:** `src/ui/book_editor.cpp` (no date field); `src/io/csv_importer.cpp` (no date column); SPEC.md §1
+**Effort:** small
+**Description.** `date_finished` is written only by `trg_book_finished`, when
+a book moves into read in the application. The 176 books imported as read
+have none, and the edit form offers no way to enter one, so sorting by date
+finished orders only what is read from now on; the backlog sorts last, as
+if never finished.
+**Proposal.** A "Finished" date field in the edit form, shown for a read
+book, validated as an ISO 8601 date and written as is; and an optional
+`date_finished` column in the import CSV (SPEC.md §1), so a spreadsheet of
+remembered dates can be loaded in one go.
+**Trade-offs.** A hand-entered date and the trigger both write the column:
+marking a book read again overwrites the owner's date with today's, which
+is right for a re-read but surprising after a correction. Most past dates
+are not remembered, so many fields would stay empty or be guessed — a
+guessed date sorts as confidently as a true one. Leaving it means the
+column only describes reading done with Pinax.
+**Notes.** `date_started` has the same gap and the same trigger-free status;
+settle both together.
+
 ## Applied
 
 ### IMP-005 Summarise placeholder volumes in the detail panel

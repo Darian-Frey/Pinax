@@ -22,6 +22,7 @@ public:
         RatingColumn,
         YearColumn,
         TimesReadColumn, // F-006
+        FinishedColumn,  // the date last finished (F-016)
         ColumnCount
     };
 

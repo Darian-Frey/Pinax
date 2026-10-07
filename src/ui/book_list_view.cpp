@@ -22,6 +22,7 @@ constexpr int defaultSeriesWidth = 140;
 constexpr int defaultRatingWidth = 56;
 constexpr int defaultYearWidth = 48;
 constexpr int defaultReadsWidth = 52;
+constexpr int defaultFinishedWidth = 82;
 
 } // namespace
 
@@ -55,6 +56,7 @@ BookListView::BookListView(QWidget* parent)
     header->resizeSection(BookListModel::RatingColumn, defaultRatingWidth);
     header->resizeSection(BookListModel::YearColumn, defaultYearWidth);
     header->resizeSection(BookListModel::TimesReadColumn, defaultReadsWidth);
+    header->resizeSection(BookListModel::FinishedColumn, defaultFinishedWidth);
 
     setSortingEnabled(true);
     sortByColumn(BookListModel::AuthorColumn, Qt::AscendingOrder);

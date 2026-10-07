@@ -15,6 +15,10 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- A Finished column in the book list (F-016): the date a book was last
+  finished, recorded when it is marked read, sortable like every other
+  column with the never-finished last either way. The default window is
+  wider to keep room for titles. F-016 is complete.
 - Cover thumbnails beside the candidates in Fetch metadata and Review
   matches: each edition's cover arrives as it downloads, Open Library's
   medium size, a second apart, so the right edition can be picked by its

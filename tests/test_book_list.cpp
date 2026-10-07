@@ -70,6 +70,7 @@ private slots:
     void authorKeepsTheirSeriesTogether();
     void seriesSortsBySortPositionNotPrintedPosition();
     void missingValuesSortLastInBothDirections();
+    void finishedSortsByDateWithNeverFinishedLast();
     void keysActOnTheSelection();
     void keysWithoutASelectionDoNothing();
     void showOnlyNarrowsAndRestores();
@@ -204,6 +205,33 @@ void TestBookList::missingValuesSortLastInBothDirections()
 
     view.sortByColumn(BookListModel::RatingColumn, Qt::DescendingOrder);
     QCOMPARE(shownTitles(view), QStringList({"Nine", "Seven", "Unrated"}));
+}
+
+void TestBookList::finishedSortsByDateWithNeverFinishedLast()
+{
+    // F-016: the date last finished, as recorded when a book is marked read.
+    auto finished = [](std::int64_t id, std::string title, std::optional<std::string> date) {
+        BookSummary row = book(id, std::move(title));
+        row.dateFinished = std::move(date);
+        return row;
+    };
+    BookListView view;
+    view.setBooks({
+        finished(1, "Autumn", std::string("2025-10-14")),
+        finished(2, "Never", std::nullopt),
+        finished(3, "Spring", std::string("2026-04-02")),
+        finished(4, "Winter", std::string("2025-12-31")),
+    });
+    view.sortByColumn(BookListModel::FinishedColumn, Qt::AscendingOrder);
+    QCOMPARE(shownTitles(view), QStringList({"Autumn", "Winter", "Spring", "Never"}));
+    QCOMPARE(view.model()->index(0, BookListModel::FinishedColumn).data().toString(), QStringLiteral("2025-10-14"));
+    QVERIFY(view.model()->index(3, BookListModel::FinishedColumn).data().toString().isEmpty());
+
+    // Most recent first, the never-finished still last.
+    view.sortByColumn(BookListModel::FinishedColumn, Qt::DescendingOrder);
+    QCOMPARE(shownTitles(view), QStringList({"Spring", "Winter", "Autumn", "Never"}));
+    QCOMPARE(view.model()->headerData(BookListModel::FinishedColumn, Qt::Horizontal).toString(),
+        QStringLiteral("Finished"));
 }
 
 void TestBookList::keysActOnTheSelection()
