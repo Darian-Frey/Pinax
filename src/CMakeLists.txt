@@ -65,6 +65,8 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 add_library(pinax_db STATIC
     db/author_repository.cpp
     db/author_repository.h
+    db/backup.cpp
+    db/backup.h
     db/book_repository.cpp
     db/book_repository.h
     db/connection.cpp
@@ -132,6 +134,8 @@ add_library(pinax_ui STATIC
     ui/attach_view.h
     ui/candidate_view.cpp
     ui/candidate_view.h
+    ui/backup_view.cpp
+    ui/backup_view.h
     ui/book_editor.cpp
     ui/book_editor.h
     ui/book_group_proxy.cpp

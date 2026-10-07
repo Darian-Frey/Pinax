@@ -13,6 +13,7 @@
 #include "ui/book_list_model.h"
 #include "ui/book_list_view.h"
 #include "ui/book_view.h"
+#include "ui/backup_view.h"
 #include "ui/filter_bar.h"
 #include "ui/book_group_proxy.h"
 #include "ui/detail_panel.h"
@@ -26,6 +27,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QDate>
 #include <QDateTime>
 #include <QImage>
 #include <QLabel>
@@ -154,6 +156,9 @@ private slots:
 
     // F-019
     void searchNarrowsAsYouType();
+
+    // F-020
+    void backingUpFromThePanel();
     void aSeriesTheProviderNamesIsProposed();
     void anIsbnHeldIsNotAddedTwice();
     void aHeldCopyWithoutAnIsbnIsRecognised();
@@ -1825,6 +1830,48 @@ void TestCatalogue::searchNarrowsAsYouType()
     search->setFocus();
     QTest::keyClicks(search, QStringLiteral("revisited"));
     QCOMPARE(list->shownCount(), 1);
+}
+
+void TestCatalogue::backingUpFromThePanel()
+{
+    OnDisk disk;
+    Catalogue& catalogue = *disk.catalogue;
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+
+    QTest::keyClick(&window, Qt::Key_B, Qt::ControlModifier);
+    QCOMPARE(window.detailPanel()->state(), DetailPanel::State::BackingUp);
+    QVERIFY(!window.bookList()->isEnabled()); // the panel is busy, as any form
+    auto* view = window.detailPanel()->backupView();
+    auto* path = view->findChild<QLineEdit*>(QStringLiteral("backup.path"));
+    QVERIFY(path->text().contains(QStringLiteral("Pinax backups")));
+    QVERIFY(path->text().endsWith(QDate::currentDate().toString(Qt::ISODate) + QStringLiteral(".db")));
+
+    const QString target = disk.dir.filePath(QStringLiteral("elsewhere/pinax-copy.db"));
+    path->setText(target);
+    QVERIFY(view->findChild<QLabel*>(QStringLiteral("backup.warning"))->text().isEmpty());
+    QTest::mouseClick(view->findChild<QPushButton*>(QStringLiteral("backup.go")), Qt::LeftButton);
+    QVERIFY(view->findChild<QLabel*>(QStringLiteral("backup.outcome"))->text().contains(QStringLiteral("Backed up 1 books")));
+    QVERIFY(QFile::exists(target));
+    QVERIFY(view->findChild<QLabel*>(QStringLiteral("backup.warning"))->text().isEmpty()); // not "will be replaced"
+    QCOMPARE(Catalogue(target.toStdString()).count(), 1);
+
+    // There now: the form says it will be replaced, and replaces it.
+    path->setText(QString());
+    path->setText(target);
+    QVERIFY(view->findChild<QLabel*>(QStringLiteral("backup.warning"))->text().contains(QStringLiteral("replaced")));
+    // A folder is not a file name.
+    path->setText(disk.dir.path());
+    QVERIFY(!view->findChild<QPushButton*>(QStringLiteral("backup.go"))->isEnabled());
+
+    QTest::keyClick(path, Qt::Key_Escape);
+    QCOMPARE(window.detailPanel()->state(), DetailPanel::State::Empty);
+    QVERIFY(window.bookList()->isEnabled());
+    // The folder used is offered next time.
+    QTest::keyClick(&window, Qt::Key_B, Qt::ControlModifier);
+    QVERIFY(path->text().startsWith(disk.dir.filePath(QStringLiteral("elsewhere"))));
 }
 
 QTEST_MAIN(TestCatalogue)

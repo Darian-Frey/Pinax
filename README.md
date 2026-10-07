@@ -62,7 +62,11 @@ gives yours the number instead of adding it twice, which is how the
 imported backlog gains its ISBNs. Google Books is asked as well if
 you have an API key: put it in `google-books.key` beside the catalogue, or in
 the folder Pinax is started from, or in `PINAX_GOOGLE_BOOKS_KEY` (D-021).
-Never commit it; `.gitignore` covers `*.key`. The database is also usable on
+Never commit it; `.gitignore` covers `*.key`. Back up (Ctrl+B) writes a checked copy of the
+catalogue wherever you choose, without closing it; from a script or a cron
+job, `build/src/pinax --backup ~/backups/pinax.db` does the same and exits.
+Never back up by copying `pinax.db` while Pinax is open: the newest changes
+live in `pinax.db-wal` beside it (AV-003). The database is also usable on
 its own:
 
 ```sh

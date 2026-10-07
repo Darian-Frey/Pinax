@@ -15,6 +15,12 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- Backup (F-020): Back up (Ctrl+B) writes a copy of the catalogue to a path
+  typed in the panel — suggested in Documents/Pinax backups — while Pinax
+  stays open, and checks it opens, passes SQLite's integrity check and holds
+  every book before it replaces anything. `pinax --backup file.db` does the
+  same without the window, for a scheduled job. A plain copy of the file is
+  not a backup in WAL mode; the test shows one missing the newest rows.
 - Search (F-019): a field at the top of the filter bar, Ctrl+F from
   anywhere, narrows the list as you type. Every word must turn up in the
   title, a credited name — editors and translators too — or any series the

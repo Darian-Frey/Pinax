@@ -12,17 +12,22 @@
 #include "ui/filter_bar.h"
 #include "ui/book_group_proxy.h"
 #include "ui/add_by_isbn_view.h"
+#include "ui/backup_view.h"
 #include "ui/rail_view.h"
 #include "ui/missing_page.h"
 #include "ui/series_page.h"
 
 #include <QAction>
+#include <QDate>
+#include <QDir>
+#include <QFileInfo>
 #include <QLabel>
 #include <QPointer>
 #include <QProgressBar>
 #include <QShortcut>
 #include <QSplitter>
 #include <QStackedWidget>
+#include <QStandardPaths>
 #include <QStatusBar>
 #include <QToolBar>
 #include <QVBoxLayout>
@@ -192,6 +197,15 @@ MainWindow::MainWindow(QWidget* parent)
         list_->selectBook(bookId);
     });
     toolbar->addSeparator();
+    backUp_ = toolbar->addAction(tr("Back up"), this, &MainWindow::beginBackup);
+    backUp_->setObjectName(QStringLiteral("backUp"));
+    backUp_->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_B));
+    backUp_->setToolTip(tr("A checked copy of the catalogue, wherever you choose (Ctrl+B)"));
+    connect(detail_->backupView(), &ui::BackupView::backupRequested, this, &MainWindow::backUp);
+    connect(detail_->backupView(), &ui::BackupView::closed, this, [this] {
+        detail_->showNothing();
+        refreshPanel();
+    });
     fetchAll_ = toolbar->addAction(tr("Fetch all metadata"), this, &MainWindow::toggleBatch);
     fetchAll_->setObjectName(QStringLiteral("fetchAll"));
     fetchAll_->setToolTip(tr("Look up every book not yet looked up. An ISBN's single, agreeing "
@@ -236,11 +250,14 @@ void MainWindow::lockWhileBusy()
     rail_->setEnabled(!busy);
     filterBar_->setEnabled(!busy);
     addBook_->setEnabled(!busy);
+    backUp_->setEnabled(!busy && catalogue_);
     addByIsbn_->setEnabled(!busy && enricher_ && catalogue_);
     if (fetchAll_)
         showBatchProgress();
     if (detail_->state() == ui::DetailPanel::State::Adding)
         statusBar()->showMessage(tr("Adding by ISBN — Esc cancels"));
+    else if (detail_->state() == ui::DetailPanel::State::BackingUp)
+        statusBar()->showMessage(tr("Backing up — Esc closes"));
     else if (detail_->state() == ui::DetailPanel::State::Fetching && reviewLeft_ > 0)
         statusBar()->showMessage(tr("Reviewing matches — Esc stops"));
     else if (detail_->state() == ui::DetailPanel::State::Fetching)
@@ -654,6 +671,44 @@ void MainWindow::stopAdding()
     addCover_.reset();
     detail_->showNothing();
     refreshPanel();
+}
+
+void MainWindow::beginBackup()
+{
+    if (!catalogue_ || detail_->isBusy())
+        return;
+    QString folder = lastBackupFolder_;
+    if (folder.isEmpty()) {
+        folder = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+        if (folder.isEmpty())
+            folder = QDir::homePath();
+        folder += QStringLiteral("/Pinax backups");
+    }
+    const QString name = QStringLiteral("pinax-%1.db").arg(QDate::currentDate().toString(Qt::ISODate));
+    list_->clearSelection();
+    detail_->beginBackup(QDir(folder).filePath(name));
+}
+
+void MainWindow::backUp(const QString& path)
+{
+    if (!catalogue_)
+        return;
+    const QString target = QDir::cleanPath(QDir::fromNativeSeparators(path).startsWith(QLatin1Char('~'))
+            ? QDir::homePath() + path.mid(1)
+            : path);
+    const auto result = catalogue_->backupTo(target.toStdString());
+    auto* view = detail_->backupView();
+    if (result.problem) {
+        view->showProblem(tr("Not backed up: %1").arg(QString::fromStdString(*result.problem)));
+        return;
+    }
+    lastBackupFolder_ = QFileInfo(QString::fromStdString(result.path)).absolutePath();
+    const QString message = tr("Backed up %1 books to %2. The copy was checked: it opens, passes SQLite's "
+                               "integrity check and holds every book.")
+                                .arg(result.books)
+                                .arg(QString::fromStdString(result.path));
+    view->showDone(message);
+    statusBar()->showMessage(tr("Backed up %1 books").arg(result.books), 6000);
 }
 
 void MainWindow::toggleBatch()

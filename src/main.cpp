@@ -84,6 +84,11 @@ int main(int argc, char* argv[])
                        "after --import. Safe to repeat."),
         QStringLiteral("series.csv"));
     parser.addOption(importSeriesOption);
+    const QCommandLineOption backupOption(QStringLiteral("backup"),
+        QStringLiteral("Write a checked copy of the catalogue to this file (F-020), then quit "
+                       "without opening the window. Exit status 0 on success."),
+        QStringLiteral("file.db"));
+    parser.addOption(backupOption);
     parser.addPositionalArgument(QStringLiteral("database"),
         QStringLiteral("Catalogue file to open. Default: ~/.local/share/pinax/pinax.db"),
         QStringLiteral("[database]"));
@@ -107,6 +112,18 @@ int main(int argc, char* argv[])
             const QString csvPath = parser.value(importSeriesOption);
             pinax::io::SeriesImporter importer(catalogue->connection());
             importSummary = reportImport(csvPath, importer.importFile(csvPath.toStdString()));
+        }
+
+        if (parser.isSet(backupOption)) {
+            // For a scheduled job: no window, a line saying what happened.
+            const auto result = catalogue->backupTo(parser.value(backupOption).toStdString());
+            if (result.problem) {
+                std::fprintf(stderr, "%s: not backed up: %s\n", result.path.c_str(), result.problem->c_str());
+                return 1;
+            }
+            std::printf("Backed up %lld books to %s (checked)\n", static_cast<long long>(result.books),
+                result.path.c_str());
+            return 0;
         }
 
         const qlonglong count = catalogue->count();

@@ -2,6 +2,7 @@
 
 #include "db/author_repository.h"
 #include "db/book_repository.h"
+#include "db/backup.h"
 #include "db/db_error.h"
 #include "db/genre_repository.h"
 #include "db/migrations.h"
@@ -756,6 +757,16 @@ Catalogue::AddResult Catalogue::addBook(const NewBook& book)
             return {saved.id, enriched.coverUrl, "Added, but not to " + book.series->seriesName + ": " + *problem};
     }
     return {saved.id, enriched.coverUrl, std::nullopt};
+}
+
+Catalogue::BackupResult Catalogue::backupTo(const std::string& path)
+{
+    try {
+        const auto report = db::backupTo(connection_, path);
+        return {report.books, report.path, std::nullopt};
+    } catch (const db::DbError& error) {
+        return {0, path, error.what()};
+    }
 }
 
 std::optional<std::string> Catalogue::dataDirectory() const

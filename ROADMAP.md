@@ -140,7 +140,8 @@ moves the series to complete, without creating a second record.
       sorting by column header (F-016), the filter bar (F-017), Group by
       (F-018)
 - [x] Search field — 2026-10-07 (F-019), as you type, with Ctrl+F
-- [ ] `VACUUM INTO` backup
+- [x] `VACUUM INTO` backup — 2026-10-07 (F-020), checked before it is kept;
+      Ctrl+B in the window, `--backup` on the command line
 - [ ] Plain-text SQL dump
 - [ ] `.xlsx` writer: books, series status, authors
 - [ ] CSV export of the current view

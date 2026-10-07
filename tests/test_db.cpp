@@ -1,3 +1,4 @@
+#include "db/backup.h"
 #include "db/book_repository.h"
 #include "db/genre_repository.h"
 #include "db/author_repository.h"
@@ -8,6 +9,9 @@
 
 #include <QFile>
 #include <QTemporaryDir>
+#include <QFileInfo>
+#include <QDir>
+#include <QDateTime>
 #include <QTest>
 
 #include <algorithm>
@@ -109,6 +113,10 @@ private slots:
 
     // F-017
     void filtersCombine();
+
+    // F-020, AV-003
+    void aBackupHoldsWhatTheLogHolds();
+    void aFailedBackupLeavesTheOldOneAlone();
 };
 
 void TestDb::migrateCreatesSchemaOnEmptyDatabase()
@@ -575,6 +583,67 @@ void TestDb::filtersCombine()
     QCOMPARE(genres.size(), std::size_t(2));
     QCOMPARE(genres.front().name, std::string("Science fiction"));
     QCOMPARE(genres.back().count, 2);
+}
+
+void TestDb::aBackupHoldsWhatTheLogHolds()
+{
+    // AV-003: in WAL mode the newest rows sit in the log, not the file; a
+    // plain copy of the file misses them, and the backup must not.
+    QTemporaryDir dir;
+    const std::string live = dir.filePath(QStringLiteral("pinax.db")).toStdString();
+    Connection connection(live);
+    pinax::db::migrate(connection);
+    QCOMPARE(scalarText(connection, "PRAGMA journal_mode"), std::string("wal"));
+    BookRepository books(connection);
+    for (int i = 0; i < 40; ++i)
+        books.create(titled("Book " + std::to_string(i)));
+
+    const QString naive = dir.filePath(QStringLiteral("naive.db"));
+    QFile::copy(QString::fromStdString(live), naive);
+    {
+        Connection copied(naive.toStdString());
+        // The trap: the copy lacks the newest rows — here even the tables,
+        // made moments ago and still in the log.
+        const bool hasBooks = scalar(copied, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'book'") == 1;
+        QVERIFY(!hasBooks || scalar(copied, "SELECT COUNT(*) FROM book") < 40);
+    }
+
+    const std::string target = dir.filePath(QStringLiteral("backups/pinax.db")).toStdString();
+    const auto report = pinax::db::backupTo(connection, target);
+    QCOMPARE(report.books, std::int64_t(40));
+    QVERIFY(!QFile::exists(QString::fromStdString(target) + QStringLiteral(".partial")));
+    {
+        Connection restored(target);
+        QCOMPARE(scalar(restored, "SELECT COUNT(*) FROM book"), 40);
+        QCOMPARE(scalarText(restored, "PRAGMA integrity_check"), std::string("ok"));
+        QCOMPARE(pinax::db::schemaVersion(restored), pinax::db::latestSchemaVersion);
+    }
+
+    // The live catalogue carries on, and a second backup replaces the first.
+    books.create(titled("One more"));
+    QCOMPARE(pinax::db::backupTo(connection, target).books, std::int64_t(41));
+}
+
+void TestDb::aFailedBackupLeavesTheOldOneAlone()
+{
+    QTemporaryDir dir;
+    Connection connection(dir.filePath(QStringLiteral("pinax.db")).toStdString());
+    pinax::db::migrate(connection);
+    BookRepository(connection).create(titled("Excession"));
+    const QString target = dir.filePath(QStringLiteral("pinax-backup.db"));
+    pinax::db::backupTo(connection, target.toStdString());
+    const auto before = QFileInfo(target).lastModified();
+
+    // A folder for a file name, and a folder that cannot be made.
+    QVERIFY_THROWS_EXCEPTION(DbError, pinax::db::backupTo(connection, dir.path().toStdString() + "/"));
+    QFile blocker(dir.filePath(QStringLiteral("blocker")));
+    QVERIFY(blocker.open(QIODevice::WriteOnly));
+    blocker.close();
+    QVERIFY_THROWS_EXCEPTION(DbError,
+        pinax::db::backupTo(connection, dir.filePath(QStringLiteral("blocker/inside/pinax.db")).toStdString()));
+
+    QCOMPARE(QFileInfo(target).lastModified(), before);
+    QVERIFY(QDir(dir.path()).entryList({QStringLiteral("*.partial")}, QDir::Files).isEmpty());
 }
 
 QTEST_APPLESS_MAIN(TestDb)

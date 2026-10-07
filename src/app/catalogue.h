@@ -184,6 +184,15 @@ public:
     // Refused if the ISBN is already held.
     AddResult addBook(const NewBook& book);
 
+    // A checked copy of the catalogue at `path`, the live file left open
+    // (F-020, AV-003): the number of books copied, or why not.
+    struct BackupResult {
+        std::int64_t books = 0;
+        std::string path;
+        std::optional<std::string> problem;
+    };
+    BackupResult backupTo(const std::string& path);
+
     // The folder holding the database, where covers are kept beside it
     // (SPEC.md §4); nullopt for an in-memory catalogue.
     std::optional<std::string> dataDirectory() const;

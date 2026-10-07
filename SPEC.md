@@ -423,6 +423,22 @@ statements, readable and diffable, restoring onto an empty database.
 `VACUUM INTO '<path>'`. Produces a consistent copy while the application is
 running. A plain file copy of a WAL-mode database is not safe (AV-003).
 
+`db::backupTo`, behind Back up (Ctrl+B) and `pinax --backup <file>`:
+
+1. Folders on the way to `<file>` are created; a folder for a file name is
+   refused.
+2. `VACUUM INTO '<file>.partial'` — any stale `.partial` removed first, since
+   `VACUUM INTO` will not write over a file.
+3. The partial file is opened read-only and checked: `PRAGMA quick_check`
+   says `ok`, and its book count and highest `schema_version` equal the live
+   catalogue's.
+4. Only then is it renamed to `<file>`, replacing any file there. On any
+   failure the partial file is removed and `<file>` is untouched.
+
+The copy is a single file in rollback-journal mode, with no `-wal` or `-shm`
+beside it. Covers are not copied (§4). `--backup` prints one line and exits 0
+on success, 1 otherwise, without opening the window.
+
 ---
 
 ## 6. Barcode capture — F-025

@@ -55,9 +55,13 @@ real 443-book seed where it is present.
 `pinax.db` taken while the application is running omits the write-ahead log, so
 the copy is stale or corrupt. A backup that silently is not one is worse than
 no backup.
-**Detection.** Not implemented (would require a test that writes during a
-backup, then opens the copy and asserts the pre-backup row count and integrity
-check pass).
+**Detection.** Implemented, 2026-10-07. `tests/test_db.cpp`,
+`aBackupHoldsWhatTheLogHolds`, writes rows that stay in the log, shows a
+plain file copy missing them — or missing the tables outright — and the
+backup holding every one, passing the integrity check at the latest schema
+version; `aFailedBackupLeavesTheOldOneAlone` shows a refused backup leaves
+the previous one untouched and no partial file behind. `db::backupTo`
+checks every copy itself before keeping it.
 **Related decisions.** D-002.
 **History.** Identified during schema design, 2026-10-04. `VACUUM INTO` is
 specified in SPEC.md §5.4 for this reason.

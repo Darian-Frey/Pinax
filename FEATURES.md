@@ -372,7 +372,13 @@ per change to the catalogue, not a query per keystroke.
 - A consistent copy of the database is written to a chosen path while the
   application is running, without closing or locking out the live database.
 - The copy opens as a valid database and reports the same book count.
-**Status:** Not started
+**Status:** Complete (2026-10-07) — Back up in the toolbar (Ctrl+B) opens a
+form in the panel with a path to type (folders and files completed, no
+dialogue, D-011), suggested as `Documents/Pinax backups/pinax-<date>.db`;
+`pinax --backup file.db` does the same without the window, for a scheduled
+job. The copy is checked — it opens read-only, passes `quick_check`, and has
+the live catalogue's book count and schema version — before it replaces
+anything at that path. Covers are not included (SPEC.md §4).
 **Notes:** D-002. `VACUUM INTO` is the intended mechanism; a plain file copy of
 a WAL-mode database mid-write is not safe — see AV-003.
 
