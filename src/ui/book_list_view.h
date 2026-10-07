@@ -5,12 +5,17 @@
 #include <QList>
 #include <QTableView>
 
+#include <map>
+#include <optional>
+#include <string>
 #include <vector>
 
 namespace pinax::ui {
 
+class BookGroupProxy;
 class BookListModel;
 class BookSortProxy;
+enum class Grouping;
 
 // The middle panel: every book, sortable by clicking a column header
 // (D-010). Opens sorted by author, as in the mock-up.
@@ -33,6 +38,12 @@ public:
     // away from under the owner.
     void showOnly(const std::optional<QList<qint64>>& ids);
 
+    // Header rows for each series, author or genre (F-018); `genres` maps
+    // each book to its genres, for grouping by genre. Grouping by series
+    // sorts by series, so each group runs in position order.
+    void setGrouping(Grouping grouping, std::map<std::int64_t, std::vector<std::string>> genres = {});
+    Grouping grouping() const;
+
     // How many books are listed under the current filter.
     int shownCount() const;
 
@@ -41,6 +52,7 @@ public:
 
     BookListModel* bookModel() const { return model_; }
     BookSortProxy* sortProxy() const { return proxy_; }
+    BookGroupProxy* groupProxy() const { return groups_; }
 
 signals:
     void selectionChangedTo(const QList<qint64>& ids);
@@ -60,6 +72,11 @@ protected:
 private:
     BookListModel* model_;
     BookSortProxy* proxy_;
+    BookGroupProxy* groups_;
+
+    // The book a row of the view shows, if it shows one.
+    std::optional<std::int64_t> bookAt(const QModelIndex& index) const;
+    void layHeaderSpans();
 };
 
 } // namespace pinax::ui

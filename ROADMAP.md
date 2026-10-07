@@ -136,9 +136,9 @@ moves the series to complete, without creating a second record.
 **Status:** Not started
 **Features delivered:** F-016, F-017, F-018, F-019, F-020, F-021, F-022, F-023
 **Deliverables:**
-- [ ] Sort, filter and group controls over the list view — sorting done
-      2026-10-07 (F-016, by column header); filtering done 2026-10-07 (F-017,
-      the filter bar); grouping to come
+- [x] Sort, filter and group controls over the list view — 2026-10-07:
+      sorting by column header (F-016), the filter bar (F-017), Group by
+      (F-018)
 - [ ] Search field
 - [ ] `VACUUM INTO` backup
 - [ ] Plain-text SQL dump

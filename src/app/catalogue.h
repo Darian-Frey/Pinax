@@ -15,6 +15,7 @@
 #include "domain/series_status.h"
 
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -65,6 +66,8 @@ public:
     std::vector<domain::FilterOption> genreOptions();
     std::vector<domain::FilterOption> authorOptions();
     std::vector<domain::FilterOption> seriesOptions();
+    // Each book's genres by name, for grouping by genre (F-018).
+    std::map<std::int64_t, std::vector<std::string>> genresByBook();
 
     // F-005. Marks every listed book read; or, if all of them are read
     // already, marks them all unread. Moving into read counts a read through

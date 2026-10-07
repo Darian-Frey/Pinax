@@ -201,6 +201,11 @@ std::vector<domain::FilterOption> Catalogue::authorOptions()
     return db::AuthorRepository(connection_).withCounts();
 }
 
+std::map<std::int64_t, std::vector<std::string>> Catalogue::genresByBook()
+{
+    return db::GenreRepository(connection_).byBook();
+}
+
 std::vector<domain::FilterOption> Catalogue::seriesOptions()
 {
     // Filed as the rail files them, counted by books held.

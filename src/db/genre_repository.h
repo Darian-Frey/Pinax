@@ -4,6 +4,7 @@
 #include "domain/enums.h"
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -34,6 +35,9 @@ public:
 
     // Every genre some book carries, by name, with how many books (F-017).
     std::vector<domain::FilterOption> withCounts();
+
+    // Every book's genres by name, for grouping the list (F-018).
+    std::map<std::int64_t, std::vector<std::string>> byBook();
 
 private:
     Connection& connection_;

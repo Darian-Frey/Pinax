@@ -104,6 +104,9 @@ private:
     // read state they hold in the rail.
     void applyQuery();
     void refreshFilterOptions();
+    // Lays the list's group headers again (F-018): genres change as books
+    // are fetched.
+    void applyGrouping();
     // Recounts the rail after anything that changes its numbers.
     void refreshRail();
     void toggleRead(const QList<qint64>& ids);

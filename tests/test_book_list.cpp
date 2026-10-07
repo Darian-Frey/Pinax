@@ -1,3 +1,4 @@
+#include "ui/book_group_proxy.h"
 #include "ui/book_list_model.h"
 #include "ui/book_list_view.h"
 #include "ui/book_sort_proxy.h"
@@ -74,6 +75,11 @@ private slots:
     void keysActOnTheSelection();
     void keysWithoutASelectionDoNothing();
     void showOnlyNarrowsAndRestores();
+
+    // F-018
+    void groupsBySeriesInPositionOrder();
+    void headersAreNeitherSelectedNorActedOn();
+    void aBookUnderTwoGenresIsOneBook();
 };
 
 void TestBookList::showsOneRowPerBookWithItsColumns()
@@ -300,6 +306,117 @@ void TestBookList::showOnlyNarrowsAndRestores()
 
     view.showOnly(std::nullopt);
     QCOMPARE(view.shownCount(), 3);
+}
+
+namespace {
+
+// Each shown row as "# Header · n" or a title, to read a grouping at a glance.
+QStringList shownRows(const BookListView& view)
+{
+    QStringList rows;
+    const QAbstractItemModel* model = view.model();
+    for (int row = 0; row < model->rowCount(); ++row) {
+        if (view.groupProxy()->isHeader(row))
+            rows << QStringLiteral("# ") + model->index(row, 0).data().toString();
+        else
+            rows << model->index(row, BookListModel::TitleColumn).data().toString();
+    }
+    return rows;
+}
+
+BookSummary placed(std::int64_t id, std::string title, std::optional<std::string> series, double position,
+    std::string author, std::string authorSort)
+{
+    BookSummary row = byAuthor(id, std::move(title), std::move(author), std::move(authorSort));
+    if (series) {
+        row.seriesSort = *series;
+        row.seriesLabel = *series + " · " + std::to_string(static_cast<int>(position));
+        row.seriesSortPosition = position;
+    }
+    return row;
+}
+
+std::vector<BookSummary> shelf()
+{
+    return {
+        placed(1, "Surface Detail", std::string("The Culture"), 9, "Iain M. Banks", "Banks, Iain M."),
+        placed(2, "Excession", std::string("The Culture"), 5, "Iain M. Banks", "Banks, Iain M."),
+        placed(3, "Mort", std::string("Discworld"), 4, "Terry Pratchett", "Pratchett, Terry"),
+        placed(4, "Tau Zero", std::nullopt, 0, "Poul Anderson", "Anderson, Poul"),
+        placed(5, "Guards! Guards!", std::string("Discworld"), 8, "Terry Pratchett", "Pratchett, Terry"),
+    };
+}
+
+} // namespace
+
+void TestBookList::groupsBySeriesInPositionOrder()
+{
+    BookListView view;
+    view.setBooks(shelf());
+    view.sortByColumn(BookListModel::TitleColumn, Qt::AscendingOrder);
+    view.setGrouping(pinax::ui::Grouping::Series);
+
+    // Filed as titles (The Culture under C), the unseries'd last; within a
+    // series, position order (F-018) whatever the sort was before.
+    QCOMPARE(shownRows(view), QStringList({"# The Culture · 2", "Excession", "Surface Detail", "# Discworld · 2",
+                                  "Mort", "Guards! Guards!", "# Not in a series · 1", "Tau Zero"}));
+    // Column titles stay, though row 0 is a header.
+    QCOMPARE(view.model()->headerData(BookListModel::TitleColumn, Qt::Horizontal).toString(), QStringLiteral("Title"));
+    QCOMPARE(view.shownCount(), 5);
+
+    // By author: filing name, each author's books together.
+    view.setGrouping(pinax::ui::Grouping::Author);
+    QCOMPARE(shownRows(view).filter(QStringLiteral("# ")),
+        QStringList({"# Poul Anderson · 1", "# Iain M. Banks · 2", "# Terry Pratchett · 2"}));
+
+    // The filter applies first; counts are of what is shown.
+    view.showOnly(QList<qint64>({2, 3, 4}));
+    QCOMPARE(shownRows(view).filter(QStringLiteral("# ")),
+        QStringList({"# Poul Anderson · 1", "# Iain M. Banks · 1", "# Terry Pratchett · 1"}));
+
+    // None: no headers at all.
+    view.setGrouping(pinax::ui::Grouping::None);
+    QCOMPARE(view.model()->rowCount(), 3);
+    QVERIFY(shownRows(view).filter(QStringLiteral("# ")).isEmpty());
+}
+
+void TestBookList::headersAreNeitherSelectedNorActedOn()
+{
+    BookListView view;
+    view.setBooks(shelf());
+    view.setGrouping(pinax::ui::Grouping::Series);
+    QVERIFY(view.groupProxy()->isHeader(0));
+    QVERIFY(!(view.model()->flags(view.model()->index(0, 1)) & Qt::ItemIsSelectable));
+
+    // Select everything: only books come back, and the keys act on them.
+    view.selectAll();
+    QCOMPARE(view.selectedBooks().size(), 5);
+    QSignalSpy toggled(&view, &BookListView::toggleReadRequested);
+    QTest::keyClick(&view, Qt::Key_R);
+    QCOMPARE(toggled.count(), 1);
+    QCOMPARE(toggled.front().front().value<QList<qint64>>().size(), 5);
+
+    // Selecting a book finds it under its header, and an update keeps it.
+    view.selectBook(3);
+    QCOMPARE(view.selectedBooks(), QList<qint64>({3}));
+    auto mort = shelf()[2];
+    mort.rating = 8;
+    view.bookModel()->updateBook(mort);
+    QCOMPARE(view.selectedBooks(), QList<qint64>({3}));
+}
+
+void TestBookList::aBookUnderTwoGenresIsOneBook()
+{
+    BookListView view;
+    view.setBooks(shelf());
+    view.setGrouping(pinax::ui::Grouping::Genre,
+        {{1, {"Science fiction", "Space opera"}}, {2, {"Space opera"}}, {3, {"Fantasy"}}});
+    QCOMPARE(shownRows(view).filter(QStringLiteral("# ")),
+        QStringList({"# Fantasy · 1", "# Science fiction · 1", "# Space opera · 2", "# No genre · 2"}));
+    // Surface Detail is listed twice but is one book.
+    view.selectAll();
+    QCOMPARE(view.selectedBooks().size(), 5);
+    QCOMPARE(view.shownCount(), 5);
 }
 
 QTEST_MAIN(TestBookList)

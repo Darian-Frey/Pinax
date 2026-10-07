@@ -14,6 +14,7 @@
 #include "ui/book_list_view.h"
 #include "ui/book_view.h"
 #include "ui/filter_bar.h"
+#include "ui/book_group_proxy.h"
 #include "ui/detail_panel.h"
 #include "ui/rail_view.h"
 #include "ui/series_entry_model.h"
@@ -143,6 +144,8 @@ private slots:
 
     // F-017
     void filtersCombineWithTheRail();
+    // F-018
+    void groupingThroughTheWindow();
     void aSeriesTheProviderNamesIsProposed();
     void anIsbnHeldIsNotAddedTwice();
     void aHeldCopyWithoutAnIsbnIsRecognised();
@@ -1608,6 +1611,48 @@ void TestCatalogue::filtersCombineWithTheRail()
     window.rail()->chooseFilter({});
     QCOMPARE(list->shownCount(), 3);
     QVERIFY(window.query().empty());
+}
+
+void TestCatalogue::groupingThroughTheWindow()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue); // Excession, Surface Detail (The Culture); Tau Zero
+    catalogue.enrich(idOf(catalogue, "Excession"), phlebas(), false); // Science Fiction, Space opera
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    auto* bar = window.filterBar();
+    auto* groupBy = bar->findChild<QComboBox*>(QStringLiteral("filter.groupBy"));
+    auto* list = window.bookList();
+    auto headers = [&] {
+        QStringList found;
+        for (int row = 0; row < list->model()->rowCount(); ++row) {
+            if (list->groupProxy()->isHeader(row))
+                found << list->model()->index(row, 0).data().toString();
+        }
+        return found;
+    };
+
+    groupBy->setCurrentIndex(groupBy->findText(QStringLiteral("Group by genre")));
+    QCOMPARE(headers(), QStringList({"Science Fiction · 1", "Space opera · 1", "No genre · 2"}));
+
+    // With a filter: the groups hold only what is shown.
+    bar->findChild<QComboBox*>(QStringLiteral("filter.read"))->setCurrentIndex(1); // Unread
+    QCOMPARE(headers(), QStringList({"No genre · 2"}));
+
+    // Clear filters clears filters, not the grouping.
+    QTest::mouseClick(bar->findChild<QPushButton*>(QStringLiteral("filter.clear")), Qt::LeftButton);
+    QCOMPARE(groupBy->currentText(), QStringLiteral("Group by genre"));
+    QCOMPARE(headers().size(), 3);
+
+    // Grouped by series, a book selected under its header reaches the panel.
+    groupBy->setCurrentIndex(groupBy->findText(QStringLiteral("Group by series")));
+    QCOMPARE(headers(), QStringList({"The Culture · 2", "Not in a series · 1"}));
+    list->selectBook(idOf(catalogue, "Surface Detail"));
+    QCOMPARE(window.detailPanel()->state(), DetailPanel::State::Viewing);
+    QCOMPARE(window.detailPanel()->view()->findChild<QLabel*>(QStringLiteral("title"))->text(),
+        QStringLiteral("Surface Detail"));
 }
 
 QTEST_MAIN(TestCatalogue)

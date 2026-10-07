@@ -77,6 +77,7 @@ FilterBar::FilterBar(QWidget* parent)
     , genre_(makeSearchable(QStringLiteral("filter.genre"), this))
     , author_(makeSearchable(QStringLiteral("filter.author"), this))
     , series_(makeSearchable(QStringLiteral("filter.series"), this))
+    , groupBy_(makeChoice(QStringLiteral("filter.groupBy"), this))
     , range_(new QWidget(this))
     , ratingFrom_(new QSpinBox(range_))
     , ratingTo_(new QSpinBox(range_))
@@ -88,6 +89,12 @@ FilterBar::FilterBar(QWidget* parent)
     readState_->addItem(tr("Reading"), static_cast<int>(ReadStatus::Reading));
     readState_->addItem(tr("Read"), static_cast<int>(ReadStatus::Read));
     readState_->addItem(tr("Abandoned"), static_cast<int>(ReadStatus::Abandoned));
+    groupBy_->addItem(tr("No grouping"), static_cast<int>(Grouping::None));
+    groupBy_->addItem(tr("Group by series"), static_cast<int>(Grouping::Series));
+    groupBy_->addItem(tr("Group by author"), static_cast<int>(Grouping::Author));
+    groupBy_->addItem(tr("Group by genre"), static_cast<int>(Grouping::Genre));
+    groupBy_->setMinimumContentsLength(16);
+    groupBy_->setToolTip(tr("Headings for each series, author or genre, with how many books each holds"));
     rating_->addItem(tr("Any rating"));
     rating_->addItem(tr("Unrated"));
     rating_->addItem(tr("Rated…"));
@@ -126,6 +133,7 @@ FilterBar::FilterBar(QWidget* parent)
         choices->addWidget(combo, 1);
     layout->addLayout(choices);
     auto* status = new QHBoxLayout;
+    status->addWidget(groupBy_);
     status->addWidget(range_);
     status->addStretch();
     status->addWidget(shown_);
@@ -139,6 +147,7 @@ FilterBar::FilterBar(QWidget* parent)
         connect(combo->lineEdit(), &QLineEdit::editingFinished, this,
             [combo] { combo->setEditText(combo->itemText(combo->currentIndex())); });
     }
+    connect(groupBy_, &QComboBox::currentIndexChanged, this, [this] { emit groupingChanged(grouping()); });
     connect(ratingFrom_, &QSpinBox::valueChanged, this, [this](int value) {
         if (ratingTo_->value() < value)
             ratingTo_->setValue(value);
@@ -202,6 +211,11 @@ BookQuery FilterBar::query() const
     query.authorId = chosenId(author_);
     query.seriesId = chosenId(series_);
     return query;
+}
+
+Grouping FilterBar::grouping() const
+{
+    return static_cast<Grouping>(groupBy_->currentData().toInt());
 }
 
 void FilterBar::setShown(int shown, int total)

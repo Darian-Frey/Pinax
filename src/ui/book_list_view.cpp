@@ -1,5 +1,6 @@
 #include "ui/book_list_view.h"
 
+#include "ui/book_group_proxy.h"
 #include "ui/book_list_model.h"
 #include "ui/book_sort_proxy.h"
 #include "ui/list_keys.h"
@@ -8,6 +9,7 @@
 #include <QKeyEvent>
 #include <QItemSelectionModel>
 
+#include <algorithm>
 #include <utility>
 
 namespace pinax::ui {
@@ -30,9 +32,15 @@ BookListView::BookListView(QWidget* parent)
     : QTableView(parent)
     , model_(new BookListModel(this))
     , proxy_(new BookSortProxy(this))
+    , groups_(new BookGroupProxy(this))
 {
     proxy_->setSourceModel(model_);
-    setModel(proxy_);
+    groups_->setSummaryLookup([this](int sortedRow) -> const domain::BookSummary& {
+        return model_->book(proxy_->mapToSource(proxy_->index(sortedRow, 0)).row());
+    });
+    groups_->setSourceModel(proxy_);
+    setModel(groups_);
+    connect(groups_, &BookGroupProxy::groupsChanged, this, &BookListView::layHeaderSpans);
 
     setSelectionBehavior(QAbstractItemView::SelectRows);
     setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -83,7 +91,10 @@ void BookListView::selectBook(std::int64_t id)
     const int row = model_->rowOf(id);
     if (row < 0)
         return;
-    const QModelIndex index = proxy_->mapFromSource(model_->index(row, BookListModel::TitleColumn));
+    const QModelIndex index
+        = groups_->mapFromSource(proxy_->mapFromSource(model_->index(row, BookListModel::TitleColumn)));
+    if (!index.isValid())
+        return;
     selectionModel()->setCurrentIndex(index,
         QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
     scrollTo(index);
@@ -119,11 +130,47 @@ int BookListView::shownCount() const
 
 QList<qint64> BookListView::selectedBooks() const
 {
+    // In display order; a book shown under two genres counts once.
     QList<qint64> ids;
     const QModelIndexList rows = selectionModel()->selectedRows();
-    for (const QModelIndex& index : rows)
-        ids << model_->book(proxy_->mapToSource(index).row()).id;
+    QModelIndexList ordered = rows;
+    std::sort(ordered.begin(), ordered.end(),
+        [](const QModelIndex& a, const QModelIndex& b) { return a.row() < b.row(); });
+    for (const QModelIndex& index : ordered) {
+        if (const auto id = bookAt(index); id && !ids.contains(*id))
+            ids << *id;
+    }
     return ids;
+}
+
+std::optional<std::int64_t> BookListView::bookAt(const QModelIndex& index) const
+{
+    const QModelIndex sorted = groups_->mapToSource(index);
+    if (!sorted.isValid())
+        return std::nullopt; // a header
+    return model_->book(proxy_->mapToSource(sorted).row()).id;
+}
+
+void BookListView::setGrouping(Grouping grouping, std::map<std::int64_t, std::vector<std::string>> genres)
+{
+    const bool toSeries = grouping == Grouping::Series && groups_->grouping() != Grouping::Series;
+    groups_->setGrouping(grouping, std::move(genres));
+    if (toSeries)
+        sortByColumn(BookListModel::SeriesColumn, Qt::AscendingOrder);
+}
+
+Grouping BookListView::grouping() const
+{
+    return groups_->grouping();
+}
+
+void BookListView::layHeaderSpans()
+{
+    clearSpans();
+    for (int row = 0; row < groups_->rowCount(); ++row) {
+        if (groups_->isHeader(row))
+            setSpan(row, 0, 1, groups_->columnCount());
+    }
 }
 
 } // namespace pinax::ui

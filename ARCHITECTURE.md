@@ -155,6 +155,11 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
   `AddByIsbnView` is Add by ISBN (D-024): the ISBN, the lookup, the
   confirmation card with held copies and series proposals, and the search
   and hand-entry fall-backs; it asks and is told, issuing nothing itself.
+  `BookListView` stacks three models: `BookListModel`, `BookSortProxy`
+  (sort and filter) and `BookGroupProxy`, which inserts a header row for
+  each series, author or genre (F-018) and passes rows straight through
+  when not grouping; a header maps to no book, and a book under two genres
+  appears twice but is selected and acted on once.
   `FilterBar` sits above the book list: read state, rating, genre, author
   and series, combined into a `domain::BookQuery` (F-017); fed its choices
   with counts, it issues no SQL — `BookRepository::idsMatching` answers.

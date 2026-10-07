@@ -15,6 +15,12 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- Group by (F-018): the filter bar groups the book list by series, author or
+  genre under headings such as "Discworld · 27", counting what the filters
+  leave. Series are filed as titles with the unseries'd last, each in
+  position order; authors by surname; a book with several genres appears
+  under each. Sorting still works within groups, and the keys and the panel
+  act on books, never on headings.
 - Filters that combine (F-017): a bar above the book list filters by read
   state, rating (unrated, or a range), genre, author and series together,
   each choice with its count, and shows how many books are left; Clear

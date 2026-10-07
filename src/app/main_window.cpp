@@ -9,6 +9,7 @@
 #include "domain/placeholder.h"
 #include "ui/detail_panel.h"
 #include "ui/filter_bar.h"
+#include "ui/book_group_proxy.h"
 #include "ui/add_by_isbn_view.h"
 #include "ui/rail_view.h"
 #include "ui/missing_page.h"
@@ -66,6 +67,7 @@ MainWindow::MainWindow(QWidget* parent)
         query_ = query;
         applyQuery();
     });
+    connect(filterBar_, &ui::FilterBar::groupingChanged, this, &MainWindow::applyGrouping);
     centre_->addWidget(listPage_);
     centre_->addWidget(seriesPage_);
     missingPage_->setObjectName(QStringLiteral("missingPage"));
@@ -811,6 +813,17 @@ void MainWindow::refreshFilterOptions()
     if (!catalogue_)
         return;
     filterBar_->setOptions(catalogue_->genreOptions(), catalogue_->authorOptions(), catalogue_->seriesOptions());
+    if (filterBar_->grouping() == ui::Grouping::Genre)
+        applyGrouping();
+}
+
+void MainWindow::applyGrouping()
+{
+    if (!catalogue_)
+        return;
+    const auto grouping = filterBar_->grouping();
+    list_->setGrouping(grouping, grouping == ui::Grouping::Genre ? catalogue_->genresByBook()
+                                                                 : std::map<std::int64_t, std::vector<std::string>> {});
 }
 
 bool MainWindow::showingSeries() const

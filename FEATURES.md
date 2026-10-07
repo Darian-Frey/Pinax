@@ -340,7 +340,12 @@ book has no author (IMP-004).
 - The catalogue groups by series, author or genre, with group headers showing
   a count.
 - Within a series group, books order by series position.
-**Status:** Not started
+**Status:** Complete (2026-10-07) — Group by on the filter bar: series,
+author or genre, as header rows with the count of books shown under each.
+Groups file as titles do, the ungrouped last; filters apply first; sorting
+works within groups, and grouping by series sorts by series position. A book
+goes under its first-billed author (its editor, for an anthology), and under
+each of its genres.
 
 ### F-019 Search
 **Priority:** Must

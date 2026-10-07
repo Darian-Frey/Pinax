@@ -53,6 +53,19 @@ std::vector<GenreLink> GenreRepository::forBook(std::int64_t bookId)
     return result;
 }
 
+std::map<std::int64_t, std::vector<std::string>> GenreRepository::byBook()
+{
+    Statement select(connection_, R"(
+        SELECT bg.book_id, g.name
+          FROM book_genre bg
+          JOIN genre g ON g.id = bg.genre_id
+         ORDER BY bg.book_id, g.name COLLATE NOCASE)");
+    std::map<std::int64_t, std::vector<std::string>> result;
+    while (select.step())
+        result[select.columnInt(0)].push_back(select.columnText(1));
+    return result;
+}
+
 std::vector<domain::FilterOption> GenreRepository::withCounts()
 {
     Statement select(connection_, R"(

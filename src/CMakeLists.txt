@@ -133,6 +133,8 @@ add_library(pinax_ui STATIC
     ui/candidate_view.h
     ui/book_editor.cpp
     ui/book_editor.h
+    ui/book_group_proxy.cpp
+    ui/book_group_proxy.h
     ui/book_list_model.cpp
     ui/book_list_model.h
     ui/book_list_view.cpp

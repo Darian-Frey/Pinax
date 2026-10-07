@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/book_query.h"
+#include "ui/book_group_proxy.h"
 
 #include <QWidget>
 
@@ -31,11 +32,15 @@ public:
     void setQuery(const domain::BookQuery& query);
     domain::BookQuery query() const;
 
+    // How the list is grouped (F-018). Not a filter: Clear filters keeps it.
+    Grouping grouping() const;
+
     // "23 of 443 shown", or nothing when no filter is set.
     void setShown(int shown, int total);
 
 signals:
     void queryChanged(const domain::BookQuery& query);
+    void groupingChanged(pinax::ui::Grouping grouping);
 
 private:
     void changed();
@@ -46,6 +51,7 @@ private:
     QComboBox* genre_;
     QComboBox* author_;
     QComboBox* series_;
+    QComboBox* groupBy_;
     QWidget* range_;
     QSpinBox* ratingFrom_;
     QSpinBox* ratingTo_;
