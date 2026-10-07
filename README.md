@@ -65,7 +65,10 @@ the folder Pinax is started from, or in `PINAX_GOOGLE_BOOKS_KEY` (D-021).
 Never commit it; `.gitignore` covers `*.key`. Back up (Ctrl+B) writes a checked copy of the
 catalogue wherever you choose, without closing it; from a script or a cron
 job, `build/src/pinax --backup ~/backups/pinax.db` does the same and exits.
-Never back up by copying `pinax.db` while Pinax is open: the newest changes
+Export (Ctrl+E) writes the catalogue as plain SQL, readable and fit for
+version control, that rebuilds it with nothing but `sqlite3`;
+`build/src/pinax --dump catalogue.sql` does the same from a script. Never
+back up by copying `pinax.db` while Pinax is open: the newest changes
 live in `pinax.db-wal` beside it (AV-003). The database is also usable on
 its own:
 

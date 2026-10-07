@@ -2,6 +2,7 @@
 
 #include <QDir>
 #include <memory>
+#include "db/connection.h"
 #include "db/db_error.h"
 #include "db/statement.h"
 #include "db/genre_repository.h"
@@ -14,6 +15,7 @@
 #include "ui/book_list_view.h"
 #include "ui/book_view.h"
 #include "ui/backup_view.h"
+#include "ui/export_view.h"
 #include "ui/filter_bar.h"
 #include "ui/book_group_proxy.h"
 #include "ui/detail_panel.h"
@@ -159,6 +161,9 @@ private slots:
 
     // F-020
     void backingUpFromThePanel();
+
+    // F-021
+    void exportingAnSqlDump();
     void aSeriesTheProviderNamesIsProposed();
     void anIsbnHeldIsNotAddedTwice();
     void aHeldCopyWithoutAnIsbnIsRecognised();
@@ -1872,6 +1877,42 @@ void TestCatalogue::backingUpFromThePanel()
     // The folder used is offered next time.
     QTest::keyClick(&window, Qt::Key_B, Qt::ControlModifier);
     QVERIFY(path->text().startsWith(disk.dir.filePath(QStringLiteral("elsewhere"))));
+}
+
+void TestCatalogue::exportingAnSqlDump()
+{
+    OnDisk disk;
+    Catalogue& catalogue = *disk.catalogue;
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+
+    QTest::keyClick(&window, Qt::Key_E, Qt::ControlModifier);
+    QCOMPARE(window.detailPanel()->state(), DetailPanel::State::Exporting);
+    auto* view = window.detailPanel()->exportView();
+    auto* path = view->findChild<QLineEdit*>(QStringLiteral("export.path"));
+    QCOMPARE(view->findChild<QComboBox*>(QStringLiteral("export.format"))->currentText(), QStringLiteral("SQL dump"));
+    QVERIFY(path->text().contains(QStringLiteral("Pinax exports")));
+    QVERIFY(path->text().endsWith(QStringLiteral(".sql")));
+
+    const QString target = disk.dir.filePath(QStringLiteral("exports/pinax.sql"));
+    path->setText(target);
+    QTest::mouseClick(view->findChild<QPushButton*>(QStringLiteral("export.go")), Qt::LeftButton);
+    QVERIFY2(view->findChild<QLabel*>(QStringLiteral("export.outcome"))->text().contains(QStringLiteral("Wrote 1 books as SQL")),
+        qPrintable(view->findChild<QLabel*>(QStringLiteral("export.outcome"))->text()));
+
+    // It needs nothing of Pinax: plain SQL onto an empty database.
+    QFile file(target);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    pinax::db::Connection restored(":memory:");
+    restored.exec(file.readAll().toStdString());
+    pinax::db::Statement count(restored, "SELECT title FROM book");
+    QVERIFY(count.step());
+    QCOMPARE(count.columnText(0), std::string("Consider Phlebas"));
+
+    QTest::keyClick(path, Qt::Key_Escape);
+    QCOMPARE(window.detailPanel()->state(), DetailPanel::State::Empty);
 }
 
 QTEST_MAIN(TestCatalogue)

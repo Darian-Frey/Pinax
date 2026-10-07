@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -192,6 +193,16 @@ public:
         std::optional<std::string> problem;
     };
     BackupResult backupTo(const std::string& path);
+
+    // The catalogue as plain SQL (F-021), checked by restoring it: to a file,
+    // or written to a stream as it stands.
+    struct ExportResult {
+        std::int64_t books = 0;
+        std::string path;
+        std::optional<std::string> problem;
+    };
+    ExportResult dumpTo(const std::string& path);
+    void writeDump(std::ostream& out);
 
     // The folder holding the database, where covers are kept beside it
     // (SPEC.md §4); nullopt for an in-memory catalogue.

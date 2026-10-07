@@ -16,6 +16,7 @@
 #include <QStatusBar>
 
 #include <cstdio>
+#include <iostream>
 #include <memory>
 
 namespace {
@@ -89,6 +90,11 @@ int main(int argc, char* argv[])
                        "without opening the window. Exit status 0 on success."),
         QStringLiteral("file.db"));
     parser.addOption(backupOption);
+    const QCommandLineOption dumpOption(QStringLiteral("dump"),
+        QStringLiteral("Write the catalogue as plain SQL (F-021) to this file, checked by restoring "
+                       "it, or to standard output for -; then quit without opening the window."),
+        QStringLiteral("file.sql"));
+    parser.addOption(dumpOption);
     parser.addPositionalArgument(QStringLiteral("database"),
         QStringLiteral("Catalogue file to open. Default: ~/.local/share/pinax/pinax.db"),
         QStringLiteral("[database]"));
@@ -123,6 +129,22 @@ int main(int argc, char* argv[])
             }
             std::printf("Backed up %lld books to %s (checked)\n", static_cast<long long>(result.books),
                 result.path.c_str());
+            return 0;
+        }
+
+        if (parser.isSet(dumpOption)) {
+            const QString target = parser.value(dumpOption);
+            if (target == QStringLiteral("-")) {
+                catalogue->writeDump(std::cout);
+                return std::cout ? 0 : 1;
+            }
+            const auto result = catalogue->dumpTo(target.toStdString());
+            if (result.problem) {
+                std::fprintf(stderr, "%s: not written: %s\n", result.path.c_str(), result.problem->c_str());
+                return 1;
+            }
+            std::printf("Wrote %lld books as SQL to %s (restored and checked)\n",
+                static_cast<long long>(result.books), result.path.c_str());
             return 0;
         }
 

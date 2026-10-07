@@ -15,6 +15,12 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- SQL dump (F-021): Export (Ctrl+E) writes the whole catalogue as plain SQL
+  that recreates it on an empty database — `sqlite3 new.db < file.sql` — one
+  row a line, the same bytes for the same catalogue, so it diffs and can be
+  kept in version control. Each dump is restored and must come back
+  identical before it is kept. `pinax --dump file.sql`, or `--dump -` to
+  standard output, works without the window.
 - Backup (F-020): Back up (Ctrl+B) writes a copy of the catalogue to a path
   typed in the panel — suggested in Documents/Pinax backups — while Pinax
   stays open, and checks it opens, passes SQLite's integrity check and holds

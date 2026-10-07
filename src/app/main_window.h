@@ -65,6 +65,7 @@ public:
     QAction* reviewAction() const { return review_; }
     QAction* addByIsbnAction() const { return addByIsbn_; }
     QAction* backUpAction() const { return backUp_; }
+    QAction* exportAction() const { return export_; }
     // True while a series is chosen and the middle panel lists its entries.
     bool showingSeries() const;
     // True while the shopping list is in the middle panel (F-010).
@@ -144,6 +145,10 @@ private:
     void beginBackup();
     void backUp(const QString& path);
 
+    // Export (F-021 to F-023): the form in the panel, then the checked file.
+    void beginExport();
+    void exportTo(int format, const QString& path);
+
     // The batch run (Phase 3 step 5, D-023): Fetch all starts or stops it;
     // Review walks the matches waiting for the owner, one book at a time.
     void toggleBatch();
@@ -170,6 +175,8 @@ private:
     QAction* fetchAll_ = nullptr;
     QAction* addByIsbn_ = nullptr;
     QAction* backUp_ = nullptr;
+    QAction* export_ = nullptr;
+    QString lastExportFolder_;
     QString lastBackupFolder_; // this session's, offered again
     // What the ISBN lookup (or the search after it) offered, and the cover
     // shown for one of them, kept to store once the book exists.

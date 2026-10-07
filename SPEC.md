@@ -419,6 +419,25 @@ round trip through F-003 loses nothing.
 Plain text, equivalent to `sqlite3 pinax.db .dump`: schema plus `INSERT`
 statements, readable and diffable, restoring onto an empty database.
 
+- A comment naming the schema version, then `PRAGMA foreign_keys=OFF;` and
+  `BEGIN TRANSACTION;`.
+- Each table in schema order: its `CREATE TABLE`, then its rows ordered by
+  key, one `INSERT INTO t VALUES(…);` a row. Then indexes, views and triggers,
+  the triggers last so that no restored row fires one. `COMMIT;`.
+- Values: `NULL`; integers as written; reals with the fewest digits that
+  give the same double back, always with a point (`6.5`, `5.0`); text in
+  single quotes with `''` for a quote, newlines and tabs as they are, any
+  other control character spelt `char(n)` joined with `||` — a bare carriage
+  return would not survive editors, git or the sqlite3 shell; blobs as
+  `X'…'`.
+- Nothing run-dependent — no date, no file name — so an unchanged catalogue
+  dumps to the same bytes.
+
+Written to `<file>.partial`, restored into an empty in-memory database, and
+kept only if every table's row count matches and the restored catalogue
+dumps back to the identical text; then renamed over `<file>`. `--dump -`
+writes to standard output unchecked, for piping.
+
 ### 5.4 Backup — F-020
 `VACUUM INTO '<path>'`. Produces a consistent copy while the application is
 running. A plain file copy of a WAL-mode database is not safe (AV-003).

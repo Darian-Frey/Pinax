@@ -240,7 +240,9 @@ standard's Maintenance Rule 5.
 **Detection.** Not implemented (would require a test comparing the exported
 workbook's series counts against the view's, row for row).
 **Related decisions.** D-004.
-**History.** Identified while specifying SPEC.md §5.1, 2026-10-04.
+**History.** Identified while specifying SPEC.md §5.1, 2026-10-04. The SQL
+dump (F-021) cannot drift: it is the tables themselves, and each is checked
+by restoring it.
 
 ---
 

@@ -24,6 +24,7 @@ namespace pinax::ui {
 class AddByIsbnView;
 class AttachView;
 class BackupView;
+class ExportView;
 class BookEditor;
 class CandidateView;
 class BookView;
@@ -38,7 +39,7 @@ class DetailPanel : public QWidget {
     Q_OBJECT
 
 public:
-    enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete, ViewingSeries, EditingEntry, Attaching, Fetching, Adding, BackingUp };
+    enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete, ViewingSeries, EditingEntry, Attaching, Fetching, Adding, BackingUp, Exporting };
     Q_ENUM(State)
 
     // True while the panel holds something the owner must finish — a form, a
@@ -48,14 +49,15 @@ public:
     {
         return state_ == State::Editing || state_ == State::ConfirmingDelete
             || state_ == State::EditingEntry || state_ == State::Attaching || state_ == State::Fetching
-            || state_ == State::Adding || state_ == State::BackingUp;
+            || state_ == State::Adding || state_ == State::BackingUp || state_ == State::Exporting;
     }
     // True while a form is open, or a lookup the owner is waiting on, which
     // nothing may redraw over.
     bool isEditing() const
     {
         return state_ == State::Editing || state_ == State::EditingEntry || state_ == State::Attaching
-            || state_ == State::Fetching || state_ == State::Adding || state_ == State::BackingUp;
+            || state_ == State::Fetching || state_ == State::Adding || state_ == State::BackingUp
+            || state_ == State::Exporting;
     }
 
     explicit DetailPanel(QWidget* parent = nullptr);
@@ -97,6 +99,9 @@ public:
     // backupView()'s signals.
     void beginBackup(const QString& suggestedPath);
 
+    // Export (F-021 to F-023): a format and where to, then the outcome.
+    void beginExport(const QString& folder, const QString& stem);
+
     // "Fetch metadata" for the book on show (F-012): the lookup under way,
     // then its candidates to choose from. Cancel returns to the book.
     void beginFetch(const QString& how);
@@ -120,6 +125,7 @@ public:
     CandidateView* candidateView() const { return candidateView_; }
     AddByIsbnView* addView() const { return addView_; }
     BackupView* backupView() const { return backupView_; }
+    ExportView* exportView() const { return exportView_; }
 
 signals:
     void saveRequested(const domain::BookEdit& edit);
@@ -167,6 +173,7 @@ private:
     CandidateView* candidateView_;
     AddByIsbnView* addView_;
     BackupView* backupView_;
+    ExportView* exportView_;
     std::function<void()> pendingConfirm_;
 
     std::optional<domain::BookDetail> shown_;

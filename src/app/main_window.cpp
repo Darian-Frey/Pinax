@@ -13,6 +13,7 @@
 #include "ui/book_group_proxy.h"
 #include "ui/add_by_isbn_view.h"
 #include "ui/backup_view.h"
+#include "ui/export_view.h"
 #include "ui/rail_view.h"
 #include "ui/missing_page.h"
 #include "ui/series_page.h"
@@ -206,6 +207,21 @@ MainWindow::MainWindow(QWidget* parent)
         detail_->showNothing();
         refreshPanel();
     });
+    export_ = toolbar->addAction(tr("Export"), this, &MainWindow::beginExport);
+    export_->setObjectName(QStringLiteral("export"));
+    export_->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_E));
+    export_->setToolTip(tr("The catalogue as a file for other programs (Ctrl+E)"));
+    detail_->exportView()->setFormats({
+        {tr("SQL dump"), QStringLiteral("sql"),
+            tr("Plain SQL that recreates the whole catalogue on an empty database: readable, "
+               "fit for version control, and needing nothing of Pinax. Restore with "
+               "sqlite3 restored.db < file.sql. Checked by restoring it before it is kept.")},
+    });
+    connect(detail_->exportView(), &ui::ExportView::exportRequested, this, &MainWindow::exportTo);
+    connect(detail_->exportView(), &ui::ExportView::closed, this, [this] {
+        detail_->showNothing();
+        refreshPanel();
+    });
     fetchAll_ = toolbar->addAction(tr("Fetch all metadata"), this, &MainWindow::toggleBatch);
     fetchAll_->setObjectName(QStringLiteral("fetchAll"));
     fetchAll_->setToolTip(tr("Look up every book not yet looked up. An ISBN's single, agreeing "
@@ -251,6 +267,7 @@ void MainWindow::lockWhileBusy()
     filterBar_->setEnabled(!busy);
     addBook_->setEnabled(!busy);
     backUp_->setEnabled(!busy && catalogue_);
+    export_->setEnabled(!busy && catalogue_);
     addByIsbn_->setEnabled(!busy && enricher_ && catalogue_);
     if (fetchAll_)
         showBatchProgress();
@@ -258,6 +275,8 @@ void MainWindow::lockWhileBusy()
         statusBar()->showMessage(tr("Adding by ISBN — Esc cancels"));
     else if (detail_->state() == ui::DetailPanel::State::BackingUp)
         statusBar()->showMessage(tr("Backing up — Esc closes"));
+    else if (detail_->state() == ui::DetailPanel::State::Exporting)
+        statusBar()->showMessage(tr("Exporting — Esc closes"));
     else if (detail_->state() == ui::DetailPanel::State::Fetching && reviewLeft_ > 0)
         statusBar()->showMessage(tr("Reviewing matches — Esc stops"));
     else if (detail_->state() == ui::DetailPanel::State::Fetching)
@@ -709,6 +728,49 @@ void MainWindow::backUp(const QString& path)
                                 .arg(QString::fromStdString(result.path));
     view->showDone(message);
     statusBar()->showMessage(tr("Backed up %1 books").arg(result.books), 6000);
+}
+
+void MainWindow::beginExport()
+{
+    if (!catalogue_ || detail_->isBusy())
+        return;
+    QString folder = lastExportFolder_;
+    if (folder.isEmpty()) {
+        folder = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+        if (folder.isEmpty())
+            folder = QDir::homePath();
+        folder += QStringLiteral("/Pinax exports");
+    }
+    list_->clearSelection();
+    detail_->beginExport(folder, QStringLiteral("pinax-%1").arg(QDate::currentDate().toString(Qt::ISODate)));
+}
+
+void MainWindow::exportTo(int format, const QString& path)
+{
+    if (!catalogue_)
+        return;
+    const QString target = QDir::cleanPath(path.startsWith(QLatin1Char('~')) ? QDir::homePath() + path.mid(1) : path);
+    auto* view = detail_->exportView();
+    Catalogue::ExportResult result;
+    QString what;
+    switch (format) {
+    case 0:
+        result = catalogue_->dumpTo(target.toStdString());
+        what = tr("as SQL");
+        break;
+    default:
+        return;
+    }
+    if (result.problem) {
+        view->showProblem(tr("Not exported: %1").arg(QString::fromStdString(*result.problem)));
+        return;
+    }
+    lastExportFolder_ = QFileInfo(QString::fromStdString(result.path)).absolutePath();
+    view->showDone(tr("Wrote %1 books %2 to %3. Checked by restoring it into an empty database: "
+                      "everything came back as it is.")
+                       .arg(result.books)
+                       .arg(what, QString::fromStdString(result.path)));
+    statusBar()->showMessage(tr("Exported %1 books").arg(result.books), 6000);
 }
 
 void MainWindow::toggleBatch()

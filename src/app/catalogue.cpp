@@ -4,6 +4,7 @@
 #include "db/book_repository.h"
 #include "db/backup.h"
 #include "db/db_error.h"
+#include "db/dump.h"
 #include "db/genre_repository.h"
 #include "db/migrations.h"
 #include "db/series_repository.h"
@@ -767,6 +768,21 @@ Catalogue::BackupResult Catalogue::backupTo(const std::string& path)
     } catch (const db::DbError& error) {
         return {0, path, error.what()};
     }
+}
+
+Catalogue::ExportResult Catalogue::dumpTo(const std::string& path)
+{
+    try {
+        const auto report = db::dumpTo(connection_, path);
+        return {report.books, report.path, std::nullopt};
+    } catch (const db::DbError& error) {
+        return {0, path, error.what()};
+    }
+}
+
+void Catalogue::writeDump(std::ostream& out)
+{
+    db::writeDump(connection_, out);
 }
 
 std::optional<std::string> Catalogue::dataDirectory() const

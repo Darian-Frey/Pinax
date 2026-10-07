@@ -388,7 +388,13 @@ a WAL-mode database mid-write is not safe — see AV-003.
 - The catalogue exports as plain-text SQL that recreates it on an empty
   database.
 - The dump is readable and diff-able, so it can be version-controlled.
-**Status:** Not started
+**Status:** Complete (2026-10-07) — Export in the toolbar (Ctrl+E), format
+"SQL dump", writes plain SQL in the manner of `sqlite3 .dump`; `pinax --dump
+file.sql` (or `-` for standard output) does the same without the window.
+Deterministic, one row a line, control characters spelt `char(n)`, reals
+exact. Every dump is restored into an empty database and must dump back to
+the very same text before it is kept; `sqlite3 new.db < file.sql` restores
+the owner's catalogue.
 **Notes:** Guards against the format itself becoming the lock-in.
 
 ### F-022 Excel export

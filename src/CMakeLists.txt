@@ -72,6 +72,8 @@ add_library(pinax_db STATIC
     db/connection.cpp
     db/connection.h
     db/db_error.h
+    db/dump.cpp
+    db/dump.h
     db/genre_repository.cpp
     db/genre_repository.h
     db/migrations.cpp
@@ -152,6 +154,8 @@ add_library(pinax_ui STATIC
     ui/detail_panel.h
     ui/entry_editor.cpp
     ui/entry_editor.h
+    ui/export_view.cpp
+    ui/export_view.h
     ui/filter_bar.cpp
     ui/filter_bar.h
     ui/list_keys.cpp

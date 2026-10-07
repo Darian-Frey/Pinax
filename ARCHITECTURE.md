@@ -38,6 +38,8 @@ Toolchain fixed by D-001: C++20, Qt6 Widgets, SQLite.
 
 `db::backupTo` is the only way a copy of the database is taken (F-020,
 AV-003): `VACUUM INTO` a partial file, checked, then renamed into place.
+`db::writeDump` and `dumpTo` write the catalogue as plain SQL (F-021), the
+latter restoring each dump and requiring it to dump back identically.
 
 Everything flows through `db`. The UI never issues SQL; `metadata` and `io`
 never touch the database file directly. One module owns the store.

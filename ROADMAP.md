@@ -142,7 +142,8 @@ moves the series to complete, without creating a second record.
 - [x] Search field — 2026-10-07 (F-019), as you type, with Ctrl+F
 - [x] `VACUUM INTO` backup — 2026-10-07 (F-020), checked before it is kept;
       Ctrl+B in the window, `--backup` on the command line
-- [ ] Plain-text SQL dump
+- [x] Plain-text SQL dump — 2026-10-07 (F-021), Export or `--dump`, checked by
+      restoring it
 - [ ] `.xlsx` writer: books, series status, authors
 - [ ] CSV export of the current view
 **Acceptance:** An exported workbook matches the application's own counts for

@@ -1,5 +1,6 @@
 #include "db/backup.h"
 #include "db/book_repository.h"
+#include "db/dump.h"
 #include "db/genre_repository.h"
 #include "db/author_repository.h"
 #include "db/connection.h"
@@ -15,6 +16,7 @@
 #include <QTest>
 
 #include <algorithm>
+#include <sstream>
 
 #include <sqlite3.h>
 
@@ -117,6 +119,9 @@ private slots:
     // F-020, AV-003
     void aBackupHoldsWhatTheLogHolds();
     void aFailedBackupLeavesTheOldOneAlone();
+
+    // F-021
+    void aDumpRestoresExactly();
 };
 
 void TestDb::migrateCreatesSchemaOnEmptyDatabase()
@@ -644,6 +649,58 @@ void TestDb::aFailedBackupLeavesTheOldOneAlone()
 
     QCOMPARE(QFileInfo(target).lastModified(), before);
     QVERIFY(QDir(dir.path()).entryList({QStringLiteral("*.partial")}, QDir::Files).isEmpty());
+}
+
+void TestDb::aDumpRestoresExactly()
+{
+    Connection original(":memory:");
+    pinax::db::migrate(original);
+    original.exec(
+        "INSERT INTO author (id, name, sort_name) VALUES (1, 'Stanisław Lem', 'Lem, Stanisław');"
+        "INSERT INTO book (id, title, sort_title, read_status, times_read, date_finished, rating, synopsis,"
+        " synopsis_source) VALUES"
+        " (1, 'Solaris', 'Solaris', 'read', 2, '2025-03-01', 9,"
+        "  'It''s about a planet.' || char(13) || char(10) || 'Second line;' || char(10) || 'Third.', 'manual'),"
+        " (2, 'The Cyberiad', 'Cyberiad, The', 'unread', 0, NULL, NULL, NULL, NULL);"
+        "INSERT INTO book_author (book_id, author_id, ordinal, role) VALUES (1, 1, 0, 'author'), (2, 1, 0, 'author');"
+        "INSERT INTO series (id, name) VALUES (1, 'Ijon Tichy');"
+        "INSERT INTO series_entry (series_id, book_id, position, sort_position, title) VALUES"
+        " (1, 2, '6.5', 6.5, NULL), (1, NULL, 'Companion', 0.1, 'The Star Diaries');"
+        "INSERT INTO genre (id, name) VALUES (1, 'Science fiction');"
+        "INSERT INTO book_genre (book_id, genre_id, source) VALUES (1, 1, 'british_library');");
+
+    std::ostringstream first;
+    pinax::db::writeDump(original, first);
+    const std::string sql = first.str();
+    // Readable: a line per row, the carriage return spelt out.
+    QVERIFY(sql.find("INSERT INTO book VALUES(2,'The Cyberiad'") != std::string::npos);
+    QVERIFY(sql.find("'It''s about a planet.'||char(13)||'") != std::string::npos);
+    QVERIFY(sql.find("6.5,") != std::string::npos);
+    // Deterministic: the same catalogue, the same bytes.
+    std::ostringstream again;
+    pinax::db::writeDump(original, again);
+    QVERIFY(again.str() == sql);
+
+    // Restored on an empty database: the same schema, the same values —
+    // and the trigger that counts re-reads did not fire on the way in.
+    Connection restored(":memory:");
+    restored.exec(sql);
+    QCOMPARE(QString::fromStdString(schemaDump(restored)), QString::fromStdString(schemaDump(original)));
+    std::ostringstream roundTrip;
+    pinax::db::writeDump(restored, roundTrip);
+    QVERIFY(roundTrip.str() == sql);
+    QCOMPARE(scalar(restored, "SELECT times_read FROM book WHERE id = 1"), 2);
+    QCOMPARE(scalarText(restored, "SELECT synopsis FROM book WHERE id = 1"),
+        std::string("It's about a planet.\r\nSecond line;\nThird."));
+    QCOMPARE(scalarText(restored, "PRAGMA foreign_key_check"), std::string());
+
+    // To a file, checked; a folder for a name is refused.
+    QTemporaryDir dir;
+    const auto report = pinax::db::dumpTo(original, dir.filePath(QStringLiteral("out/pinax.sql")).toStdString());
+    QCOMPARE(report.books, std::int64_t(2));
+    QVERIFY(QFile::exists(dir.filePath(QStringLiteral("out/pinax.sql"))));
+    QVERIFY(!QFile::exists(dir.filePath(QStringLiteral("out/pinax.sql.partial"))));
+    QVERIFY_THROWS_EXCEPTION(DbError, pinax::db::dumpTo(original, dir.path().toStdString() + "/"));
 }
 
 QTEST_APPLESS_MAIN(TestDb)
