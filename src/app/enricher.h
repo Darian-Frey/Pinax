@@ -44,8 +44,10 @@ class Enricher : public QObject {
 public:
     // Who is asking, so one can be cancelled without the other: a fetch in
     // the panel, the batch run, and covers, which are never cancelled once
-    // their book is written. All share the same polite queues.
-    enum class Channel { Interactive, Batch, Covers };
+    // their book is written; and cover previews shown before a choice, which
+    // are withdrawn from the queue as soon as they are not wanted. All share
+    // the same polite queues.
+    enum class Channel { Interactive, Batch, Covers, Previews };
 
     Enricher(metadata::Fetcher& fetcher, const QString& googleKey, metadata::QueuePolicy policy = {},
         QObject* parent = nullptr);
@@ -61,10 +63,16 @@ public:
     void lookupIsbn(const std::string& isbn13, std::function<void(FindResult)> done,
         Channel channel = Channel::Interactive);
 
-    // A cover image, downloaded and checked but not kept, to show before its
-    // book exists (F-024). Cancelled with the Interactive channel.
+    // A cover image, downloaded and checked but not kept, to show before a
+    // choice: the card's cover in Add by ISBN (F-024), or with `thumbnail`
+    // a smaller one beside each candidate. On the Previews channel.
     void fetchImage(const std::string& url,
-        std::function<void(std::optional<QByteArray> bytes, std::optional<std::string> error)> done);
+        std::function<void(std::optional<QByteArray> bytes, std::optional<std::string> error)> done,
+        bool thumbnail = false);
+
+    // Withdraws the previews not yet downloaded and drops those under way:
+    // the choice they were for has been made or abandoned.
+    void cancelPreviews();
 
     // A candidate found by search carries no synopsis; its work may. Hands
     // the candidate back, filled where it could be.
@@ -129,7 +137,7 @@ public:
     metadata::OpenLibraryClient openLibrary_;
     metadata::GoogleBooksClient google_;
     metadata::BritishLibraryClient britishLibrary_;
-    unsigned generations_[3] = {0, 0, 0}; // by Channel
+    unsigned generations_[4] = {0, 0, 0, 0}; // by Channel
 };
 
 } // namespace pinax::app

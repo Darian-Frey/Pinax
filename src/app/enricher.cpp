@@ -82,19 +82,33 @@ void Enricher::lookupIsbn(const std::string& isbn13, std::function<void(FindResu
     findByIsbn(isbn13, {}, false, guarded(channel, std::move(done)));
 }
 
+namespace {
+constexpr int previewTag = 1; // cover-queue requests cancelPreviews may withdraw
+}
+
+void Enricher::cancelPreviews()
+{
+    coverQueue_.cancelTagged(previewTag);
+    cancel(Channel::Previews);
+}
+
 void Enricher::fetchImage(const std::string& url,
-    std::function<void(std::optional<QByteArray> bytes, std::optional<std::string> error)> done)
+    std::function<void(std::optional<QByteArray> bytes, std::optional<std::string> error)> done, bool thumbnail)
 {
     // No data directory: the image is only downloaded and checked.
     auto cache = std::make_shared<metadata::CoverCache>(coverQueue_, QString());
-    auto guardedDone = guarded<std::pair<std::optional<QByteArray>, std::optional<std::string>>>(Channel::Interactive,
+    auto guardedDone = guarded<std::pair<std::optional<QByteArray>, std::optional<std::string>>>(Channel::Previews,
         [done](std::pair<std::optional<QByteArray>, std::optional<std::string>> result) {
             done(std::move(result.first), std::move(result.second));
         });
-    cache->download(QUrl(QString::fromStdString(url)),
+    QUrl address(QString::fromStdString(url));
+    if (thumbnail)
+        address = metadata::CoverCache::thumbnailUrl(address);
+    cache->download(address,
         [cache, guardedDone](std::optional<QByteArray> bytes, std::optional<std::string> error) {
             guardedDone({std::move(bytes), std::move(error)});
-        });
+        },
+        previewTag);
 }
 
 void Enricher::findByIsbn(const std::string& isbn13, const BookDetail& detail, bool thenByTitle,

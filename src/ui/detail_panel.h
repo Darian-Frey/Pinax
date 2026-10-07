@@ -101,6 +101,8 @@ public:
     void offerCandidates(const std::vector<domain::Candidate>& candidates, bool byIsbn);
     void showFetchProblem(const QString& message);
     void setFetchProgress(const QString& text);
+    // A candidate's cover, arrived: shown beside it in the list.
+    void setCandidateCover(int index, const QPixmap& cover);
     // The book being looked up, while Fetching.
     std::optional<qint64> fetchingBookId() const;
 

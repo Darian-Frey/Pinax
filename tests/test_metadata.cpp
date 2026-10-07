@@ -89,6 +89,10 @@ private slots:
     void britishLibraryMatchesAnIsbn10Record();
     void britishLibraryDropsRelatedEditions();
     void britishLibraryLookupGoesThroughTheQueue();
+
+    // Cover previews (candidate thumbnails)
+    void taggedRequestsCanBeWithdrawn();
+    void aThumbnailIsTheMediumCover();
 };
 
 void TestMetadata::booksApiReadsTheEdition()
@@ -481,6 +485,36 @@ void TestMetadata::britishLibraryLookupGoesThroughTheQueue()
     client.lookupIsbn("9780316005388", [&](LookupResult r) { miss = std::move(r); });
     QTRY_VERIFY(miss);
     QVERIFY(miss->candidates.empty() && !miss->error);
+}
+
+void TestMetadata::taggedRequestsCanBeWithdrawn()
+{
+    FakeFetcher fetcher;
+    QueuePolicy slow = fast();
+    slow.minInterval = std::chrono::milliseconds(30);
+    RequestQueue queue(fetcher, slow);
+    int answered = 0;
+    auto count = [&](const HttpReply&) { ++answered; };
+    queue.enqueue(QUrl(QStringLiteral("https://example.org/keep-1")), count);
+    queue.enqueue(QUrl(QStringLiteral("https://example.org/preview-1")), count, 1);
+    queue.enqueue(QUrl(QStringLiteral("https://example.org/preview-2")), count, 1);
+    queue.enqueue(QUrl(QStringLiteral("https://example.org/keep-2")), count);
+
+    // The first is in flight; the two previews behind it are withdrawn.
+    QCOMPARE(queue.cancelTagged(1), 2);
+    QTRY_COMPARE(answered, 2);
+    QTest::qWait(80);
+    QCOMPARE(answered, 2);
+    QCOMPARE(fetcher.requested, (std::vector<QString> {QStringLiteral("https://example.org/keep-1"),
+                                    QStringLiteral("https://example.org/keep-2")}));
+}
+
+void TestMetadata::aThumbnailIsTheMediumCover()
+{
+    QCOMPARE(CoverCache::thumbnailUrl(QUrl(QStringLiteral("https://covers.openlibrary.org/b/id/1174792-L.jpg"))),
+        QUrl(QStringLiteral("https://covers.openlibrary.org/b/id/1174792-M.jpg")));
+    const QUrl google(QStringLiteral("https://books.google.com/books/content?id=x&img=1&zoom=1"));
+    QCOMPARE(CoverCache::thumbnailUrl(google), google);
 }
 
 QTEST_MAIN(TestMetadata)

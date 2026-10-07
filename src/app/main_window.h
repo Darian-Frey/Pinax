@@ -110,6 +110,9 @@ private:
     // the one chosen, then fetch its cover.
     void fetchMetadata(qint64 bookId);
     void useCandidate(qint64 bookId, int index);
+    // Thumbnails beside the candidates on offer, as they arrive; any still
+    // coming for an earlier offer are withdrawn first.
+    void previewCovers(qint64 bookId, const std::vector<domain::Candidate>& candidates);
     void fetchCover(qint64 bookId, const std::string& url, domain::Source source);
     void coverArrived(qint64 bookId, domain::Source source, const metadata::CoverResult& cover);
 
@@ -146,6 +149,7 @@ private:
         bool byIsbn = false;
     };
     std::optional<Offer> offer_;
+    unsigned offerSerial_ = 0; // which offer a thumbnail arriving belongs to
     BatchEnricher* batch_ = nullptr;
     QAction* fetchAll_ = nullptr;
     QAction* addByIsbn_ = nullptr;

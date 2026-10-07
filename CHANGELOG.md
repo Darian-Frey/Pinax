@@ -15,6 +15,11 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- Cover thumbnails beside the candidates in Fetch metadata and Review
+  matches: each edition's cover arrives as it downloads, Open Library's
+  medium size, a second apart, so the right edition can be picked by its
+  cover. Previews still queued are withdrawn once the choice is made or
+  abandoned, so the chosen book's cover is not held up.
 - Add by ISBN (Phase 3 step 6, F-024, D-012, D-024): Ctrl+I opens a form in
   the panel; the ISBN (13 or 10 digits, check digit verified) is looked up
   on Open Library and the British Library, and a card shows the cover,

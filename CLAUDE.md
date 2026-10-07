@@ -226,10 +226,13 @@ Not vectors, but worth knowing:
   ConfirmingDelete) is what nothing may redraw over; `isBusy()` (all six) is what locks the
   list, the rail and the toolbar's actions. Fetching serves both a single
   fetch and the review of a batch's finds.
-- **Enricher cancellation is per channel** (Interactive, Batch, Covers).
-  Stopping the batch must not drop the panel's fetch, nor the reverse;
-  covers are never cancelled, so their callbacks guard their owner with a
-  `QPointer`.
+- **Enricher cancellation is per channel** (Interactive, Batch, Covers,
+  Previews). Stopping the batch must not drop the panel's fetch, nor the
+  reverse; covers are never cancelled, so their callbacks guard their owner
+  with a `QPointer`. Previews — candidate thumbnails, the Add by ISBN card's
+  cover — are also withdrawn from the cover queue (`cancelPreviews`, a
+  `RequestQueue` tag) whenever their choice ends; anything new that shows
+  candidates should do the same.
 - **Focus is not a choice.** A list given focus makes its first row
   current; Use this follows the *selection* (BUG-004). Anything new that
   offers candidates must not enable acceptance from the current row.

@@ -5,6 +5,8 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
+#include <QPainter>
+#include <QPixmap>
 #include <QPushButton>
 #include <QShortcut>
 #include <QVBoxLayout>
@@ -71,6 +73,21 @@ QString describe(const Candidate& candidate)
     return title + QLatin1Char('\n') + line2 + QLatin1Char('\n') + more.join(QStringLiteral(" · "));
 }
 
+constexpr QSize thumbnailSize(48, 72);
+
+// A frame where a cover will go: "…" while one is on its way, a dash when
+// the provider has none.
+QPixmap placeholder(const QWidget* widget, bool coming)
+{
+    QPixmap pixmap(thumbnailSize);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setPen(muted(widget));
+    painter.drawRect(QRect(QPoint(0, 0), thumbnailSize - QSize(1, 1)));
+    painter.drawText(pixmap.rect(), Qt::AlignCenter, coming ? QStringLiteral("…") : QStringLiteral("—"));
+    return pixmap;
+}
+
 } // namespace
 
 CandidateView::CandidateView(QWidget* parent)
@@ -104,6 +121,7 @@ CandidateView::CandidateView(QWidget* parent)
 
     list_->setObjectName(QStringLiteral("candidates.list"));
     list_->setWordWrap(true);
+    list_->setIconSize(thumbnailSize);
     list_->setSpacing(4);
     layout->addWidget(list_, 1);
 
@@ -189,8 +207,10 @@ void CandidateView::offer(const std::vector<Candidate>& candidates, bool byIsbn)
                                          "taken. Choose the one that is your book, or cancel.")));
     }
     list_->clear();
-    for (const Candidate& candidate : candidates)
-        list_->addItem(describe(candidate));
+    for (const Candidate& candidate : candidates) {
+        // Each row as tall as its text or its thumbnail, whichever is more.
+        new QListWidgetItem(QIcon(placeholder(this, candidate.coverUrl.has_value())), describe(candidate), list_);
+    }
     list_->show();
     use_->show();
     reject_->setVisible(reviewing_);
@@ -207,6 +227,23 @@ void CandidateView::offer(const std::vector<Candidate>& candidates, bool byIsbn)
         skip_->setFocus();
     else
         cancel_->setFocus();
+}
+
+void CandidateView::setCover(int index, const QPixmap& cover)
+{
+    QListWidgetItem* item = list_->item(index);
+    if (!item || cover.isNull())
+        return;
+    // Centred in a frame of the thumbnail's size, so every row lines up.
+    QPixmap framed(thumbnailSize);
+    framed.fill(Qt::transparent);
+    const QPixmap scaled = cover.scaled(thumbnailSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    QPainter painter(&framed);
+    painter.drawPixmap((thumbnailSize.width() - scaled.width()) / 2, (thumbnailSize.height() - scaled.height()) / 2,
+        scaled);
+    painter.end();
+    item->setIcon(QIcon(framed));
+    item->setData(Qt::UserRole, true); // a cover is shown
 }
 
 void CandidateView::showProblem(const QString& message)

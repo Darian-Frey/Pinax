@@ -85,6 +85,7 @@ private slots:
     void fetchAsksForTheBookOnShow();
     void searchedCandidatesWaitToBeChosen();
     void anIsbnAnswerIsOfferedReadyToUse();
+    void candidatesShowTheirCoversAsTheyArrive();
     void authorsAreEditedAsText();
     void aNewBookStartsEmptyAndCancelsToNothing();
     void deletionIsConfirmedInThePanel();
@@ -461,6 +462,32 @@ void TestDetailPanel::anIsbnAnswerIsOfferedReadyToUse()
     QTest::mouseClick(child<QPushButton>(*panel.candidateView(), QStringLiteral("candidates.cancel")), Qt::LeftButton);
     QCOMPARE(cancelled.count(), 1);
     QCOMPARE(panel.state(), DetailPanel::State::Viewing);
+}
+
+void TestDetailPanel::candidatesShowTheirCoversAsTheyArrive()
+{
+    DetailPanel panel;
+    panel.show();
+    panel.showBook(excession());
+    panel.beginFetch(QStringLiteral("Searching…"));
+    auto editions = twoEditions();
+    editions.front().coverUrl = "https://covers.openlibrary.org/b/id/1-L.jpg";
+    panel.offerCandidates(editions, false);
+
+    auto* list = child<QListWidget>(*panel.candidateView(), QStringLiteral("candidates.list"));
+    // A frame for each from the start, so the rows do not jump.
+    QVERIFY(!list->item(0)->icon().isNull());
+    QVERIFY(!list->item(1)->icon().isNull());
+    QVERIFY(!list->item(0)->data(Qt::UserRole).toBool());
+
+    QPixmap cover(60, 90);
+    cover.fill(Qt::darkCyan);
+    panel.setCandidateCover(0, cover);
+    QVERIFY(list->item(0)->data(Qt::UserRole).toBool());
+    QVERIFY(!list->item(1)->data(Qt::UserRole).toBool());
+    panel.setCandidateCover(7, cover); // no such row: ignored
+    // A cover is not a choice (BUG-004).
+    QVERIFY(list->selectedItems().isEmpty());
 }
 
 QTEST_MAIN(TestDetailPanel)

@@ -31,6 +31,10 @@ public:
     // `byIsbn`: the candidates answer the book's ISBN, and so describe its
     // edition; otherwise they were found by title and author.
     void offer(const std::vector<domain::Candidate>& candidates, bool byIsbn);
+    // The cover of the candidate at `index`, when it has arrived: shown
+    // beside it, so editions can be told apart before one is chosen.
+    void setCover(int index, const QPixmap& cover);
+
     // Nothing to choose from, and why.
     void showProblem(const QString& message);
 

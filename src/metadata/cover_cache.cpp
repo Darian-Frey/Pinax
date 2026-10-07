@@ -43,6 +43,17 @@ void CoverCache::forget(std::int64_t bookId) const
         QFile::remove(path(bookId, extension));
 }
 
+QUrl CoverCache::thumbnailUrl(const QUrl& url)
+{
+    if (url.host() != QStringLiteral("covers.openlibrary.org") || !url.path().endsWith(QStringLiteral("-L.jpg")))
+        return url;
+    QUrl smaller = url;
+    QString path = url.path();
+    path.replace(path.size() - 6, 6, QStringLiteral("-M.jpg"));
+    smaller.setPath(path);
+    return smaller;
+}
+
 QUrl CoverCache::politeUrl(const QUrl& url)
 {
     if (url.host() != QStringLiteral("covers.openlibrary.org"))
@@ -82,7 +93,7 @@ void CoverCache::fetch(std::int64_t bookId, const QUrl& url, std::function<void(
 }
 
 void CoverCache::download(const QUrl& url,
-    std::function<void(std::optional<QByteArray> bytes, std::optional<std::string> error)> done)
+    std::function<void(std::optional<QByteArray> bytes, std::optional<std::string> error)> done, int tag)
 {
     queue_.enqueue(politeUrl(url), [done](const HttpReply& reply) {
         if (reply.status == 404) {
@@ -100,7 +111,7 @@ void CoverCache::download(const QUrl& url,
             return;
         }
         done(reply.body, std::nullopt);
-    });
+    }, tag);
 }
 
 CoverResult CoverCache::store(std::int64_t bookId, const QByteArray& bytes) const

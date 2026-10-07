@@ -16,11 +16,19 @@ RequestQueue::RequestQueue(Fetcher& fetcher, QueuePolicy policy, QObject* parent
     connect(&timer_, &QTimer::timeout, this, &RequestQueue::startNext);
 }
 
-void RequestQueue::enqueue(const QUrl& url, std::function<void(const HttpReply&)> done)
+void RequestQueue::enqueue(const QUrl& url, std::function<void(const HttpReply&)> done, int tag)
 {
-    queue_.push_back({url, std::move(done), 0, policy_.firstBackoff});
+    queue_.push_back({url, std::move(done), 0, policy_.firstBackoff, tag});
     if (!busy_ && !timer_.isActive())
         startNext();
+}
+
+int RequestQueue::cancelTagged(int tag)
+{
+    const auto before = queue_.size();
+    queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [tag](const Job& job) { return job.tag == tag; }),
+        queue_.end());
+    return static_cast<int>(before - queue_.size());
 }
 
 void RequestQueue::cancelAll()

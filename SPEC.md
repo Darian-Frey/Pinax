@@ -379,6 +379,14 @@ file displays a placeholder rather than failing.
 Deleting a book deletes its cover file. SQLite may give a later book the same
 id, and that book must not inherit someone else's cover.
 
+Covers shown before a choice — a thumbnail beside each candidate in Fetch
+metadata and Review matches, the cover on the Add by ISBN card — are
+downloaded and checked like any other but kept only in memory. Thumbnails
+use Open Library's medium size (`-M.jpg` for `-L.jpg`); other providers'
+images are used as given. They queue behind nothing else's urgency: as soon
+as the choice is made or abandoned, those not yet downloaded are withdrawn
+from the queue, so the chosen book's own cover is not kept waiting.
+
 `book.cover_source` records where the cover came from. A cover whose source is
 `manual` is never replaced by a fetched one (AV-001).
 

@@ -79,7 +79,9 @@ results are returned to the caller, which persists them through `db`.
   MARC 21 with `QXmlStreamReader` (D-022). Each maps provider responses onto
   `domain::Candidate` through pure parsing functions.
 - **Request queue** — one per provider: serialises requests, spaces them, and
-  pauses and retries on 429 or 503 rather than failing (AV-009).
+  pauses and retries on 429 or 503 rather than failing (AV-009). A request
+  may carry a tag, and `cancelTagged` withdraws those not yet started — how
+  cover previews leave the queue once their choice is made.
 - **Cover cache** — `CoverCache` downloads a cover once, through the
   provider's queue, checks the bytes are a real image, writes it atomically
   under `covers/` and returns the relative path; `forget` deletes a book's

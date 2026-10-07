@@ -32,11 +32,16 @@ class RequestQueue : public QObject {
 public:
     RequestQueue(Fetcher& fetcher, QueuePolicy policy = {}, QObject* parent = nullptr);
 
-    void enqueue(const QUrl& url, std::function<void(const HttpReply&)> done);
+    // `tag` marks a request that may later be withdrawn with cancelTagged.
+    void enqueue(const QUrl& url, std::function<void(const HttpReply&)> done, int tag = 0);
 
     // Drops every request not yet started. The one in flight, if any,
     // completes but its answer is discarded.
     void cancelAll();
+
+    // Withdraws the requests with this tag not yet started; the others, and
+    // one already in flight, go ahead. Returns how many were withdrawn.
+    int cancelTagged(int tag);
 
     int pending() const { return static_cast<int>(queue_.size()) + (busy_ ? 1 : 0); }
     bool isPaused() const { return paused_; }
@@ -54,6 +59,7 @@ private:
         std::function<void(const HttpReply&)> done;
         int attempts = 0;
         std::chrono::milliseconds backoff {0};
+        int tag = 0;
     };
 
     void startNext();

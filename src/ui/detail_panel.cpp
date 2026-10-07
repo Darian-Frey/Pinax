@@ -312,6 +312,11 @@ void DetailPanel::showFetchProblem(const QString& message)
     candidateView_->showProblem(message);
 }
 
+void DetailPanel::setCandidateCover(int index, const QPixmap& cover)
+{
+    candidateView_->setCover(index, cover);
+}
+
 void DetailPanel::setFetchProgress(const QString& text)
 {
     candidateView_->setProgress(text);

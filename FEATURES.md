@@ -221,7 +221,9 @@ but a real image, keeps covers beside the database and removes them with
 their book; the panel shows a cached cover or the placeholder. A candidate
 chosen in Fetch metadata brings its cover, unless the book's cover was set by
 hand. Fetch all brings covers with every match it takes or the owner
-confirms; a cover already cached is not fetched again.
+confirms; a cover already cached is not fetched again. When there are
+candidates to choose from, each shows its cover as a thumbnail, so editions
+can be told apart before one is chosen (2026-10-07).
 **Notes:** From Open Library by cover id; Google as a second source with a key
 (D-019). Cache layout in SPEC.md §4.
 

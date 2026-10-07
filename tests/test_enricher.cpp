@@ -135,6 +135,7 @@ private slots:
 
     // Through the window
     void fetchingFromThePanelWritesTheChoiceAndItsCover();
+    void searchedCandidatesShowTheirCovers();
     void cancellingAFetchReturnsToTheBook();
     void nothingFoundMarksTheBookAndSaysSo();
 };
@@ -394,6 +395,35 @@ void TestEnricher::fetchingFromThePanelWritesTheChoiceAndItsCover()
     QVERIFY(f.catalogue.detail(f.book)->book.coverSource == Source::OpenLibrary);
     QVERIFY(QFile::exists(f.dir.filePath(QStringLiteral("covers/%1.png").arg(f.book))));
     QTRY_VERIFY(!view->findChild<QLabel*>(QStringLiteral("cover"))->pixmap().isNull());
+}
+
+void TestEnricher::searchedCandidatesShowTheirCovers()
+{
+    Fixture f(std::nullopt);
+    const QUrl search = OpenLibraryClient::searchUrl("Consider Phlebas", std::string("Iain M. Banks"));
+    f.fetcher.script(search, {ok(fixture("open_library/search_consider_phlebas.json"))});
+    const auto candidates = openlibrary::parseSearch(fixture("open_library/search_consider_phlebas.json"));
+    QVERIFY(!candidates.empty() && candidates.front().coverUrl);
+    // The medium image, politely asked, for each candidate with a cover.
+    QStringList thumbnails;
+    for (const auto& candidate : candidates) {
+        if (!candidate.coverUrl)
+            continue;
+        const QUrl url = CoverCache::politeUrl(CoverCache::thumbnailUrl(QUrl(QString::fromStdString(*candidate.coverUrl))));
+        f.fetcher.script(url, {ok(coverImage())});
+        thumbnails << url.toString();
+    }
+
+    f.pressFetch();
+    auto* list = f.panel()->candidateView()->findChild<QListWidget*>(QStringLiteral("candidates.list"));
+    QTRY_COMPARE(list->count(), static_cast<int>(candidates.size()));
+    QTRY_VERIFY(list->item(0)->data(Qt::UserRole).toBool());
+    for (const auto& url : thumbnails)
+        QVERIFY(std::count(f.fetcher.requested.begin(), f.fetcher.requested.end(), url) == 1);
+    QVERIFY(std::none_of(f.fetcher.requested.begin(), f.fetcher.requested.end(),
+        [](const QString& url) { return url.contains(QStringLiteral("-L.jpg")); }));
+    // Covers do not choose: nothing is written yet.
+    QVERIFY(!f.catalogue.detail(f.book)->book.synopsis);
 }
 
 void TestEnricher::cancellingAFetchReturnsToTheBook()

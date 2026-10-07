@@ -93,14 +93,17 @@ MainWindow::MainWindow(QWidget* parent)
     connect(detail_, &ui::DetailPanel::candidateChosen, this, &MainWindow::useCandidate);
     connect(detail_, &ui::DetailPanel::fetchCancelled, this, [this] {
         if (reviewing_) {
+            enricher_->cancelPreviews();
             batch_->putBack(std::move(*reviewing_), true);
             reviewing_.reset();
             offer_.reset();
             endReview(tr("Review stopped"));
             return;
         }
-        if (enricher_)
+        if (enricher_) {
             enricher_->cancel();
+            enricher_->cancelPreviews();
+        }
         offer_.reset();
         refreshPanel();
     });
@@ -302,11 +305,35 @@ void MainWindow::fetchMetadata(qint64 bookId)
         }
         offer_ = Offer {bookId, result.candidates, result.byIsbn};
         detail_->offerCandidates(result.candidates, result.byIsbn);
+        previewCovers(bookId, result.candidates);
     });
+}
+
+void MainWindow::previewCovers(qint64 bookId, const std::vector<domain::Candidate>& candidates)
+{
+    enricher_->cancelPreviews();
+    const unsigned serial = ++offerSerial_;
+    for (std::size_t i = 0; i < candidates.size(); ++i) {
+        if (!candidates[i].coverUrl)
+            continue;
+        enricher_->fetchImage(*candidates[i].coverUrl,
+            [this, bookId, serial, index = static_cast<int>(i)](std::optional<QByteArray> bytes,
+                std::optional<std::string>) {
+                if (!bytes || serial != offerSerial_ || detail_->fetchingBookId() != bookId)
+                    return;
+                QPixmap cover;
+                if (cover.loadFromData(*bytes))
+                    detail_->setCandidateCover(index, cover);
+            },
+            true);
+    }
 }
 
 void MainWindow::useCandidate(qint64 bookId, int index)
 {
+    // Chosen: the other covers are not needed, and must not hold up this one's.
+    if (enricher_)
+        enricher_->cancelPreviews();
     if (!catalogue_ || !enricher_ || !offer_ || offer_->bookId != bookId || index < 0
         || index >= static_cast<int>(offer_->candidates.size()))
         return;
@@ -437,6 +464,8 @@ void MainWindow::showAddCandidate(int index)
         detail_->addView()->setCover(cover);
         return;
     }
+    // Only the card on show wants its cover.
+    enricher_->cancelPreviews();
     if (!candidate.coverUrl)
         return;
     enricher_->fetchImage(*candidate.coverUrl,
@@ -579,13 +608,16 @@ void MainWindow::addByHand()
     addOffer_.reset();
     addCover_.reset();
     enricher_->cancel();
+    enricher_->cancelPreviews();
     detail_->beginNew(prefill);
 }
 
 void MainWindow::stopAdding()
 {
-    if (enricher_)
+    if (enricher_) {
         enricher_->cancel();
+        enricher_->cancelPreviews();
+    }
     addOffer_.reset();
     addCover_.reset();
     detail_->showNothing();
@@ -663,6 +695,7 @@ void MainWindow::reviewNext()
         detail_->beginReview(tr("%1 of %2 to review").arg(reviewPlace_).arg(reviewTotal_));
         offer_ = Offer {match->bookId, match->candidates, match->byIsbn};
         detail_->offerCandidates(match->candidates, match->byIsbn);
+        previewCovers(match->bookId, match->candidates);
         reviewing_ = std::move(match);
         return;
     }
@@ -673,6 +706,7 @@ void MainWindow::reviewNext()
 void MainWindow::endReview(const QString& message)
 {
     reviewLeft_ = 0;
+    enricher_->cancelPreviews();
     if (detail_->state() == ui::DetailPanel::State::Fetching)
         detail_->showNothing();
     refreshPanel();
