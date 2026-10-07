@@ -2,6 +2,7 @@
 #include "domain/enrichment.h"
 #include "domain/enums.h"
 #include "domain/isbn.h"
+#include "domain/name_match.h"
 #include "domain/placeholder.h"
 #include "domain/sort_name.h"
 #include "domain/sort_title.h"
@@ -31,6 +32,8 @@ private slots:
     void aManualStatusStaysManual();
     void filledGapsKeepTheirProvider();
     void titlesAgreeAcrossProviderNoise();
+    void isbn13ConvertsTo10WhereItCan();
+    void providerNamesMeetTheCataloguesOwn();
 };
 
 void TestDomain::sortTitleMovesLeadingArticle_data()
@@ -274,6 +277,26 @@ void TestDomain::titlesAgreeAcrossProviderNoise()
     QVERIFY(!titlesAgree("Titan", "Titanic"));          // a whole word, not a prefix
     QVERIFY(!titlesAgree("Dune", "The Dune Encyclopedia"));
     QVERIFY(!titlesAgree("", "Dune"));
+}
+
+void TestDomain::isbn13ConvertsTo10WhereItCan()
+{
+    QVERIFY(isbn13To10("9780316005388") == std::optional<std::string>("031600538X"));
+    QVERIFY(isbn13To10("9780575078017") == std::optional<std::string>("0575078014"));
+    QVERIFY(!isbn13To10("9798655608320")); // 979 has no ISBN-10
+}
+
+void TestDomain::providerNamesMeetTheCataloguesOwn()
+{
+    const std::vector<std::string> known {"Iain M. Banks", "Arthur C. Clarke", "Stephen Baxter"};
+    QVERIFY(knownAuthor("Iain Banks", known) == std::optional<std::string>("Iain M. Banks"));
+    QVERIFY(knownAuthor("ARTHUR C CLARKE", known) == std::optional<std::string>("Arthur C. Clarke"));
+    QVERIFY(knownAuthor("Stephen Baxter", known) == std::optional<std::string>("Stephen Baxter"));
+    QVERIFY(!knownAuthor("Kali Wallace", known));
+    QVERIFY(!knownAuthor("Gregory Benford", known));
+    QVERIFY(!knownAuthor("Sarah Baxter", known)); // a surname is not enough
+    QVERIFY(shareAnAuthor({"Iain Banks"}, {"Iain M. Banks"}));
+    QVERIFY(!shareAnAuthor({"Poul Anderson"}, {"Iain M. Banks", "Stephen Baxter"}));
 }
 
 QTEST_APPLESS_MAIN(TestDomain)

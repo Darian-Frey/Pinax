@@ -180,9 +180,10 @@ stored status column — that is the staleness the views exist to prevent.
 **Acceptance:**
 - ISBN-13 and ISBN-10 are recordable and validated by check digit.
 - A duplicate ISBN-13 is refused.
-**Status:** In progress — ISBN-13 check digit validated on import and a duplicate
-refused by the schema; no entry field yet. ISBN-10 validation exists in
-`domain/isbn.h` but nothing calls it.
+**Status:** Complete — both forms are validated by check digit in the edit
+form and in Add by ISBN (an ISBN-10 is looked up as its ISBN-13); a
+duplicate ISBN-13 is refused by the schema, and Add by ISBN reports one held
+in either form (2026-10-07).
 **Notes:** The field itself. F-024 is the workflow built on it.
 
 ### F-012 Synopsis retrieval
@@ -267,7 +268,11 @@ source for those would need a schema change, not proposed.
   reused rather than a duplicate created, and the resulting series
   completeness is stated before confirming.
 - The book is shelved as read or unread at the point of adding.
-**Status:** Not started
+**Status:** Complete (2026-10-07) — Add by ISBN in the toolbar (Ctrl+I) and
+the panel's card; D-024. Beyond the criteria: a copy already held without
+an ISBN — the whole seeded backlog — is recognised by title and author and
+offered the ISBN instead of a second record, and the provider's author
+spelling is replaced by the catalogue's own where they plainly agree.
 **Notes:** The primary path for anything acquired from now on; F-003 covers the
 existing backlog. Needs no schema change — attaching a book to a waiting
 `series_entry` is an update to `book_id` on the row that already exists.

@@ -1,5 +1,6 @@
 #include "ui/detail_panel.h"
 
+#include "ui/add_by_isbn_view.h"
 #include "ui/attach_view.h"
 #include "ui/book_editor.h"
 #include "ui/candidate_view.h"
@@ -59,6 +60,7 @@ DetailPanel::DetailPanel(QWidget* parent)
     , entryEditor_(new EntryEditor)
     , attachView_(new AttachView)
     , candidateView_(new CandidateView)
+    , addView_(new AddByIsbnView)
 {
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -95,6 +97,7 @@ DetailPanel::DetailPanel(QWidget* parent)
     stack_->addWidget(scrolling(entryEditor_, this));
     stack_->addWidget(attachView_);
     stack_->addWidget(candidateView_);
+    stack_->addWidget(scrolling(addView_, this));
 
     connect(confirmButton_, &QPushButton::clicked, this, [this] {
         auto action = std::move(pendingConfirm_);
@@ -273,6 +276,14 @@ void DetailPanel::beginAttach(const domain::SeriesRow& volume, const QString& se
 void DetailPanel::showSaveError(const QString& message)
 {
     editor_->showError(message);
+}
+
+void DetailPanel::beginAddByIsbn()
+{
+    shown_.reset();
+    addView_->start();
+    setState(State::Adding);
+    addView_->focusIsbn();
 }
 
 void DetailPanel::beginFetch(const QString& how)

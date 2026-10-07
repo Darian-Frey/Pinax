@@ -29,6 +29,11 @@ struct Candidate {
     std::optional<std::string> description;
     std::vector<std::string> categories; // verbatim (D-009), from `source`
     std::optional<std::string> coverUrl;
+    // The series as the provider prints it, and the number within it, as
+    // printed: "A time odyssey", "1". Shown and proposed, never parsed here
+    // (AV-006).
+    std::optional<std::string> seriesName;
+    std::optional<std::string> seriesNumber;
 
     // A second provider that filled this candidate's gaps — publisher,
     // pages, years — for the same ISBN, and the categories it gave, which

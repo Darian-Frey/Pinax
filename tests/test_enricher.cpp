@@ -3,18 +3,25 @@
 #include "app/enricher.h"
 #include "app/main_window.h"
 #include "app/provider_key.h"
+#include "io/csv_importer.h"
+#include "io/series_importer.h"
 #include "fake_fetcher.h"
 #include "metadata/british_library.h"
 #include "metadata/cover_cache.h"
 #include "metadata/google_books.h"
 #include "metadata/open_library.h"
+#include "ui/book_editor.h"
 #include "ui/book_list_view.h"
 #include "ui/book_view.h"
+#include "ui/add_by_isbn_view.h"
 #include "ui/candidate_view.h"
 #include "ui/detail_panel.h"
 
 #include <QAction>
 #include <QBuffer>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QRadioButton>
 #include <QFile>
 #include <QImage>
 #include <QLabel>
@@ -119,6 +126,12 @@ private slots:
     void aBatchTakesOnlyWhatItMayAndQueuesTheRest();
     void anInterruptedBatchResumesWhereItLeftOff();
     void reviewingThroughTheWindow();
+
+    // Add by ISBN (Phase 3 step 6, F-024, D-012)
+    void addingByIsbnFillsTheGapThroughTheWindow();
+    void aBadIsbnIsCaughtAtTheDoor();
+    void anUnknownIsbnFallsBackToSearchThenToHand();
+    void aHeldCopyIsGivenItsIsbnNotAddedAgain();
 
     // Through the window
     void fetchingFromThePanelWritesTheChoiceAndItsCover();
@@ -580,6 +593,182 @@ void TestEnricher::reviewingThroughTheWindow()
     QCOMPARE(window.batch()->pendingCount(), 0);
 }
 
+
+namespace {
+
+// The Culture with two volumes held and Consider Phlebas missing, in a
+// window whose network is scripted.
+struct Adding {
+    QTemporaryDir dir;
+    Catalogue catalogue {dir.filePath(QStringLiteral("pinax.db")).toStdString()};
+    FakeFetcher fetcher;
+    Enricher enricher {fetcher, {}, fast()};
+    pinax::app::MainWindow window;
+
+    Adding()
+    {
+        pinax::io::CsvImporter(catalogue.connection()).importText(
+            "title,authors,series,position,shelf\n"
+            "Surface Detail,Iain M. Banks,The Culture,9,unread\n"
+            "Excession,Iain M. Banks,The Culture,5,read\n");
+        pinax::io::SeriesImporter(catalogue.connection()).importText(
+            "series,position,title\n"
+            "The Culture,1,Consider Phlebas\n");
+        fetcher.script(OpenLibraryClient::booksApiUrl(phlebasIsbn), {ok(fixture("open_library/isbn_9780316005388.json"))});
+        fetcher.script(OpenLibraryClient::recordUrl("/books/OL9759601M"), {ok(fixture("open_library/edition_9780316005388.json"))});
+        window.setCatalogue(&catalogue);
+        window.setEnricher(&enricher);
+        window.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&window));
+    }
+    pinax::ui::AddByIsbnView* view() { return window.detailPanel()->addView(); }
+    template <typename T>
+    T* find(const char* name) { return view()->findChild<T*>(QString::fromLatin1(name)); }
+    void lookUp(const QString& isbn)
+    {
+        find<QLineEdit>("add.isbn")->setText(isbn);
+        QTest::mouseClick(find<QPushButton>("add.lookUp"), Qt::LeftButton);
+    }
+};
+
+} // namespace
+
+void TestEnricher::addingByIsbnFillsTheGapThroughTheWindow()
+{
+    Adding a;
+    const auto candidate = openlibrary::parseBooksApi(fixture("open_library/isbn_9780316005388.json"), phlebasIsbn);
+    const QUrl coverUrl = CoverCache::politeUrl(QUrl(QString::fromStdString(*candidate->coverUrl)));
+    a.fetcher.script(coverUrl, {ok(coverImage())});
+
+    QVERIFY(a.window.addByIsbnAction()->isEnabled());
+    a.window.addByIsbnAction()->trigger();
+    QCOMPARE(a.window.detailPanel()->state(), DetailPanel::State::Adding);
+    QVERIFY(!a.window.bookList()->isEnabled());
+
+    a.lookUp(QStringLiteral("978-0-316-00538-8"));
+    QTRY_COMPARE(a.find<QLineEdit>("add.title")->text(), QStringLiteral("Consider Phlebas"));
+    // Nothing written yet (D-012).
+    QCOMPARE(a.catalogue.count(), 2);
+    // The provider's "Iain Banks" in the catalogue's spelling.
+    QCOMPARE(a.find<QLineEdit>("add.authors")->text(), QStringLiteral("Iain M. Banks"));
+    // The gap it fills, and what that does to the series, before confirming.
+    auto* fills = a.find<QRadioButton>("add.series.0");
+    QVERIFY(fills && fills->isChecked());
+    QVERIFY(fills->text().contains(QStringLiteral("Consider Phlebas")));
+    QVERIFY(fills->text().contains(QStringLiteral("3 of 3 held, complete")));
+    // It fits the panel: nothing wider than the view it sits in.
+    QVERIFY(a.view()->minimumSizeHint().width() <= 320);
+    QTRY_VERIFY(!a.find<QLabel>("add.cover")->pixmap().isNull());
+
+    QTest::mouseClick(a.find<QRadioButton>("add.read"), Qt::LeftButton);
+    QTest::mouseClick(a.find<QPushButton>("add.add"), Qt::LeftButton);
+    QVERIFY(a.window.detailPanel()->state() != DetailPanel::State::Adding);
+    QCOMPARE(a.catalogue.count(), 3);
+    QVERIFY(a.catalogue.missingVolumes().empty());
+
+    const auto held = a.catalogue.bookWithIsbn(phlebasIsbn);
+    QVERIFY(held);
+    const auto detail = a.catalogue.detail(held->id);
+    QVERIFY(detail->book.readStatus == pinax::domain::ReadStatus::Read);
+    QVERIFY(detail->book.synopsis);
+    QCOMPARE(detail->series.front().status, std::string("Complete"));
+    // The cover shown on the card is the one kept: downloaded once.
+    QVERIFY(detail->book.coverPath);
+    QCOMPARE(static_cast<int>(std::count(a.fetcher.requested.begin(), a.fetcher.requested.end(), coverUrl.toString())), 1);
+    QCOMPARE(a.window.bookList()->selectedBooks(), QList<qint64>({held->id}));
+
+    // The same ISBN again: reported, not added, and Show it goes to it.
+    a.window.addByIsbnAction()->trigger();
+    a.lookUp(QString::fromStdString(phlebasIsbn));
+    QVERIFY(a.find<QLabel>("add.duplicate")->text().contains(QStringLiteral("already in your catalogue")));
+    QTest::mouseClick(a.find<QPushButton>("add.showExisting"), Qt::LeftButton);
+    QCOMPARE(a.window.detailPanel()->state(), DetailPanel::State::Viewing);
+    QCOMPARE(a.catalogue.count(), 3);
+}
+
+void TestEnricher::aBadIsbnIsCaughtAtTheDoor()
+{
+    Adding a;
+    a.window.addByIsbnAction()->trigger();
+    a.lookUp(QStringLiteral("9780316005389")); // last digit wrong
+    QVERIFY(a.find<QLabel>("add.isbnError")->text().contains(QStringLiteral("check digit")));
+    QTest::qWait(20);
+    QVERIFY(a.fetcher.requested.empty());
+    QTest::keyClick(a.view(), Qt::Key_Escape);
+    QCOMPARE(a.window.detailPanel()->state(), DetailPanel::State::Empty);
+    QVERIFY(a.window.bookList()->isEnabled());
+}
+
+void TestEnricher::anUnknownIsbnFallsBackToSearchThenToHand()
+{
+    Adding a;
+    const std::string unknown = "9780575078017";
+    a.fetcher.script(OpenLibraryClient::booksApiUrl(unknown), {ok("{}")});
+    a.fetcher.script(OpenLibraryClient::searchUrl("Consider Phlebas", std::string("Iain M. Banks")),
+        {ok(fixture("open_library/search_consider_phlebas.json"))});
+
+    a.window.addByIsbnAction()->trigger();
+    a.lookUp(QString::fromStdString(unknown));
+    QTRY_VERIFY(a.find<QLabel>("add.searchMessage")->text().contains(QStringLiteral("No provider knows")));
+    a.find<QLineEdit>("add.searchTitle")->setText(QStringLiteral("Consider Phlebas"));
+    a.find<QLineEdit>("add.searchAuthor")->setText(QStringLiteral("Iain M. Banks"));
+    QTest::mouseClick(a.find<QPushButton>("add.search"), Qt::LeftButton);
+
+    // Found by search: nothing chosen until the owner chooses (AV-010).
+    auto* candidates = a.find<QComboBox>("add.candidates");
+    QTRY_VERIFY(candidates->count() > 1);
+    QVERIFY(!a.find<QPushButton>("add.add")->isEnabled());
+    candidates->setCurrentIndex(1);
+    QVERIFY(a.find<QPushButton>("add.add")->isEnabled());
+    QTest::mouseClick(a.find<QPushButton>("add.add"), Qt::LeftButton);
+
+    const auto held = a.catalogue.bookWithIsbn(unknown);
+    QVERIFY(held); // the typed ISBN is kept
+    const auto detail = a.catalogue.detail(held->id);
+    QVERIFY(!detail->book.publisher); // a search's edition facts are not taken
+    QVERIFY(!detail->book.pageCount);
+
+    // Nothing found at all: by hand, with what is known filled in.
+    a.fetcher.script(OpenLibraryClient::booksApiUrl("9780575083417"), {ok("{}")});
+    a.window.addByIsbnAction()->trigger();
+    a.lookUp(QStringLiteral("9780575083417"));
+    QTRY_VERIFY(a.find<QLineEdit>("add.searchTitle")->isVisible());
+    a.find<QLineEdit>("add.searchTitle")->setText(QStringLiteral("Firstborn"));
+    QTest::mouseClick(a.find<QPushButton>("add.manual"), Qt::LeftButton);
+    QCOMPARE(a.window.detailPanel()->state(), DetailPanel::State::Editing);
+    auto* editor = a.window.detailPanel()->editor();
+    QCOMPARE(editor->findChild<QLineEdit*>(QStringLiteral("edit.title"))->text(), QStringLiteral("Firstborn"));
+    QCOMPARE(editor->findChild<QLineEdit*>(QStringLiteral("edit.isbn13"))->text(), QStringLiteral("9780575083417"));
+}
+
+void TestEnricher::aHeldCopyIsGivenItsIsbnNotAddedAgain()
+{
+    Adding a;
+    // Consider Phlebas already on the shelf, outside the series, no ISBN.
+    pinax::domain::BookEdit held;
+    held.book.title = "Consider Phlebas";
+    held.credits = {{"Iain M. Banks", pinax::domain::CreditRole::Author}};
+    const auto id = a.catalogue.save(held).id;
+    a.window.setCatalogue(&a.catalogue);
+    a.window.setEnricher(&a.enricher);
+
+    a.window.addByIsbnAction()->trigger();
+    a.lookUp(QString::fromStdString(phlebasIsbn));
+    QTRY_VERIFY(a.find<QRadioButton>("add.held.0") != nullptr);
+    auto* mine = a.find<QRadioButton>("add.held.0");
+    QVERIFY(mine->isChecked()); // the likeliest answer first
+    QVERIFY(mine->text().contains(QStringLiteral("Consider Phlebas")));
+    QCOMPARE(a.find<QPushButton>("add.add")->text(), QStringLiteral("Give it this ISBN"));
+    QVERIFY(!a.find<QLineEdit>("add.title")->isEnabled());
+
+    const auto count = a.catalogue.count();
+    QTest::mouseClick(a.find<QPushButton>("add.add"), Qt::LeftButton);
+    QCOMPARE(a.catalogue.count(), count); // no second copy
+    const auto detail = a.catalogue.detail(id);
+    QVERIFY(detail->book.isbn13 == std::optional<std::string>(phlebasIsbn));
+    QVERIFY(detail->book.synopsis);
+    QCOMPARE(a.window.bookList()->selectedBooks(), QList<qint64>({id}));
+}
 
 QTEST_MAIN(TestEnricher)
 #include "test_enricher.moc"

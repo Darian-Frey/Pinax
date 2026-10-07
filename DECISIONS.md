@@ -863,3 +863,59 @@ covers — so stopping one never drops the other's answers.
 
 **Reversal conditions.** Revisit with option B if review sessions turn out
 to span many restarts, or if re-finding becomes slow enough to notice.
+
+---
+
+### D-024 Add by ISBN: the card, held copies, and the catalogue's spellings
+**Decided:** 2026-10-07
+**Recorded:** 2026-10-07
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-07)
+**Related:** D-003, D-006, D-007, D-012, D-022, AV-006, AV-007, AV-010
+
+**Context.** D-012 settled the order — look up, confirm, then create. Building
+it against the owner's catalogue raised three questions it did not answer.
+None of the 443 seeded books has an ISBN, so the first books scanned will
+mostly be ones already held, which a duplicate check by ISBN cannot see.
+Providers spell authors their own way ("Iain Banks" for "Iain M. Banks"), so
+a candidate's names would create second authors (AV-008's failure by another
+route). And a series can be proposed only from what a provider says, which
+for UK editions is the British Library's series statement (D-022).
+
+**Options.**
+- **A. A card in the panel that recognises held copies and proposes the
+  catalogue's spellings and series places, all editable.** Chosen.
+- **B. Duplicate check by ISBN only, provider names as given.** Rejected: on
+  this catalogue it would duplicate the books scanned first, and split
+  authors.
+
+**Decision.** Option A. Before anything is written the card shows the cover,
+title, authors, imprint, edition and first-published years, page count and
+source. If a book already held has no ISBN, the same title and a shared
+author, the card asks whether this is that copy; yes gives it the ISBN and
+the candidate's details under the enrichment rules (SPEC.md §3.5), no adds
+another copy (D-003). Author names the catalogue already holds replace the
+provider's where surname and first name agree — an initial standing for any
+first name with its letter — and the field stays editable. Series: a missing
+volume whose title agrees and whose series shares an author, or an untitled
+gap at the provider's own series and number, is offered for filling with
+the series' completeness after; failing that, a tracked series the provider
+names is offered at the number it gives, sorted by the importer's rule
+(AV-006), but never a series that already has the title. The first proposal
+is chosen and can be declined. Declining the candidate falls back to a
+search by title and author, nothing preselected (AV-010), keeping the typed
+ISBN and taking only what a search may give; failing that, the ordinary form
+opens prefilled.
+
+**Consequences.**
+- Scanning the shelf fills ISBNs across the backlog, as F-025 intends.
+- `app` links `io`, for `deriveSortPosition` alone.
+- Name matching is loose by design and only ever proposes; two authors with
+  the same surname and first name would be offered as one, and the owner
+  corrects the field.
+- Adding is three writes — the book, its details, its new series entry —
+  not one transaction; a failure after the first is reported with the book
+  kept.
+
+**Reversal conditions.** Revisit the held-copy match if it proposes the
+wrong book in practice, or once most books carry ISBNs and it matters less.

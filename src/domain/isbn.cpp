@@ -63,4 +63,17 @@ std::string isbn10To13(std::string_view isbn10)
     return isbn;
 }
 
+std::optional<std::string> isbn13To10(std::string_view isbn13)
+{
+    if (isbn13.size() != 13 || isbn13.substr(0, 3) != "978")
+        return std::nullopt;
+    std::string isbn(isbn13.substr(3, 9));
+    int sum = 0;
+    for (std::size_t i = 0; i < 9; ++i)
+        sum += (isbn[i] - '0') * static_cast<int>(10 - i);
+    const int check = (11 - sum % 11) % 11;
+    isbn.push_back(check == 10 ? 'X' : static_cast<char>('0' + check));
+    return isbn;
+}
+
 } // namespace pinax::domain

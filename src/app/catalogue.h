@@ -6,6 +6,7 @@
 #include "domain/book_filter.h"
 #include "domain/book_summary.h"
 #include "domain/candidate.h"
+#include "domain/series_proposal.h"
 #include "domain/missing_row.h"
 #include "domain/series_detail.h"
 #include "domain/series_entry.h"
@@ -122,6 +123,52 @@ public:
     // No provider knew the book: marked failed, its content untouched
     // (SPEC.md §3.4). A book whose metadata is marked manual stays so.
     void markLookupFailed(std::int64_t bookId);
+
+    // Adding a book by ISBN (F-024, D-012). Nothing is written until addBook.
+
+    // The book already holding this ISBN, as ISBN-13 or its ISBN-10 form.
+    std::optional<domain::BookSummary> bookWithIsbn(const std::string& isbn13);
+
+    // The provider's author names, each replaced by the catalogue's own
+    // spelling where one plainly means the same person ("Iain Banks" ->
+    // "Iain M. Banks"), as credits for the confirmation card.
+    std::vector<domain::NamedCredit> creditsFor(const std::vector<std::string>& providerAuthors);
+
+    // Where the book might go in a series: a missing volume whose title
+    // agrees and whose series shares an author, or whose position matches
+    // the provider's series statement; else a tracked series the provider
+    // names, at the number it gives. Each with the series' completeness once
+    // added.
+    std::vector<domain::SeriesProposal> seriesProposals(const std::string& title,
+        const std::vector<domain::NamedCredit>& credits, const domain::Candidate& candidate);
+
+    // Books already held without an ISBN that look like this one — same
+    // title, a shared author: most likely the very copy being scanned, from
+    // the backlog imported without ISBNs.
+    std::vector<domain::BookSummary> booksLike(const std::string& title,
+        const std::vector<domain::NamedCredit>& credits);
+
+    // Gives a held book the ISBN it was found by and writes the candidate's
+    // details under the enrichment rules, as a fetch would (AV-001). Refused
+    // if the book already has a different ISBN, or another book has this one.
+    EnrichResult giveIsbn(std::int64_t bookId, const std::string& isbn13,
+        const std::optional<std::string>& isbn10, const domain::Candidate& candidate, bool byIsbn);
+
+    struct NewBook {
+        domain::BookEdit edit;              // title, credits, ISBN and read state as confirmed
+        domain::Candidate candidate;        // the rest, written under planEnrichment
+        bool byIsbn = true;                 // the candidate answers this ISBN
+        std::optional<domain::SeriesProposal> series; // accepted, perhaps with position edited
+    };
+    struct AddResult {
+        std::int64_t id = 0;
+        std::optional<std::string> coverUrl; // still to fetch
+        std::optional<std::string> problem;
+    };
+    // Creates the book, writes the candidate's details under the enrichment
+    // rules, and puts it in its series — the waiting entry, or a new one.
+    // Refused if the ISBN is already held.
+    AddResult addBook(const NewBook& book);
 
     // The folder holding the database, where covers are kept beside it
     // (SPEC.md §4); nullopt for an in-memory catalogue.

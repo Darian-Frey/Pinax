@@ -8,6 +8,10 @@
 #include "db/series_repository.h"
 #include "db/transaction.h"
 #include "domain/enrichment.h"
+#include "domain/isbn.h"
+#include "domain/name_match.h"
+#include "domain/placeholder.h"
+#include "io/sort_position.h"
 #include "domain/sort_title.h"
 
 #include <algorithm>
@@ -419,6 +423,201 @@ void Catalogue::markLookupFailed(std::int64_t bookId)
         book->metadataFetchedAt = nowIso();
         books.update(*book);
     }
+}
+
+std::optional<domain::BookSummary> Catalogue::bookWithIsbn(const std::string& isbn13)
+{
+    db::BookRepository books(connection_);
+    auto book = books.findByIsbn13(isbn13);
+    if (!book) {
+        if (const auto isbn10 = domain::isbn13To10(isbn13))
+            book = books.findByIsbn10(*isbn10);
+    }
+    if (!book)
+        return std::nullopt;
+    return books.summary(book->id);
+}
+
+std::vector<domain::NamedCredit> Catalogue::creditsFor(const std::vector<std::string>& providerAuthors)
+{
+    const auto known = db::AuthorRepository(connection_).names();
+    std::vector<domain::NamedCredit> credits;
+    for (const auto& name : providerAuthors)
+        credits.push_back({domain::knownAuthor(name, known).value_or(name), domain::CreditRole::Author});
+    return credits;
+}
+
+std::vector<domain::SeriesProposal> Catalogue::seriesProposals(const std::string& title,
+    const std::vector<domain::NamedCredit>& credits, const domain::Candidate& candidate)
+{
+    std::vector<std::string> authors;
+    for (const auto& credit : credits)
+        authors.push_back(credit.name);
+
+    db::SeriesRepository repository(connection_);
+    const auto statuses = repository.statuses();
+    auto statusOf = [&](std::int64_t seriesId) -> const domain::SeriesStatus* {
+        for (const auto& status : statuses) {
+            if (status.id == seriesId)
+                return &status;
+        }
+        return nullptr;
+    };
+    auto seriesAuthors = [&](std::int64_t seriesId) {
+        std::vector<std::string> names;
+        for (const auto& credit : seriesCredits(seriesId))
+            names.push_back(credit.name);
+        return names;
+    };
+    const bool statementNamesSeries = candidate.seriesName.has_value();
+    auto statementIs = [&](const std::string& seriesName) {
+        return statementNamesSeries && domain::titlesAgree(seriesName, *candidate.seriesName);
+    };
+
+    std::vector<domain::SeriesProposal> proposals;
+    for (const auto& missing : repository.missingEverywhere()) {
+        if (domain::isPlaceholderTitle(missing.title))
+            continue;
+        const bool byTitle = missing.title && domain::titlesAgree(*missing.title, title);
+        // An untitled gap, filled by the provider's own series and number.
+        const bool byPlace = !missing.title && missing.position && candidate.seriesNumber
+            && statementIs(missing.seriesName) && *missing.position == *candidate.seriesNumber;
+        if (!byTitle && !byPlace)
+            continue;
+        if (!domain::shareAnAuthor(authors, seriesAuthors(missing.seriesId)))
+            continue;
+        domain::SeriesProposal proposal;
+        proposal.kind = domain::SeriesProposal::Kind::FillsMissing;
+        proposal.seriesId = missing.seriesId;
+        proposal.seriesName = missing.seriesName;
+        proposal.entryId = missing.entryId;
+        proposal.position = missing.position;
+        proposal.sortPosition = missing.sortPosition;
+        proposal.entryTitle = missing.title;
+        if (const auto* status = statusOf(missing.seriesId)) {
+            proposal.heldAfter = status->held + 1;
+            proposal.knownAfter = status->known;
+        }
+        proposals.push_back(proposal);
+    }
+
+    if (statementNamesSeries) {
+        for (const auto& status : statuses) {
+            if (!statementIs(status.name))
+                continue;
+            const bool alreadyProposed = std::any_of(proposals.begin(), proposals.end(),
+                [&](const domain::SeriesProposal& p) { return p.seriesId == status.id; });
+            if (alreadyProposed || !domain::shareAnAuthor(authors, seriesAuthors(status.id)))
+                continue;
+            // Never a second place for a title the series already has.
+            const auto rows = repository.rows(status.id);
+            const bool present = std::any_of(rows.begin(), rows.end(), [&](const domain::SeriesRow& row) {
+                const auto named = row.title();
+                return named && domain::titlesAgree(*named, title);
+            });
+            if (present)
+                continue;
+            domain::SeriesProposal proposal;
+            proposal.kind = domain::SeriesProposal::Kind::JoinsSeries;
+            proposal.seriesId = status.id;
+            proposal.seriesName = status.name;
+            proposal.position = candidate.seriesNumber;
+            // The importer's rule is the only reader of a position (AV-006).
+            proposal.sortPosition = candidate.seriesNumber ? io::deriveSortPosition(*candidate.seriesNumber)
+                                                           : std::nullopt;
+            if (!proposal.sortPosition)
+                proposal.sortPosition = nextSortPosition(status.id);
+            proposal.heldAfter = status.held + 1;
+            proposal.knownAfter = status.known + 1;
+            proposals.push_back(proposal);
+        }
+    }
+    return proposals;
+}
+
+std::vector<domain::BookSummary> Catalogue::booksLike(const std::string& title,
+    const std::vector<domain::NamedCredit>& credits)
+{
+    std::vector<std::string> wanted;
+    for (const auto& credit : credits)
+        wanted.push_back(credit.name);
+    db::BookRepository books(connection_);
+    std::vector<domain::BookSummary> like;
+    for (auto& summary : books.summaries()) {
+        if (!domain::titlesAgree(summary.title, title))
+            continue;
+        // The list's author text: "A & B", or editors marked "(ed.)".
+        std::vector<std::string> theirs;
+        if (summary.authors) {
+            std::string names = *summary.authors;
+            for (std::size_t at; (at = names.find(" & ")) != std::string::npos; names.erase(0, at + 3))
+                theirs.push_back(names.substr(0, at));
+            theirs.push_back(names);
+            for (auto& name : theirs)
+                name = name.substr(0, name.find(" ("));
+        }
+        if (!wanted.empty() && !domain::shareAnAuthor(wanted, theirs))
+            continue;
+        const auto book = books.find(summary.id);
+        if (book && !book->isbn13 && !book->isbn10)
+            like.push_back(std::move(summary));
+    }
+    return like;
+}
+
+Catalogue::EnrichResult Catalogue::giveIsbn(std::int64_t bookId, const std::string& isbn13,
+    const std::optional<std::string>& isbn10, const domain::Candidate& candidate, bool byIsbn)
+{
+    try {
+        db::BookRepository books(connection_);
+        auto book = books.find(bookId);
+        if (!book)
+            return {std::nullopt, "This book is no longer in the catalogue."};
+        if (book->isbn13 && *book->isbn13 != isbn13)
+            return {std::nullopt, "This book already has another ISBN, " + *book->isbn13 + "."};
+        if (const auto held = bookWithIsbn(isbn13); held && held->id != bookId)
+            return {std::nullopt, "This ISBN is already in the catalogue: “" + held->title + "”."};
+        book->isbn13 = isbn13;
+        if (!book->isbn10)
+            book->isbn10 = isbn10;
+        books.update(*book);
+    } catch (const db::DbError& error) {
+        return {std::nullopt, std::string("The ISBN was not saved: ") + error.what()};
+    }
+    return enrich(bookId, candidate, byIsbn);
+}
+
+Catalogue::AddResult Catalogue::addBook(const NewBook& book)
+{
+    if (book.edit.book.id != 0)
+        return {0, std::nullopt, "This book is already in the catalogue."};
+    if (book.edit.book.isbn13) {
+        if (const auto held = bookWithIsbn(*book.edit.book.isbn13))
+            return {0, std::nullopt, "This ISBN is already in the catalogue: “" + held->title + "”."};
+    }
+    std::optional<std::int64_t> attachTo;
+    if (book.series && book.series->kind == domain::SeriesProposal::Kind::FillsMissing)
+        attachTo = book.series->entryId;
+
+    const auto saved = save(book.edit, attachTo);
+    if (saved.problem)
+        return {0, std::nullopt, saved.problem};
+
+    const auto enriched = enrich(saved.id, book.candidate, book.byIsbn);
+    if (enriched.problem)
+        return {saved.id, std::nullopt, "Added, but its details were not: " + *enriched.problem};
+
+    if (book.series && book.series->kind == domain::SeriesProposal::Kind::JoinsSeries) {
+        domain::SeriesEntry entry;
+        entry.seriesId = book.series->seriesId;
+        entry.bookId = saved.id;
+        entry.position = book.series->position;
+        entry.sortPosition = book.series->sortPosition;
+        entry.title = book.edit.book.title;
+        if (const auto problem = saveEntry(entry))
+            return {saved.id, enriched.coverUrl, "Added, but not to " + book.series->seriesName + ": " + *problem};
+    }
+    return {saved.id, enriched.coverUrl, std::nullopt};
 }
 
 std::optional<std::string> Catalogue::dataDirectory() const

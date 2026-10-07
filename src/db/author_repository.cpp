@@ -76,4 +76,13 @@ std::int64_t AuthorRepository::count()
     return select.columnInt(0);
 }
 
+std::vector<std::string> AuthorRepository::names()
+{
+    Statement select(connection_, "SELECT name FROM author ORDER BY sort_name");
+    std::vector<std::string> result;
+    while (select.step())
+        result.push_back(select.columnText(0));
+    return result;
+}
+
 } // namespace pinax::db

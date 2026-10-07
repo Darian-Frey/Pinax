@@ -120,8 +120,9 @@ everything published reports complete to date.
 - [x] Per-field provenance recorded on write — 2026-10-06, where the schema
       has a source column; publisher, year and pages are filled only when
       empty (SPEC.md §3.5)
-- [ ] Add-by-ISBN flow: lookup, confirmation card, duplicate and series checks,
-      and attachment to a waiting series entry
+- [x] Add-by-ISBN flow: lookup, confirmation card, duplicate and series checks,
+      and attachment to a waiting series entry — 2026-10-07 (D-024); a held
+      copy without an ISBN is given it rather than duplicated
 **Acceptance:** A batch run over the whole catalogue completes inside the
 provider's daily quota, is resumable after interruption, leaves hand-entered
 fields untouched, and reports a per-book matched/unmatched outcome. Adding a

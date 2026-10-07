@@ -72,34 +72,49 @@ void CoverCache::fetch(std::int64_t bookId, const QUrl& url, std::function<void(
         done({existing, std::nullopt, false});
         return;
     }
-    queue_.enqueue(politeUrl(url), [this, bookId, done](const HttpReply& reply) {
+    download(url, [this, bookId, done](std::optional<QByteArray> bytes, std::optional<std::string> error) {
+        if (!bytes) {
+            done({std::nullopt, error, false});
+            return;
+        }
+        done(store(bookId, *bytes));
+    });
+}
+
+void CoverCache::download(const QUrl& url,
+    std::function<void(std::optional<QByteArray> bytes, std::optional<std::string> error)> done)
+{
+    queue_.enqueue(politeUrl(url), [done](const HttpReply& reply) {
         if (reply.status == 404) {
-            done({std::nullopt, "no cover", false});
+            done(std::nullopt, "no cover");
             return;
         }
         if (reply.status != 200) {
-            done({std::nullopt,
+            done(std::nullopt,
                 reply.status == 0 ? "cover not downloaded: " + reply.error.toStdString()
-                                  : "cover not downloaded: HTTP " + std::to_string(reply.status),
-                false});
+                                  : "cover not downloaded: HTTP " + std::to_string(reply.status));
             return;
         }
-        const auto type = imageType(reply.body);
-        if (!type) {
-            done({std::nullopt, "the download was not a cover image", false});
+        if (!imageType(reply.body)) {
+            done(std::nullopt, "the download was not a cover image");
             return;
         }
-        if (!QDir(dataDirectory_).mkpath(folder)) {
-            done({std::nullopt, "cannot create the covers folder", false});
-            return;
-        }
-        QSaveFile file(path(bookId, *type));
-        if (!file.open(QIODevice::WriteOnly) || file.write(reply.body) != reply.body.size() || !file.commit()) {
-            done({std::nullopt, "cannot write the cover: " + file.errorString().toStdString(), false});
-            return;
-        }
-        done({cached(bookId), std::nullopt, true});
+        done(reply.body, std::nullopt);
     });
+}
+
+CoverResult CoverCache::store(std::int64_t bookId, const QByteArray& bytes) const
+{
+    const auto type = imageType(bytes);
+    if (!type)
+        return {std::nullopt, "the download was not a cover image", false};
+    if (!QDir(dataDirectory_).mkpath(folder))
+        return {std::nullopt, "cannot create the covers folder", false};
+    forget(bookId); // a .png must not linger beside a new .jpg
+    QSaveFile file(path(bookId, *type));
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit())
+        return {std::nullopt, "cannot write the cover: " + file.errorString().toStdString(), false};
+    return {cached(bookId), std::nullopt, true};
 }
 
 } // namespace pinax::metadata

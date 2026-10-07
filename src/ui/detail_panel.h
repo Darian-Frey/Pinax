@@ -21,6 +21,7 @@ class QStackedWidget;
 
 namespace pinax::ui {
 
+class AddByIsbnView;
 class AttachView;
 class BookEditor;
 class CandidateView;
@@ -36,7 +37,7 @@ class DetailPanel : public QWidget {
     Q_OBJECT
 
 public:
-    enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete, ViewingSeries, EditingEntry, Attaching, Fetching };
+    enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete, ViewingSeries, EditingEntry, Attaching, Fetching, Adding };
     Q_ENUM(State)
 
     // True while the panel holds something the owner must finish — a form, a
@@ -45,14 +46,15 @@ public:
     bool isBusy() const
     {
         return state_ == State::Editing || state_ == State::ConfirmingDelete
-            || state_ == State::EditingEntry || state_ == State::Attaching || state_ == State::Fetching;
+            || state_ == State::EditingEntry || state_ == State::Attaching || state_ == State::Fetching
+            || state_ == State::Adding;
     }
     // True while a form is open, or a lookup the owner is waiting on, which
     // nothing may redraw over.
     bool isEditing() const
     {
         return state_ == State::Editing || state_ == State::EditingEntry || state_ == State::Attaching
-            || state_ == State::Fetching;
+            || state_ == State::Fetching || state_ == State::Adding;
     }
 
     explicit DetailPanel(QWidget* parent = nullptr);
@@ -86,6 +88,10 @@ public:
     void askToDelete(const QList<qint64>& ids, const QString& question);
     void showSaveError(const QString& message);
 
+    // Add by ISBN (F-024): the ISBN form, then the confirmation card. The
+    // caller drives it through addView()'s signals.
+    void beginAddByIsbn();
+
     // "Fetch metadata" for the book on show (F-012): the lookup under way,
     // then its candidates to choose from. Cancel returns to the book.
     void beginFetch(const QString& how);
@@ -105,6 +111,7 @@ public:
     EntryEditor* entryEditor() const { return entryEditor_; }
     AttachView* attachView() const { return attachView_; }
     CandidateView* candidateView() const { return candidateView_; }
+    AddByIsbnView* addView() const { return addView_; }
 
 signals:
     void saveRequested(const domain::BookEdit& edit);
@@ -150,6 +157,7 @@ private:
     EntryEditor* entryEditor_;
     AttachView* attachView_;
     CandidateView* candidateView_;
+    AddByIsbnView* addView_;
     std::function<void()> pendingConfirm_;
 
     std::optional<domain::BookDetail> shown_;

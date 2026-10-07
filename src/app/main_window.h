@@ -3,6 +3,7 @@
 #include "app/batch_enricher.h"
 #include "metadata/cover_cache.h"
 #include "domain/book_edit.h"
+#include "ui/add_by_isbn_view.h"
 #include "domain/candidate.h"
 #include "domain/book_filter.h"
 #include "domain/missing_row.h"
@@ -58,6 +59,7 @@ public:
     BatchEnricher* batch() const { return batch_; }
     QAction* fetchAllAction() const { return fetchAll_; }
     QAction* reviewAction() const { return review_; }
+    QAction* addByIsbnAction() const { return addByIsbn_; }
     // True while a series is chosen and the middle panel lists its entries.
     bool showingSeries() const;
     // True while the shopping list is in the middle panel (F-010).
@@ -111,6 +113,18 @@ private:
     void fetchCover(qint64 bookId, const std::string& url, domain::Source source);
     void coverArrived(qint64 bookId, domain::Source source, const metadata::CoverResult& cover);
 
+    // Add by ISBN (Phase 3 step 6, F-024, D-012): look up, confirm, create.
+    void addByIsbn();
+    void lookUpForAdding(const QString& isbn13);
+    void showAddCandidate(int index);
+    void searchForAdding(const QString& title, const QString& author);
+    void addConfirmed(const ui::AddByIsbnView::Choice& choice);
+    void addByHand();
+    // The cover for a book just added or given its ISBN: the one the card
+    // showed for this candidate, else fetched.
+    void keepCover(qint64 bookId, const std::optional<std::string>& url, domain::Source source, int candidate);
+    void stopAdding();
+
     // The batch run (Phase 3 step 5, D-023): Fetch all starts or stops it;
     // Review walks the matches waiting for the owner, one book at a time.
     void toggleBatch();
@@ -134,6 +148,15 @@ private:
     std::optional<Offer> offer_;
     BatchEnricher* batch_ = nullptr;
     QAction* fetchAll_ = nullptr;
+    QAction* addByIsbn_ = nullptr;
+    // What the ISBN lookup (or the search after it) offered, and the cover
+    // shown for one of them, kept to store once the book exists.
+    struct AddOffer {
+        std::vector<domain::Candidate> candidates;
+        bool byIsbn = true;
+    };
+    std::optional<AddOffer> addOffer_;
+    std::optional<std::pair<int, QByteArray>> addCover_;
     QAction* review_ = nullptr;
     QProgressBar* batchBar_ = nullptr;
     // The match on show while reviewing, and how many are left this pass

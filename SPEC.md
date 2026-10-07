@@ -328,6 +328,32 @@ candidate stands and these fill only its empty publisher, page count, years
 and subtitle; the British Library's genres are added beside Open Library's
 (D-022). The candidate card names both providers.
 
+
+### 3.7 Adding by ISBN — F-024
+
+1. The typed ISBN is normalised and checked (§2); an ISBN-10 is looked up as
+   its ISBN-13 and both are kept. A bad check digit stops here.
+2. An ISBN already held, as ISBN-13 or its ISBN-10 form, is reported with
+   the book; nothing is looked up.
+3. Open Library and the British Library are asked together, then Google with
+   a key (§3.4 step 1). No title search follows by itself.
+4. The card, per candidate: cover (downloaded, checked, not yet kept), title
+   and authors (editable; known authors' spellings substituted), publisher,
+   edition and first-published years, pages, series statement, providers.
+5. A held book with no ISBN, an agreeing title and a shared author is
+   offered: giving it the ISBN writes `isbn13`/`isbn10` and the candidate's
+   details as a fetch would (§3.5); nothing else of the book changes.
+6. Otherwise, series proposals (D-024), then Unread or Read. Adding writes
+   the book — title, subtitle, credits, ISBN, read state from the card —
+   then the candidate under §3.5, then the series: the waiting entry takes
+   the book, or a new entry is made at the position and sort number shown.
+7. The cover shown is the cover kept: the same bytes are written to the
+   cache (§4), not downloaded again.
+8. Not this book → a title-and-author search (prefilled, editable); its
+   candidates start unchosen, and one taken writes only what a search may
+   (§3.5) beside the typed ISBN. Nothing found → the ordinary form,
+   prefilled with the ISBN, title and authors known so far.
+
 ---
 
 ## 4. Cover cache

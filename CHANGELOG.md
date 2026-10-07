@@ -15,6 +15,16 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- Add by ISBN (Phase 3 step 6, F-024, D-012, D-024): Ctrl+I opens a form in
+  the panel; the ISBN (13 or 10 digits, check digit verified) is looked up
+  on Open Library and the British Library, and a card shows the cover,
+  title, authors, imprint, years and pages before anything is written. An
+  ISBN already held is reported. A copy already on the shelf without an
+  ISBN — the whole imported backlog — is offered the ISBN instead of a
+  second record. A missing volume the book fills is proposed, with the
+  series' completeness after; or a tracked series the British Library names.
+  Authors take the catalogue's own spelling. Not this book falls back to a
+  title search, and that to the ordinary form.
 - Fetch all metadata and Review matches (Phase 3 step 5, D-023): the toolbar
   runs a lookup over every book not yet looked up, a second apart, with
   progress in the status bar and Stop. An ISBN's single answer is taken only

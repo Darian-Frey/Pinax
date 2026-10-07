@@ -20,8 +20,11 @@ add_library(pinax_domain STATIC
     domain/isbn.cpp
     domain/isbn.h
     domain/missing_row.h
+    domain/name_match.cpp
+    domain/name_match.h
     domain/placeholder.h
     domain/series_entry.h
+    domain/series_proposal.h
     domain/series_detail.h
     domain/series_membership.h
     domain/series_row.h
@@ -121,6 +124,8 @@ target_compile_definitions(pinax_metadata PRIVATE PINAX_VERSION="${PROJECT_VERSI
 # ui: Qt Widgets panels and item models. Fed domain types; issues no SQL
 # (invariant 8), so it does not link pinax_db.
 add_library(pinax_ui STATIC
+    ui/add_by_isbn_view.cpp
+    ui/add_by_isbn_view.h
     ui/attach_view.cpp
     ui/attach_view.h
     ui/candidate_view.cpp
@@ -171,7 +176,7 @@ add_library(pinax_app STATIC
     app/provider_key.cpp
     app/provider_key.h)
 target_include_directories(pinax_app PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(pinax_app PUBLIC pinax_ui pinax_db pinax_metadata Qt6::Widgets)
+target_link_libraries(pinax_app PUBLIC pinax_ui pinax_db pinax_io pinax_metadata Qt6::Widgets)
 
 qt_add_executable(pinax main.cpp)
 target_link_libraries(pinax PRIVATE pinax_app pinax_db pinax_io)

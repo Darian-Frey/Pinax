@@ -133,6 +133,12 @@ private slots:
     void enrichingWritesTheCandidateAndItsGenres();
     void enrichingNeverOverwritesTheOwnersWork();
     void aLookupThatFindsNothingChangesNothing();
+
+    // F-024, D-012
+    void addingFillsTheMissingVolumeItMatches();
+    void aSeriesTheProviderNamesIsProposed();
+    void anIsbnHeldIsNotAddedTwice();
+    void aHeldCopyWithoutAnIsbnIsRecognised();
 };
 
 void TestCatalogue::detailCarriesSeriesCompleteness()
@@ -1358,6 +1364,175 @@ void TestCatalogue::aLookupThatFindsNothingChangesNothing()
     after.metadataFetchedAt = before.metadataFetchedAt;
     after.updatedAt = before.updatedAt;
     QVERIFY(after == before);
+}
+
+namespace {
+
+// The Culture with Excession and Surface Detail held and Consider Phlebas
+// known but missing: two of three.
+void seedCultureWithAGap(Catalogue& catalogue)
+{
+    pinax::io::CsvImporter(catalogue.connection()).importText(
+        "title,authors,series,position,shelf\n"
+        "Surface Detail,Iain M. Banks,The Culture,9,unread\n"
+        "Excession,Iain M. Banks,The Culture,5,read\n");
+    pinax::io::SeriesImporter(catalogue.connection()).importText(
+        "series,position,title\n"
+        "The Culture,1,Consider Phlebas\n");
+}
+
+pinax::domain::Candidate phlebasByIsbn()
+{
+    auto candidate = phlebas();
+    candidate.authors = {"Iain Banks"};
+    candidate.isbn13 = "9780316005388";
+    return candidate;
+}
+
+} // namespace
+
+void TestCatalogue::addingFillsTheMissingVolumeItMatches()
+{
+    using pinax::domain::SeriesProposal;
+    Catalogue catalogue(":memory:");
+    seedCultureWithAGap(catalogue);
+
+    // The provider's spelling meets the catalogue's.
+    const auto credits = catalogue.creditsFor({"Iain Banks"});
+    QCOMPARE(credits.size(), std::size_t(1));
+    QCOMPARE(credits.front().name, std::string("Iain M. Banks"));
+
+    const auto proposals = catalogue.seriesProposals("Consider Phlebas", credits, phlebasByIsbn());
+    QCOMPARE(proposals.size(), std::size_t(1));
+    QVERIFY(proposals.front().kind == SeriesProposal::Kind::FillsMissing);
+    QCOMPARE(proposals.front().seriesName, std::string("The Culture"));
+    QCOMPARE(proposals.front().heldAfter, 3);
+    QCOMPARE(proposals.front().knownAfter, 3); // complete once added
+    // Another author's book of the same name fills nothing.
+    QVERIFY(catalogue.seriesProposals("Consider Phlebas", catalogue.creditsFor({"Someone Else"}), phlebasByIsbn())
+                .empty());
+
+    Catalogue::NewBook book;
+    book.edit.book.title = "Consider Phlebas";
+    book.edit.book.isbn13 = "9780316005388";
+    book.edit.book.readStatus = ReadStatus::Read;
+    book.edit.credits = credits;
+    book.candidate = phlebasByIsbn();
+    book.series = proposals.front();
+    const auto result = catalogue.addBook(book);
+    QVERIFY(!result.problem);
+    QVERIFY(result.coverUrl);
+
+    const auto detail = catalogue.detail(result.id);
+    QVERIFY(detail->book.isbn13 == std::optional<std::string>("9780316005388"));
+    QCOMPARE(detail->book.timesRead, 1); // shelved as read (AV-005)
+    QVERIFY(detail->book.synopsis);
+    QVERIFY(detail->book.publisher == std::optional<std::string>("Orbit"));
+    QCOMPARE(detail->series.size(), std::size_t(1));
+    QCOMPARE(detail->series.front().status, std::string("Complete"));
+    QCOMPARE(catalogue.count(), 3); // the waiting entry took it; no fourth
+    QVERIFY(catalogue.missingVolumes().empty());
+}
+
+void TestCatalogue::aSeriesTheProviderNamesIsProposed()
+{
+    using pinax::domain::SeriesProposal;
+    Catalogue catalogue(":memory:");
+    seedCultureWithAGap(catalogue);
+    auto candidate = phlebasByIsbn();
+    candidate.title = "The Hydrogen Sonata";
+    candidate.seriesName = "The culture";
+    candidate.seriesNumber = "10";
+
+    const auto credits = catalogue.creditsFor(candidate.authors);
+    const auto proposals = catalogue.seriesProposals(candidate.title, credits, candidate);
+    QCOMPARE(proposals.size(), std::size_t(1));
+    QVERIFY(proposals.front().kind == SeriesProposal::Kind::JoinsSeries);
+    QVERIFY(proposals.front().position == std::optional<std::string>("10"));
+    QVERIFY(proposals.front().sortPosition == 10.0); // the importer's rule (AV-006)
+    QCOMPARE(proposals.front().heldAfter, 3);
+    QCOMPARE(proposals.front().knownAfter, 4);
+
+    Catalogue::NewBook book;
+    book.edit.book.title = candidate.title;
+    book.edit.credits = credits;
+    book.candidate = candidate;
+    book.series = proposals.front();
+    const auto result = catalogue.addBook(book);
+    QVERIFY(!result.problem);
+    const auto detail = catalogue.detail(result.id);
+    QCOMPARE(detail->series.size(), std::size_t(1));
+    QVERIFY(detail->series.front().position == std::optional<std::string>("10"));
+}
+
+void TestCatalogue::anIsbnHeldIsNotAddedTwice()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue); // Surface Detail holds 9780316005388
+    QVERIFY(catalogue.bookWithIsbn("9780316005388"));
+    QCOMPARE(catalogue.bookWithIsbn("9780316005388")->title, std::string("Surface Detail"));
+    QVERIFY(!catalogue.bookWithIsbn("9780575078017"));
+
+    // Held by its ISBN-10 alone, it is still found.
+    pinax::domain::BookEdit older;
+    older.book.title = "Sunstorm";
+    older.book.isbn10 = "0575078014";
+    catalogue.save(older);
+    QCOMPARE(catalogue.bookWithIsbn("9780575078017")->title, std::string("Sunstorm"));
+
+    Catalogue::NewBook again;
+    again.edit.book.title = "Consider Phlebas";
+    again.edit.book.isbn13 = "9780316005388";
+    again.candidate = phlebasByIsbn();
+    const auto count = catalogue.count();
+    const auto result = catalogue.addBook(again);
+    QVERIFY(result.problem);
+    QCOMPARE(result.id, 0);
+    QCOMPARE(catalogue.count(), count);
+}
+
+void TestCatalogue::aHeldCopyWithoutAnIsbnIsRecognised()
+{
+    // The backlog was imported without ISBNs: scanning a book already on
+    // the shelf finds it, rather than adding it again.
+    Catalogue catalogue(":memory:");
+    seedCultureWithAGap(catalogue);
+    const auto credits = catalogue.creditsFor({"Iain Banks"});
+    const auto like = catalogue.booksLike("Excession", credits);
+    QCOMPARE(like.size(), std::size_t(1));
+    QCOMPARE(like.front().title, std::string("Excession"));
+    QVERIFY(catalogue.booksLike("Excession", catalogue.creditsFor({"Someone Else"})).empty());
+
+    // And no series place is proposed for a title the series already has.
+    auto candidate = phlebasByIsbn();
+    candidate.title = "Excession";
+    candidate.seriesName = "The Culture";
+    candidate.seriesNumber = "5";
+    QVERIFY(catalogue.seriesProposals("Excession", credits, candidate).empty());
+
+    // Given the ISBN: the details follow under the usual rules; the owner's
+    // own fields stay (AV-001).
+    const auto id = like.front().id;
+    auto book = catalogue.detail(id)->book;
+    book.synopsis = "My own words.";
+    book.synopsisSource = pinax::domain::Source::Manual;
+    QVERIFY(!catalogue.save(book));
+    const auto count = catalogue.count();
+    const auto given = catalogue.giveIsbn(id, "9780316005388", std::string("031600538X"), candidate, true);
+    QVERIFY(!given.problem);
+    const auto after = catalogue.detail(id);
+    QVERIFY(after->book.isbn13 == std::optional<std::string>("9780316005388"));
+    QVERIFY(after->book.isbn10 == std::optional<std::string>("031600538X"));
+    QVERIFY(after->book.synopsis == std::optional<std::string>("My own words."));
+    QVERIFY(after->book.publisher == std::optional<std::string>("Orbit"));
+    QCOMPARE(catalogue.count(), count);
+    // Now it has one, it is no longer offered as a copy without.
+    QVERIFY(catalogue.booksLike("Excession", credits).empty());
+
+    // Another book may not take an ISBN already held, nor this book another.
+    const auto other = catalogue.booksLike("Surface Detail", credits).front().id;
+    QVERIFY(catalogue.giveIsbn(other, "9780316005388", std::nullopt, candidate, true).problem);
+    QVERIFY(catalogue.giveIsbn(id, "9780575078017", std::nullopt, candidate, true).problem);
 }
 
 QTEST_MAIN(TestCatalogue)

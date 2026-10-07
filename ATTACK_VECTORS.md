@@ -130,8 +130,13 @@ for Mark as owned: `attachingFillsTheWaitingEntry` and
 `markOwnedWithABookAlreadyHeld` attach an existing book,
 `aNewBookForAMissingVolumeTakesItsEntry` and `markOwnedWithANewBook` create
 one into the entry, and `attachingIsRefusedWhereItWouldDuplicate` refuses an
-owned entry or a book already in the series. The add-by-ISBN path (F-024)
-owes the same test when it exists.
+owned entry or a book already in the series. The add-by-ISBN path (F-024):
+`addingFillsTheMissingVolumeItMatches` and
+`addingByIsbnFillsTheGapThroughTheWindow` add into the waiting entry and
+find the series complete with no extra book; a series is never proposed a
+second place for a title it already has, and a copy already held without an
+ISBN is offered its ISBN rather than duplicated
+(`aHeldCopyWithoutAnIsbnIsRecognised`, D-024).
 **Related decisions.** D-004, D-006, D-012.
 **History.** Identified while specifying F-024, 2026-10-04.
 
@@ -244,9 +249,11 @@ second-hand shop's price sticker, the 5-digit price add-on appended to the
 main code, or a partial read of a blurred barcode — and the result is looked
 up or, worse, assigned to an existing book during backfill. The wrong ISBN
 then drives every later metadata fetch for that record.
-**Detection.** Not implemented (would require tests feeding the decoder a
-non-978/979 EAN-13, an EAN-13 with add-on, and a sequence of frames that
-disagree, and asserting that none yields an accepted ISBN).
+**Detection.** Not implemented for the decoder (would require tests feeding
+it a non-978/979 EAN-13, an EAN-13 with add-on, and a sequence of frames
+that disagree, and asserting that none yields an accepted ISBN). The typed
+path checks the check digit before any lookup (`aBadIsbnIsCaughtAtTheDoor`),
+which the scanner will feed.
 **Related decisions.** D-014, D-012.
 **History.** Identified while planning F-025, 2026-10-05. The capture rules in
 SPEC.md §6 exist for this reason; the confirmation step of D-012 is the last

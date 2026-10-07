@@ -56,6 +56,16 @@ public:
     void find(const domain::BookDetail& detail, std::function<void(FindResult)> done,
         Channel channel = Channel::Interactive);
 
+    // The ISBN alone, for adding a book by it (F-024): the same providers as
+    // find's first step, but no title search after — the owner chooses that.
+    void lookupIsbn(const std::string& isbn13, std::function<void(FindResult)> done,
+        Channel channel = Channel::Interactive);
+
+    // A cover image, downloaded and checked but not kept, to show before its
+    // book exists (F-024). Cancelled with the Interactive channel.
+    void fetchImage(const std::string& url,
+        std::function<void(std::optional<QByteArray> bytes, std::optional<std::string> error)> done);
+
     // A candidate found by search carries no synopsis; its work may. Hands
     // the candidate back, filled where it could be.
     void complete(const domain::Candidate& candidate, std::function<void(domain::Candidate)> done,
@@ -64,6 +74,9 @@ public:
     // The cover, into `dataDirectory`/covers (SPEC.md §4).
     void fetchCover(std::int64_t bookId, const std::string& url, const std::string& dataDirectory,
         std::function<void(metadata::CoverResult)> done);
+
+    // Keeps image bytes already downloaded as a book's cover (SPEC.md §4).
+    metadata::CoverResult storeCover(std::int64_t bookId, const QByteArray& bytes, const std::string& dataDirectory);
 
     // Forgets the channel's answers still to come; their callbacks never run.
     // Requests already queued are still sent — at most a few — and their
@@ -92,10 +105,10 @@ private:
         std::optional<std::string> problem() const { return answered ? std::nullopt : firstProblem; }
     };
 
-    void findByIsbn(const std::string& isbn13, const domain::BookDetail& detail,
+    void findByIsbn(const std::string& isbn13, const domain::BookDetail& detail, bool thenByTitle,
         std::function<void(FindResult)> done);
-    void askGoogleByIsbn(const std::string& isbn13, const domain::BookDetail& detail, Asked asked,
-        std::function<void(FindResult)> done);
+    void askGoogleByIsbn(const std::string& isbn13, const domain::BookDetail& detail, bool thenByTitle,
+        Asked asked, std::function<void(FindResult)> done);
     void findByTitle(const domain::BookDetail& detail, Asked asked, std::function<void(FindResult)> done);
 
 public:

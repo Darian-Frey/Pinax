@@ -211,6 +211,12 @@ Candidate toCandidate(const Record& record, const std::string& isbn13)
             candidate.pageCount = match.captured(1).toInt();
     }
 
+    // 490: the series statement, "A time odyssey ;" with the number in $v.
+    if (const Field* series = record.first(QStringLiteral("490"))) {
+        candidate.seriesName = text(trimmed(series->first(QLatin1Char('a'))));
+        candidate.seriesNumber = text(trimmed(series->first(QLatin1Char('v'))));
+    }
+
     for (const QString& tag : {QStringLiteral("650"), QStringLiteral("655")}) {
         for (const Field* subject : record.all(tag)) {
             const std::string name = withoutFullStop(subject->first(QLatin1Char('a'))).toStdString();

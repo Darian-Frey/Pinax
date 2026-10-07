@@ -72,12 +72,32 @@ void Enricher::find(const BookDetail& detail, std::function<void(FindResult)> do
 {
     done = guarded(channel, std::move(done));
     if (const auto isbn = isbn13Of(detail.book))
-        findByIsbn(*isbn, detail, std::move(done));
+        findByIsbn(*isbn, detail, true, std::move(done));
     else
         findByTitle(detail, {}, std::move(done));
 }
 
-void Enricher::findByIsbn(const std::string& isbn13, const BookDetail& detail,
+void Enricher::lookupIsbn(const std::string& isbn13, std::function<void(FindResult)> done, Channel channel)
+{
+    findByIsbn(isbn13, {}, false, guarded(channel, std::move(done)));
+}
+
+void Enricher::fetchImage(const std::string& url,
+    std::function<void(std::optional<QByteArray> bytes, std::optional<std::string> error)> done)
+{
+    // No data directory: the image is only downloaded and checked.
+    auto cache = std::make_shared<metadata::CoverCache>(coverQueue_, QString());
+    auto guardedDone = guarded<std::pair<std::optional<QByteArray>, std::optional<std::string>>>(Channel::Interactive,
+        [done](std::pair<std::optional<QByteArray>, std::optional<std::string>> result) {
+            done(std::move(result.first), std::move(result.second));
+        });
+    cache->download(QUrl(QString::fromStdString(url)),
+        [cache, guardedDone](std::optional<QByteArray> bytes, std::optional<std::string> error) {
+            guardedDone({std::move(bytes), std::move(error)});
+        });
+}
+
+void Enricher::findByIsbn(const std::string& isbn13, const BookDetail& detail, bool thenByTitle,
     std::function<void(FindResult)> done)
 {
     // Both at once, each on its own queue; combined when both have answered.
@@ -86,7 +106,7 @@ void Enricher::findByIsbn(const std::string& isbn13, const BookDetail& detail,
         std::optional<LookupResult> britishLibrary;
     };
     auto answers = std::make_shared<Answers>();
-    auto combine = [this, isbn13, detail, done, answers] {
+    auto combine = [this, isbn13, detail, thenByTitle, done, answers] {
         if (!answers->openLibrary || !answers->britishLibrary)
             return;
         auto candidates = fillGaps(std::move(answers->openLibrary->candidates), answers->britishLibrary->candidates);
@@ -97,7 +117,7 @@ void Enricher::findByIsbn(const std::string& isbn13, const BookDetail& detail,
         Asked asked;
         asked.note(*answers->openLibrary);
         asked.note(*answers->britishLibrary);
-        askGoogleByIsbn(isbn13, detail, std::move(asked), done);
+        askGoogleByIsbn(isbn13, detail, thenByTitle, std::move(asked), done);
     };
     openLibrary_.lookupIsbn(isbn13, [answers, combine](LookupResult result) {
         answers->openLibrary = std::move(result);
@@ -130,6 +150,8 @@ std::vector<Candidate> Enricher::fillGaps(std::vector<Candidate> primary, const 
         fill(candidate.publishedYear, filler.publishedYear);
         fill(candidate.firstPublishedYear, filler.firstPublishedYear);
         fill(candidate.subtitle, filler.subtitle);
+        fill(candidate.seriesName, filler.seriesName);
+        fill(candidate.seriesNumber, filler.seriesNumber);
         if (!filler.categories.empty())
             filled = true;
         if (filled) {
@@ -140,20 +162,26 @@ std::vector<Candidate> Enricher::fillGaps(std::vector<Candidate> primary, const 
     return primary;
 }
 
-void Enricher::askGoogleByIsbn(const std::string& isbn13, const BookDetail& detail, Asked asked,
-    std::function<void(FindResult)> done)
+void Enricher::askGoogleByIsbn(const std::string& isbn13, const BookDetail& detail, bool thenByTitle,
+    Asked asked, std::function<void(FindResult)> done)
 {
+    auto nothing = [this, detail, thenByTitle, done](Asked asked) {
+        if (thenByTitle)
+            findByTitle(detail, std::move(asked), done);
+        else
+            done({{}, true, asked.problem()});
+    };
     if (!google_.available()) {
-        findByTitle(detail, std::move(asked), done);
+        nothing(std::move(asked));
         return;
     }
-    google_.lookupIsbn(isbn13, [this, detail, done, asked](LookupResult google) mutable {
+    google_.lookupIsbn(isbn13, [done, asked, nothing](LookupResult google) mutable {
         if (!google.candidates.empty()) {
             done({std::move(google.candidates), true, std::nullopt});
             return;
         }
         asked.note(google);
-        findByTitle(detail, std::move(asked), done);
+        nothing(std::move(asked));
     });
 }
 
@@ -195,6 +223,12 @@ void Enricher::complete(const Candidate& candidate, std::function<void(Candidate
             filled.description = description;
             done(filled);
         });
+}
+
+metadata::CoverResult Enricher::storeCover(std::int64_t bookId, const QByteArray& bytes,
+    const std::string& dataDirectory)
+{
+    return metadata::CoverCache(coverQueue_, QString::fromStdString(dataDirectory)).store(bookId, bytes);
 }
 
 void Enricher::fetchCover(std::int64_t bookId, const std::string& url, const std::string& dataDirectory,

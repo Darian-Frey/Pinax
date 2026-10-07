@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace pinax::db {
 
@@ -29,6 +30,9 @@ public:
     int removeUncredited();
 
     std::int64_t count();
+
+    // Every author's name, for matching a provider's spelling (F-024).
+    std::vector<std::string> names();
 
 private:
     Connection& connection_;

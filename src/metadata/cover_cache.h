@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QByteArray>
 #include <QString>
 #include <QUrl>
 
@@ -31,6 +32,13 @@ public:
     std::optional<std::string> cached(std::int64_t bookId) const;
 
     void fetch(std::int64_t bookId, const QUrl& url, std::function<void(CoverResult)> done);
+
+    // The image alone, checked but not kept: for showing a cover before
+    // its book exists (F-024), and stored with store() once it does.
+    void download(const QUrl& url,
+        std::function<void(std::optional<QByteArray> bytes, std::optional<std::string> error)> done);
+    // Writes checked image bytes as the book's cover, atomically.
+    CoverResult store(std::int64_t bookId, const QByteArray& bytes) const;
 
     // Deletes a book's cover file, if any. Ids can be reused once a book is
     // deleted, and a new book must not inherit an old cover.

@@ -150,6 +150,9 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
   and `AttachView` (Mark as owned: add a new book through `BookEditor`
   prefilled from the series, or attach one already catalogued). The
   confirmation state is generic: `askToConfirm(question, label, action)`.
+  `AddByIsbnView` is Add by ISBN (D-024): the ISBN, the lookup, the
+  confirmation card with held copies and series proposals, and the search
+  and hand-entry fall-backs; it asks and is told, issuing nothing itself.
   For a book, `CandidateView` is Fetch metadata: the lookup under way, then
   the candidates to choose from, with nothing preselected for a search
   (AV-010); the panel is busy meanwhile. Series completeness on show comes from the views, not from
@@ -178,6 +181,12 @@ module permitted to know about all the others.
   the owner's choice goes to `Catalogue::enrich`, which applies
   `domain::planEnrichment` (SPEC.md §3.5, AV-001) in one transaction, and the
   cover to `Catalogue::setCover`. `cancel` drops every answer still to come.
+- **Adding by ISBN** — `Catalogue::bookWithIsbn`, `creditsFor` (the
+  catalogue's spellings), `booksLike` (held copies without an ISBN),
+  `seriesProposals`, `addBook` and `giveIsbn`; `app` links `io` for
+  `deriveSortPosition` alone (AV-006). The window drives `AddByIsbnView`
+  with `Enricher::lookupIsbn` and `fetchImage`, and keeps the cover it
+  showed (D-024).
 - **BatchEnricher** — Fetch all (D-023): every `unmatched` book in turn
   through the `Enricher`'s batch channel; an ISBN's single, title-agreeing
   answer is written, others held in a review queue in memory, misses marked

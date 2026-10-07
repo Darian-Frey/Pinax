@@ -8,6 +8,7 @@
 #include "db/db_error.h"
 #include "domain/placeholder.h"
 #include "ui/detail_panel.h"
+#include "ui/add_by_isbn_view.h"
 #include "ui/rail_view.h"
 #include "ui/missing_page.h"
 #include "ui/series_page.h"
@@ -128,6 +129,36 @@ MainWindow::MainWindow(QWidget* parent)
     addBook_->setObjectName(QStringLiteral("addBook"));
     addBook_->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_N));
     addBook_->setToolTip(tr("Add a book by hand (Ctrl+N)"));
+    addByIsbn_ = toolbar->addAction(tr("Add by ISBN"), this, &MainWindow::addByIsbn);
+    addByIsbn_->setObjectName(QStringLiteral("addByIsbn"));
+    addByIsbn_->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_I));
+    addByIsbn_->setToolTip(tr("Look a book up by its ISBN, check it, then add it (Ctrl+I)"));
+    addByIsbn_->setEnabled(false);
+    auto* adding = detail_->addView();
+    connect(adding, &ui::AddByIsbnView::lookupRequested, this, &MainWindow::lookUpForAdding);
+    connect(adding, &ui::AddByIsbnView::candidateShown, this, &MainWindow::showAddCandidate);
+    connect(adding, &ui::AddByIsbnView::searchRequested, this, &MainWindow::searchForAdding);
+    connect(adding, &ui::AddByIsbnView::addRequested, this, &MainWindow::addConfirmed);
+    connect(adding, &ui::AddByIsbnView::manualRequested, this, &MainWindow::addByHand);
+    connect(adding, &ui::AddByIsbnView::cancelled, this, &MainWindow::stopAdding);
+    connect(adding, &ui::AddByIsbnView::notThisBook, this, [this](int index) {
+        QString title;
+        QString author;
+        if (addOffer_ && index < static_cast<int>(addOffer_->candidates.size())) {
+            const auto& candidate = addOffer_->candidates[static_cast<std::size_t>(index)];
+            title = QString::fromStdString(candidate.title);
+            if (!candidate.authors.empty())
+                author = QString::fromStdString(candidate.authors.front());
+        }
+        detail_->addView()->showSearch(tr("Search by title and author instead — correct them first if "
+                                          "the ISBN's answer had them wrong — or enter the book by hand."),
+            title, author);
+    });
+    connect(adding, &ui::AddByIsbnView::showBookRequested, this, [this](qint64 bookId) {
+        stopAdding();
+        rail_->chooseFilter({});
+        list_->selectBook(bookId);
+    });
     toolbar->addSeparator();
     fetchAll_ = toolbar->addAction(tr("Fetch all metadata"), this, &MainWindow::toggleBatch);
     fetchAll_->setObjectName(QStringLiteral("fetchAll"));
@@ -172,9 +203,12 @@ void MainWindow::lockWhileBusy()
     missingPage_->setEnabled(!busy);
     rail_->setEnabled(!busy);
     addBook_->setEnabled(!busy);
+    addByIsbn_->setEnabled(!busy && enricher_ && catalogue_);
     if (fetchAll_)
         showBatchProgress();
-    if (detail_->state() == ui::DetailPanel::State::Fetching && reviewLeft_ > 0)
+    if (detail_->state() == ui::DetailPanel::State::Adding)
+        statusBar()->showMessage(tr("Adding by ISBN — Esc cancels"));
+    else if (detail_->state() == ui::DetailPanel::State::Fetching && reviewLeft_ > 0)
         statusBar()->showMessage(tr("Reviewing matches — Esc stops"));
     else if (detail_->state() == ui::DetailPanel::State::Fetching)
         statusBar()->showMessage(tr("Fetching metadata — Esc cancels"));
@@ -200,6 +234,7 @@ void MainWindow::setEnricher(Enricher* enricher)
     if (enricher_)
         disconnect(enricher_, nullptr, this, nullptr);
     enricher_ = enricher;
+    addByIsbn_->setEnabled(enricher_ && catalogue_ && !detail_->isBusy());
     if (batch_)
         batch_->stop();
     delete batch_;
@@ -336,6 +371,225 @@ void MainWindow::coverArrived(qint64 bookId, domain::Source source, const metada
     refreshBooks({bookId});
     if (!reviewing_)
         statusBar()->showMessage(tr("Cover saved for “%1”").arg(titleOf(bookId)), 4000);
+}
+
+void MainWindow::addByIsbn()
+{
+    if (!catalogue_ || !enricher_ || detail_->isBusy())
+        return;
+    list_->clearSelection();
+    addOffer_.reset();
+    addCover_.reset();
+    detail_->beginAddByIsbn();
+}
+
+void MainWindow::lookUpForAdding(const QString& isbn13)
+{
+    auto* view = detail_->addView();
+    const std::string isbn = isbn13.toStdString();
+    // A book already held is not looked up, let alone added twice.
+    if (const auto held = catalogue_->bookWithIsbn(isbn)) {
+        view->showDuplicate(held->id, QString::fromStdString(held->title));
+        return;
+    }
+    addOffer_.reset();
+    addCover_.reset();
+    view->showWaiting(tr("Looking up ISBN %1 on %2…")
+                          .arg(isbn13, enricher_->googleAvailable()
+                                  ? tr("Open Library, the British Library and Google Books")
+                                  : tr("Open Library and the British Library")));
+    enricher_->lookupIsbn(isbn, [this](FindResult result) {
+        if (detail_->state() != ui::DetailPanel::State::Adding)
+            return;
+        auto* view = detail_->addView();
+        if (result.problem || result.candidates.empty()) {
+            const QString why = result.problem
+                ? tr("Nothing could be looked up: %1").arg(QString::fromStdString(*result.problem))
+                : tr("No provider knows this ISBN yet — a new or self-published book often isn't.");
+            view->showSearch(why + QStringLiteral(" ") + tr("Search by title and author, or enter it by hand."),
+                QString(), QString());
+            return;
+        }
+        addOffer_ = AddOffer {result.candidates, true};
+        view->showCandidates(result.candidates, true);
+    });
+}
+
+void MainWindow::showAddCandidate(int index)
+{
+    if (!addOffer_ || index < 0 || index >= static_cast<int>(addOffer_->candidates.size()))
+        return;
+    const auto& candidate = addOffer_->candidates[static_cast<std::size_t>(index)];
+    const auto credits = catalogue_->creditsFor(candidate.authors);
+    std::vector<ui::AddByIsbnView::HeldBook> held;
+    for (const auto& book : catalogue_->booksLike(candidate.title, credits)) {
+        QString description = QString::fromStdString(book.title);
+        if (book.authors)
+            description += QStringLiteral(" — ") + QString::fromStdString(*book.authors);
+        if (book.seriesLabel)
+            description += QStringLiteral(" · ") + QString::fromStdString(*book.seriesLabel);
+        held.push_back({book.id, description});
+    }
+    detail_->addView()->setCardDetails(credits, catalogue_->seriesProposals(candidate.title, credits, candidate), held);
+    if (addCover_ && addCover_->first == index) {
+        QPixmap cover;
+        cover.loadFromData(addCover_->second);
+        detail_->addView()->setCover(cover);
+        return;
+    }
+    if (!candidate.coverUrl)
+        return;
+    enricher_->fetchImage(*candidate.coverUrl,
+        [this, index](std::optional<QByteArray> bytes, std::optional<std::string>) {
+            if (detail_->state() != ui::DetailPanel::State::Adding || !bytes
+                || detail_->addView()->shownCandidate() != index)
+                return;
+            addCover_ = std::make_pair(index, *bytes);
+            QPixmap cover;
+            cover.loadFromData(*bytes);
+            detail_->addView()->setCover(cover);
+        });
+}
+
+void MainWindow::searchForAdding(const QString& title, const QString& author)
+{
+    auto* view = detail_->addView();
+    domain::BookDetail detail;
+    detail.book.title = title.toStdString();
+    if (!author.isEmpty())
+        detail.credits = {{author.toStdString(), domain::CreditRole::Author}};
+    addOffer_.reset();
+    addCover_.reset();
+    view->showWaiting(tr("Searching for “%1”…").arg(title));
+    enricher_->find(detail, [this, title, author](FindResult result) {
+        if (detail_->state() != ui::DetailPanel::State::Adding)
+            return;
+        auto* view = detail_->addView();
+        if (result.problem || result.candidates.empty()) {
+            view->showSearch(result.problem
+                    ? tr("Nothing could be looked up: %1").arg(QString::fromStdString(*result.problem))
+                    : tr("Nothing found by that title and author. Try other spellings, or enter the "
+                         "book by hand."),
+                title, author);
+            return;
+        }
+        addOffer_ = AddOffer {result.candidates, false};
+        view->showCandidates(result.candidates, false);
+    });
+}
+
+void MainWindow::addConfirmed(const ui::AddByIsbnView::Choice& choice)
+{
+    if (!addOffer_ || choice.candidate < 0 || choice.candidate >= static_cast<int>(addOffer_->candidates.size()))
+        return;
+    auto* view = detail_->addView();
+    const auto& candidate = addOffer_->candidates[static_cast<std::size_t>(choice.candidate)];
+
+    if (choice.existingBook) {
+        // The copy already held takes the ISBN and the details, as a fetch
+        // would write them (AV-001).
+        const std::int64_t id = *choice.existingBook;
+        const auto given = catalogue_->giveIsbn(id, view->isbn13(), view->isbn10(), candidate, addOffer_->byIsbn);
+        if (given.problem) {
+            view->showError(QString::fromStdString(*given.problem));
+            return;
+        }
+        keepCover(id, given.coverUrl, candidate.source, choice.candidate);
+        addOffer_.reset();
+        addCover_.reset();
+        detail_->showNothing();
+        rail_->chooseFilter({});
+        refreshBooks({id});
+        list_->selectBook(id);
+        list_->setFocus();
+        statusBar()->showMessage(tr("“%1” now has ISBN %2").arg(titleOf(id), QString::fromStdString(view->isbn13())), 6000);
+        return;
+    }
+
+    Catalogue::NewBook book;
+    book.edit.book.title = choice.title;
+    book.edit.book.subtitle = choice.subtitle;
+    book.edit.book.isbn13 = view->isbn13();
+    book.edit.book.isbn10 = view->isbn10();
+    book.edit.book.readStatus = choice.readStatus;
+    book.edit.credits = choice.credits;
+    book.candidate = candidate;
+    book.byIsbn = addOffer_->byIsbn;
+    book.series = choice.series;
+
+    const auto result = catalogue_->addBook(book);
+    if (result.problem && result.id == 0) {
+        view->showError(QString::fromStdString(*result.problem));
+        return;
+    }
+    const std::int64_t id = result.id;
+    keepCover(id, result.coverUrl, candidate.source, choice.candidate);
+    addOffer_.reset();
+    addCover_.reset();
+    detail_->showNothing();
+
+    rail_->chooseFilter({});
+    list_->setBooks(catalogue_->summaries());
+    refreshRail();
+    list_->selectBook(id);
+    list_->setFocus();
+    QString message = tr("Added “%1”").arg(QString::fromStdString(choice.title));
+    if (choice.series) {
+        message += tr(" to %1").arg(QString::fromStdString(choice.series->seriesName));
+        if (choice.series->heldAfter == choice.series->knownAfter)
+            message += tr(", now complete");
+    }
+    if (result.problem)
+        message += QStringLiteral(" — ") + QString::fromStdString(*result.problem);
+    statusBar()->showMessage(message, 6000);
+}
+
+void MainWindow::keepCover(qint64 bookId, const std::optional<std::string>& url, domain::Source source,
+    int candidate)
+{
+    if (!url)
+        return; // none offered, or the owner's own cover stands (AV-001)
+    // What the card showed is kept, not downloaded again (SPEC.md §4).
+    const auto directory = catalogue_->dataDirectory();
+    if (directory && addCover_ && addCover_->first == candidate) {
+        const auto stored = enricher_->storeCover(bookId, addCover_->second, *directory);
+        if (stored.relativePath) {
+            catalogue_->setCover(bookId, *stored.relativePath, source);
+            return;
+        }
+    }
+    fetchCover(bookId, *url, source);
+}
+
+void MainWindow::addByHand()
+{
+    auto* view = detail_->addView();
+    domain::BookDetail prefill;
+    prefill.book.isbn13 = view->isbn13().empty() ? std::nullopt : std::optional(view->isbn13());
+    prefill.book.isbn10 = view->isbn10();
+    if (addOffer_ && view->shownCandidate() >= 0) {
+        const auto& candidate = addOffer_->candidates[static_cast<std::size_t>(view->shownCandidate())];
+        prefill.book.title = candidate.title;
+        prefill.credits = catalogue_->creditsFor(candidate.authors);
+    } else {
+        prefill.book.title = view->searchedTitle().toStdString();
+        if (!view->searchedAuthor().isEmpty())
+            prefill.credits = catalogue_->creditsFor({view->searchedAuthor().toStdString()});
+    }
+    addOffer_.reset();
+    addCover_.reset();
+    enricher_->cancel();
+    detail_->beginNew(prefill);
+}
+
+void MainWindow::stopAdding()
+{
+    if (enricher_)
+        enricher_->cancel();
+    addOffer_.reset();
+    addCover_.reset();
+    detail_->showNothing();
+    refreshPanel();
 }
 
 void MainWindow::toggleBatch()

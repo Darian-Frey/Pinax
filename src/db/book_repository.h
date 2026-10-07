@@ -29,6 +29,7 @@ public:
     std::optional<domain::Book> find(std::int64_t id);
 
     std::optional<domain::Book> findByIsbn13(const std::string& isbn13);
+    std::optional<domain::Book> findByIsbn10(const std::string& isbn10);
 
     // The import match of SPEC.md §1.3: title compared without regard to
     // case, plus the first-billed author's name likewise; nullopt matches a

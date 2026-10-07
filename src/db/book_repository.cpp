@@ -234,6 +234,16 @@ std::optional<Book> BookRepository::findByIsbn13(const std::string& isbn13)
     return readBook(select);
 }
 
+std::optional<Book> BookRepository::findByIsbn10(const std::string& isbn10)
+{
+    Statement select(connection_,
+        "SELECT " + std::string(selectColumns) + " FROM book WHERE isbn10 = :isbn10");
+    select.bind(":isbn10", isbn10);
+    if (!select.step())
+        return std::nullopt;
+    return readBook(select);
+}
+
 std::optional<Book> BookRepository::findByTitleAndFirstAuthor(const std::string& title,
     const std::optional<std::string>& firstAuthor)
 {

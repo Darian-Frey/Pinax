@@ -432,6 +432,9 @@ void TestMetadata::britishLibraryReadsAReprint()
     QVERIFY(book.firstPublishedYear == 1987); // the reprint's original (008 type r)
     QVERIFY(book.pageCount == 480);
     QVERIFY(std::find(book.categories.begin(), book.categories.end(), "Science fiction") != book.categories.end());
+    // The series statement, as printed; the number is not parsed here.
+    QVERIFY(book.seriesName == std::optional<std::string>("A Culture novel"));
+    QVERIFY(book.seriesNumber == std::optional<std::string>("1"));
     // Never a synopsis or a cover: the book's source columns could not hold them.
     QVERIFY(!book.description);
     QVERIFY(!book.coverUrl);
