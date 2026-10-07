@@ -65,7 +65,8 @@ the folder Pinax is started from, or in `PINAX_GOOGLE_BOOKS_KEY` (D-021).
 Never commit it; `.gitignore` covers `*.key`. Back up (Ctrl+B) writes a checked copy of the
 catalogue wherever you choose, without closing it; from a script or a cron
 job, `build/src/pinax --backup ~/backups/pinax.db` does the same and exits.
-Export (Ctrl+E) writes the catalogue as plain SQL, readable and fit for
+Export (Ctrl+E) writes an Excel workbook — books, series status, authors —
+or the catalogue as plain SQL, readable and fit for
 version control, that rebuilds it with nothing but `sqlite3`;
 `build/src/pinax --dump catalogue.sql` does the same from a script. Never
 back up by copying `pinax.db` while Pinax is open: the newest changes
@@ -97,7 +98,7 @@ foreign keys in the schema are advisory only (AV-004).
 - **C++20** and **Qt6** (Widgets, Network) — fixed by D-001
 - **SQLite 3.31** or later, used directly rather than through Qt SQL (D-015) —
   `VACUUM INTO`, partial indexes
-- **libxlsxwriter** for Excel export (F-022)
+- **libxlsxwriter** 1.0 or later for the Excel export (F-022, D-025)
 - CMake 3.21 or later
 
 Packages, verified versions and troubleshooting are in [`BUILD.md`](BUILD.md).

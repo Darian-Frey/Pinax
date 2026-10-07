@@ -8,6 +8,7 @@
 #include "domain/book_query.h"
 #include "domain/candidate.h"
 #include "domain/series_proposal.h"
+#include "domain/workbook.h"
 #include "domain/missing_row.h"
 #include "domain/series_detail.h"
 #include "domain/series_entry.h"
@@ -203,6 +204,13 @@ public:
     };
     ExportResult dumpTo(const std::string& path);
     void writeDump(std::ostream& out);
+
+    // The catalogue as the three sheets of SPEC.md §5.1 — Books, Series
+    // status, Authors — read from the views, so the workbook agrees with the
+    // application by construction (F-022, AV-011).
+    domain::Workbook workbook();
+    // That workbook as an .xlsx file (F-022).
+    ExportResult exportWorkbook(const std::string& path);
 
     // The folder holding the database, where covers are kept beside it
     // (SPEC.md §4); nullopt for an in-memory catalogue.

@@ -13,16 +13,20 @@ Verified on Linux Mint 22.3 (Ubuntu 24.04 base), 2026-10-05.
 | Ninja | — | 1.11.1 | `ninja-build` |
 | Qt6 Widgets, Network, Test | 6.4 | 6.4.2 | `qt6-base-dev` |
 | SQLite headers | 3.31 | 3.45.1 | `libsqlite3-dev` |
+| libxlsxwriter | 1.0 | 1.1.5 | `libxlsxwriter-dev` (D-025), found through pkg-config |
 
 Ninja is optional; without `-G Ninja` CMake falls back to Make.
 
 ```sh
-sudo apt install g++ cmake ninja-build qt6-base-dev libsqlite3-dev
+sudo apt install g++ cmake ninja-build qt6-base-dev libsqlite3-dev libxlsxwriter-dev pkg-config
 ```
 
-Later phases add dependencies, each recorded here when it is first needed:
-libxlsxwriter in Phase 4 (F-022), and optionally Qt6
-Multimedia and ZXing-C++ in Phase 5 (D-014). Qt SQL is not used (D-015).
+libxlsxwriter arrived in Phase 4 for the Excel export (F-022, D-025); without
+it CMake stops at `pkg_check_modules(XLSXWRITER …)`. LibreOffice, if
+installed, lets `test_catalogue` read an exported workbook back; without it
+that part of the test is skipped. Later phases add dependencies, each
+recorded here when it is first needed: optionally Qt6 Multimedia and
+ZXing-C++ in Phase 5 (D-014). Qt SQL is not used (D-015).
 
 ---
 

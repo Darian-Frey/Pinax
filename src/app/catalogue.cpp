@@ -14,6 +14,7 @@
 #include "domain/name_match.h"
 #include "domain/placeholder.h"
 #include "io/sort_position.h"
+#include "io/xlsx_writer.h"
 #include "domain/sort_title.h"
 
 #include <algorithm>
@@ -25,6 +26,7 @@
 #include <cctype>
 #include <chrono>
 #include <set>
+#include <tuple>
 #include <ctime>
 #include <map>
 
@@ -765,6 +767,147 @@ Catalogue::BackupResult Catalogue::backupTo(const std::string& path)
     try {
         const auto report = db::backupTo(connection_, path);
         return {report.books, report.path, std::nullopt};
+    } catch (const db::DbError& error) {
+        return {0, path, error.what()};
+    }
+}
+
+namespace {
+
+std::string shelfName(domain::ReadStatus status)
+{
+    switch (status) {
+    case domain::ReadStatus::Read: return "Read";
+    case domain::ReadStatus::Reading: return "Reading";
+    case domain::ReadStatus::Abandoned: return "Abandoned";
+    case domain::ReadStatus::Unread: break;
+    }
+    return "Unread";
+}
+
+// What a series lacks, as the panel says it: named volumes listed with
+// their positions, placeholders counted (IMP-005). "" for none.
+std::string missingSummary(const std::vector<domain::MissingVolume>& missing)
+{
+    std::string named;
+    int unidentified = 0;
+    for (const auto& volume : missing) {
+        if (domain::isPlaceholderTitle(volume.title)) {
+            ++unidentified;
+            continue;
+        }
+        std::string one = volume.title ? *volume.title : "volume " + volume.position.value_or("?");
+        if (volume.title && volume.position)
+            one += " (" + *volume.position + ")";
+        named += (named.empty() ? "" : "; ") + one;
+    }
+    if (unidentified > 0) {
+        const std::string count = std::to_string(unidentified) + " not yet identified";
+        named += named.empty() ? count : "; and " + count;
+    }
+    return named;
+}
+
+domain::Workbook::Cell number(const std::optional<int>& value)
+{
+    if (!value)
+        return std::monostate {};
+    return static_cast<std::int64_t>(*value);
+}
+
+domain::Workbook::Cell text(const std::optional<std::string>& value)
+{
+    if (!value || value->empty())
+        return std::monostate {};
+    return *value;
+}
+
+} // namespace
+
+domain::Workbook Catalogue::workbook()
+{
+    using Cell = domain::Workbook::Cell;
+    db::BookRepository books(connection_);
+    db::SeriesRepository series(connection_);
+
+    // Each series' status and what it lacks, from the views (D-004).
+    std::map<std::int64_t, domain::SeriesStatus> statusById;
+    std::map<std::int64_t, std::string> missingById;
+    for (const auto& status : series.statuses()) {
+        statusById[status.id] = status;
+        missingById[status.id] = missingSummary(series.missing(status.id));
+    }
+
+    domain::Workbook workbook;
+
+    domain::Workbook::Sheet booksSheet {"Books",
+        {"#", "Title", "Author", "Series", "Vol.", "Shelf", "Series status", "Still missing", "Rating",
+            "Times read", "Year", "Publisher", "ISBN"},
+        {}};
+    // In the list's own order: by author, then series and position.
+    auto summaries = books.summaries();
+    std::stable_sort(summaries.begin(), summaries.end(), [](const auto& a, const auto& b) {
+        const auto key = [](const domain::BookSummary& s) {
+            return std::make_tuple(s.authorSort.value_or("\x7f"), s.seriesSort.value_or("\x7f"),
+                s.seriesSortPosition.value_or(1e9), s.sortTitle);
+        };
+        return key(a) < key(b);
+    });
+    std::int64_t index = 0;
+    for (const auto& summary : summaries) {
+        const auto book = books.find(summary.id);
+        if (!book)
+            continue;
+        const auto memberships = series.membershipsForBook(summary.id);
+        const domain::SeriesMembership* first = memberships.empty() ? nullptr : &memberships.front();
+        std::vector<Cell> row;
+        row.push_back(++index);
+        row.push_back(summary.title);
+        row.push_back(text(summary.authors));
+        row.push_back(first ? Cell(first->name) : Cell());
+        row.push_back(first ? text(first->position) : Cell());
+        row.push_back(shelfName(book->readStatus));
+        row.push_back(first ? Cell(statusById[first->seriesId].status) : Cell());
+        row.push_back(first ? text(missingById[first->seriesId]) : Cell());
+        row.push_back(number(book->rating));
+        row.push_back(static_cast<std::int64_t>(book->timesRead));
+        row.push_back(number(book->publishedYear));
+        row.push_back(text(book->publisher));
+        row.push_back(text(book->isbn13 ? book->isbn13 : book->isbn10));
+        booksSheet.rows.push_back(std::move(row));
+    }
+    workbook.sheets.push_back(std::move(booksSheet));
+
+    domain::Workbook::Sheet seriesSheet {"Series status",
+        {"Series", "Author", "Total held", "Read", "Unread", "Status", "Still missing"}, {}};
+    for (const auto& status : seriesStatuses()) {
+        std::string authors;
+        for (const auto& credit : seriesCredits(status.id))
+            authors += (authors.empty() ? "" : " & ") + credit.name;
+        seriesSheet.rows.push_back({status.name, text(authors), static_cast<std::int64_t>(status.held),
+            static_cast<std::int64_t>(status.heldRead), static_cast<std::int64_t>(status.held - status.heldRead),
+            status.status, text(missingById[status.id])});
+    }
+    workbook.sheets.push_back(std::move(seriesSheet));
+
+    domain::Workbook::Sheet authorsSheet {"Authors", {"Author", "Books held", "Read", "Unread"}, {}};
+    for (const auto& author : db::AuthorRepository(connection_).readingCounts()) {
+        authorsSheet.rows.push_back({author.name, static_cast<std::int64_t>(author.held),
+            static_cast<std::int64_t>(author.read), static_cast<std::int64_t>(author.held - author.read)});
+    }
+    workbook.sheets.push_back(std::move(authorsSheet));
+    return workbook;
+}
+
+Catalogue::ExportResult Catalogue::exportWorkbook(const std::string& path)
+{
+    try {
+        const auto sheets = workbook();
+        if (const auto problem = io::writeWorkbook(sheets, path))
+            return {0, path, problem};
+        const auto* books = sheets.sheet("Books");
+        return {books ? static_cast<std::int64_t>(books->rows.size()) : 0,
+            std::filesystem::absolute(std::filesystem::path(path)).string(), std::nullopt};
     } catch (const db::DbError& error) {
         return {0, path, error.what()};
     }

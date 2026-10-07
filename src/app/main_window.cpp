@@ -216,6 +216,10 @@ MainWindow::MainWindow(QWidget* parent)
             tr("Plain SQL that recreates the whole catalogue on an empty database: readable, "
                "fit for version control, and needing nothing of Pinax. Restore with "
                "sqlite3 restored.db < file.sql. Checked by restoring it before it is kept.")},
+        {tr("Excel workbook"), QStringLiteral("xlsx"),
+            tr("Three sheets — Books, Series status, Authors — with the figures Pinax shows: series "
+               "status and missing volumes as computed values, not formulas. Opens in Excel and "
+               "LibreOffice.")},
     });
     connect(detail_->exportView(), &ui::ExportView::exportRequested, this, &MainWindow::exportTo);
     connect(detail_->exportView(), &ui::ExportView::closed, this, [this] {
@@ -758,6 +762,10 @@ void MainWindow::exportTo(int format, const QString& path)
         result = catalogue_->dumpTo(target.toStdString());
         what = tr("as SQL");
         break;
+    case 1:
+        result = catalogue_->exportWorkbook(target.toStdString());
+        what = tr("as an Excel workbook");
+        break;
     default:
         return;
     }
@@ -766,10 +774,12 @@ void MainWindow::exportTo(int format, const QString& path)
         return;
     }
     lastExportFolder_ = QFileInfo(QString::fromStdString(result.path)).absolutePath();
-    view->showDone(tr("Wrote %1 books %2 to %3. Checked by restoring it into an empty database: "
-                      "everything came back as it is.")
+    const QString checked = format == 0 ? tr(" Checked by restoring it into an empty database: everything "
+                                             "came back as it is.")
+                                        : QString();
+    view->showDone(tr("Wrote %1 books %2 to %3.%4")
                        .arg(result.books)
-                       .arg(what, QString::fromStdString(result.path)));
+                       .arg(what, QString::fromStdString(result.path), checked));
     statusBar()->showMessage(tr("Exported %1 books").arg(result.books), 6000);
 }
 

@@ -95,6 +95,11 @@ int main(int argc, char* argv[])
                        "it, or to standard output for -; then quit without opening the window."),
         QStringLiteral("file.sql"));
     parser.addOption(dumpOption);
+    const QCommandLineOption xlsxOption(QStringLiteral("xlsx"),
+        QStringLiteral("Write the catalogue as an Excel workbook (F-022) to this file, then quit "
+                       "without opening the window."),
+        QStringLiteral("file.xlsx"));
+    parser.addOption(xlsxOption);
     parser.addPositionalArgument(QStringLiteral("database"),
         QStringLiteral("Catalogue file to open. Default: ~/.local/share/pinax/pinax.db"),
         QStringLiteral("[database]"));
@@ -132,6 +137,16 @@ int main(int argc, char* argv[])
             return 0;
         }
 
+        if (parser.isSet(xlsxOption)) {
+            const auto result = catalogue->exportWorkbook(parser.value(xlsxOption).toStdString());
+            if (result.problem) {
+                std::fprintf(stderr, "%s: not written: %s\n", result.path.c_str(), result.problem->c_str());
+                return 1;
+            }
+            std::printf("Wrote %lld books as an Excel workbook to %s\n", static_cast<long long>(result.books),
+                result.path.c_str());
+            return 0;
+        }
         if (parser.isSet(dumpOption)) {
             const QString target = parser.value(dumpOption);
             if (target == QStringLiteral("-")) {

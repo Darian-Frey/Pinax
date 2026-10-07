@@ -919,3 +919,40 @@ opens prefilled.
 
 **Reversal conditions.** Revisit the held-copy match if it proposes the
 wrong book in practice, or once most books carry ISBNs and it matters less.
+
+---
+
+### D-025 libxlsxwriter writes the Excel workbook
+**Decided:** 2026-10-07
+**Recorded:** 2026-10-07
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-07)
+**Related:** D-001, F-022, AV-011
+
+**Context.** F-022 needs an `.xlsx` file that opens without repair prompts.
+D-001 anticipated a third-party writer; Qt has none, and the file is a zip
+of SpreadsheetML parts with rules of its own.
+
+**Options.**
+- **A. libxlsxwriter.** Chosen: a small C library, packaged by the target
+  distribution (`libxlsxwriter-dev`, 1.1.5 on Linux Mint 22.3), write-only,
+  long used to produce files Excel accepts.
+- **B. Pinax's own writer over zlib.** Rejected: some 250 lines of zip and
+  XML to keep right, for a format whose failures show up as Excel's repair
+  prompt — the very thing the acceptance forbids.
+
+**Decision.** Option A, linked by `pinax_io` alone through pkg-config, so no
+other module sees it. The workbook is assembled as plain data
+(`domain::Workbook`) by `Catalogue::workbook()` from the views, and
+`io::writeWorkbook` only lays it out — bold, frozen, filterable headers,
+numbers as numbers — writing a partial file renamed into place on success.
+
+**Consequences.**
+- Building Pinax needs `libxlsxwriter-dev` (BUILD.md); it brings zlib.
+- The workbook's figures cannot drift from the application's (AV-011): no
+  formula or count is computed in the writer.
+- Reading a workbook back is not possible with this library; tests read it
+  through LibreOffice where installed.
+
+**Reversal conditions.** Revisit if the library leaves the distribution, or
+if Pinax ever needs to read spreadsheets, which it cannot.

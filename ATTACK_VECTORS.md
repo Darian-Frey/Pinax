@@ -237,8 +237,11 @@ mistyped ISBN can return a confident, wrong answer.
 rather than reading `v_series_status` will drift from what the application
 shows. Two sources of truth for one fact, in breach of the documentation
 standard's Maintenance Rule 5.
-**Detection.** Not implemented (would require a test comparing the exported
-workbook's series counts against the view's, row for row).
+**Detection.** Implemented, 2026-10-07. `tests/test_catalogue.cpp`,
+`theWorkbookAgreesWithTheViews`, compares the workbook's Series status
+sheet with `v_series_status` row for row — held, read, unread, status — and
+checks the Authors sheet leaves editors out; the writer computes nothing
+(D-025).
 **Related decisions.** D-004.
 **History.** Identified while specifying SPEC.md §5.1, 2026-10-04. The SQL
 dump (F-021) cannot drift: it is the tables themselves, and each is checked

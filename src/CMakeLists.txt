@@ -34,7 +34,8 @@ add_library(pinax_domain STATIC
     domain/sort_name.cpp
     domain/sort_name.h
     domain/sort_title.cpp
-    domain/sort_title.h)
+    domain/sort_title.h
+    domain/workbook.h)
 target_include_directories(pinax_domain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(pinax_domain PROPERTIES AUTOMOC OFF)
 
@@ -103,9 +104,11 @@ add_library(pinax_io STATIC
     io/series_importer.cpp
     io/series_importer.h
     io/sort_position.cpp
-    io/sort_position.h)
+    io/sort_position.h
+    io/xlsx_writer.cpp
+    io/xlsx_writer.h)
 target_include_directories(pinax_io PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(pinax_io PUBLIC pinax_db pinax_domain)
+target_link_libraries(pinax_io PUBLIC pinax_db pinax_domain PRIVATE PkgConfig::XLSXWRITER)
 set_target_properties(pinax_io PROPERTIES AUTOMOC OFF)
 
 # metadata: providers over the network (D-019, D-020). Qt Core and Network;

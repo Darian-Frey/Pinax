@@ -36,6 +36,15 @@ public:
     // edit or translate (IMP-004) — by filing name, with how many (F-017).
     std::vector<domain::FilterOption> withCounts();
 
+    // Authors credited as author, by filing name, with their books held,
+    // read and not (F-022's Authors sheet).
+    struct Reading {
+        std::string name;
+        int held = 0;
+        int read = 0;
+    };
+    std::vector<Reading> readingCounts();
+
     // Every author's name, for matching a provider's spelling (F-024).
     std::vector<std::string> names();
 

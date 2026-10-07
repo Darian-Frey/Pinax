@@ -405,7 +405,12 @@ the owner's catalogue.
 - Column headers are present and the sheets open without repair prompts.
 - Series status and missing volumes appear as computed values, matching the
   application's own views.
-**Status:** Not started
+**Status:** Complete (2026-10-07) — Export (Ctrl+E), format "Excel workbook",
+or `pinax --xlsx file.xlsx`. Sheets Books, Series status and Authors as
+SPEC.md §5.1, read from the views so their figures are the application's
+(AV-011): series status and missing volumes as computed values, no
+formulas. Written with libxlsxwriter (D-025); LibreOffice opens it, and the
+test reads it back where LibreOffice is installed.
 
 ### F-023 CSV export
 **Priority:** Should

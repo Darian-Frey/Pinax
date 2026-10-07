@@ -99,4 +99,20 @@ std::vector<domain::FilterOption> AuthorRepository::withCounts()
     return result;
 }
 
+std::vector<AuthorRepository::Reading> AuthorRepository::readingCounts()
+{
+    Statement select(connection_, R"(
+        SELECT a.name, COUNT(DISTINCT ba.book_id),
+               COUNT(DISTINCT CASE WHEN b.read_status = 'read' THEN b.id END)
+          FROM author a
+          JOIN book_author ba ON ba.author_id = a.id AND ba.role = 'author'
+          JOIN book b ON b.id = ba.book_id
+         GROUP BY a.id
+         ORDER BY a.sort_name COLLATE NOCASE)");
+    std::vector<Reading> result;
+    while (select.step())
+        result.push_back({select.columnText(0), static_cast<int>(select.columnInt(1)), static_cast<int>(select.columnInt(2))});
+    return result;
+}
+
 } // namespace pinax::db

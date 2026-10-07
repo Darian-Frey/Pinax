@@ -144,7 +144,8 @@ moves the series to complete, without creating a second record.
       Ctrl+B in the window, `--backup` on the command line
 - [x] Plain-text SQL dump — 2026-10-07 (F-021), Export or `--dump`, checked by
       restoring it
-- [ ] `.xlsx` writer: books, series status, authors
+- [x] `.xlsx` writer: books, series status, authors — 2026-10-07 (F-022,
+      D-025), Export or `--xlsx`
 - [ ] CSV export of the current view
 **Acceptance:** An exported workbook matches the application's own counts for
 books, read/unread split and series completeness. A dump restores onto an

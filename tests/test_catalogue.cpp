@@ -40,6 +40,8 @@
 #include <QComboBox>
 #include <QSpinBox>
 #include <QPushButton>
+#include <QStandardPaths>
+#include <QProcess>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -164,6 +166,10 @@ private slots:
 
     // F-021
     void exportingAnSqlDump();
+
+    // F-022, AV-011
+    void theWorkbookAgreesWithTheViews();
+    void exportingAnExcelWorkbook();
     void aSeriesTheProviderNamesIsProposed();
     void anIsbnHeldIsNotAddedTwice();
     void aHeldCopyWithoutAnIsbnIsRecognised();
@@ -1913,6 +1919,118 @@ void TestCatalogue::exportingAnSqlDump()
 
     QTest::keyClick(path, Qt::Key_Escape);
     QCOMPARE(window.detailPanel()->state(), DetailPanel::State::Empty);
+}
+
+void TestCatalogue::theWorkbookAgreesWithTheViews()
+{
+    using Cell = pinax::domain::Workbook::Cell;
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue); // Surface Detail (unread), Excession (read) in The Culture; Tau Zero
+    // An anthology edited, not written, by someone: not an author (IMP-004).
+    pinax::domain::BookEdit anthology;
+    anthology.book.title = "Lost Mars";
+    anthology.credits = {{"Mike Ashley", pinax::domain::CreditRole::Editor}};
+    catalogue.save(anthology);
+    catalogue.setRating({idOf(catalogue, "Excession")}, 9);
+
+    const auto workbook = catalogue.workbook();
+    QCOMPARE(workbook.sheets.size(), std::size_t(3));
+    const auto* books = workbook.sheet("Books");
+    const auto* series = workbook.sheet("Series status");
+    const auto* authors = workbook.sheet("Authors");
+    QVERIFY(books && series && authors);
+    QCOMPARE(books->headers.front(), std::string("#"));
+    QCOMPARE(books->headers.size(), std::size_t(13));
+    QCOMPARE(books->rows.size(), std::size_t(catalogue.count()));
+
+    auto textOf = [](const Cell& cell) { return std::holds_alternative<std::string>(cell) ? std::get<std::string>(cell) : std::string(); };
+    auto numberOf = [](const Cell& cell) { return std::holds_alternative<std::int64_t>(cell) ? std::get<std::int64_t>(cell) : -1; };
+
+    // Series: row for row, the view's own figures (AV-011).
+    const auto statuses = catalogue.seriesStatuses();
+    QCOMPARE(series->rows.size(), statuses.size());
+    for (std::size_t i = 0; i < statuses.size(); ++i) {
+        const auto& row = series->rows[i];
+        QCOMPARE(textOf(row[0]), statuses[i].name);
+        QCOMPARE(numberOf(row[2]), std::int64_t(statuses[i].held));
+        QCOMPARE(numberOf(row[3]), std::int64_t(statuses[i].heldRead));
+        QCOMPARE(numberOf(row[4]), std::int64_t(statuses[i].held - statuses[i].heldRead));
+        QCOMPARE(textOf(row[5]), statuses[i].status);
+    }
+    const auto& culture = series->rows.front();
+    QCOMPARE(textOf(culture[1]), std::string("Iain M. Banks"));
+    // Named volumes listed, placeholders counted, as the panel says it.
+    QCOMPARE(textOf(culture[6]), std::string("Consider Phlebas (1); and 1 not yet identified"));
+
+    // A book row carries its series' status and what it lacks.
+    for (const auto& row : books->rows) {
+        if (textOf(row[1]) == "Excession") {
+            QCOMPARE(textOf(row[3]), std::string("The Culture"));
+            QCOMPARE(textOf(row[4]), std::string("5"));
+            QCOMPARE(textOf(row[5]), std::string("Read"));
+            QCOMPARE(textOf(row[6]), std::string("Incomplete"));
+            QCOMPARE(numberOf(row[8]), std::int64_t(9));
+            QCOMPARE(numberOf(row[9]), std::int64_t(1));
+        }
+        if (textOf(row[1]) == "Tau Zero")
+            QVERIFY(std::holds_alternative<std::monostate>(row[3])); // no series: an empty cell
+    }
+
+    // Authors: author credits only; the editor is not among them.
+    QCOMPARE(authors->rows.size(), std::size_t(2));
+    QCOMPARE(textOf(authors->rows[0][0]), std::string("Poul Anderson"));
+    QCOMPARE(textOf(authors->rows[1][0]), std::string("Iain M. Banks"));
+    QCOMPARE(numberOf(authors->rows[1][1]), std::int64_t(2));
+    QCOMPARE(numberOf(authors->rows[1][2]), std::int64_t(1));
+    QCOMPARE(numberOf(authors->rows[1][3]), std::int64_t(1));
+}
+
+void TestCatalogue::exportingAnExcelWorkbook()
+{
+    OnDisk disk;
+    Catalogue& catalogue = *disk.catalogue;
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+
+    QTest::keyClick(&window, Qt::Key_E, Qt::ControlModifier);
+    auto* view = window.detailPanel()->exportView();
+    auto* format = view->findChild<QComboBox*>(QStringLiteral("export.format"));
+    auto* path = view->findChild<QLineEdit*>(QStringLiteral("export.path"));
+    format->setCurrentIndex(format->findText(QStringLiteral("Excel workbook")));
+    QVERIFY(path->text().endsWith(QStringLiteral(".xlsx"))); // the name follows the format
+    const QString target = disk.dir.filePath(QStringLiteral("exports/pinax.xlsx"));
+    path->setText(target);
+    QTest::mouseClick(view->findChild<QPushButton*>(QStringLiteral("export.go")), Qt::LeftButton);
+    QVERIFY2(view->findChild<QLabel*>(QStringLiteral("export.outcome"))->text().contains(QStringLiteral("as an Excel workbook")),
+        qPrintable(view->findChild<QLabel*>(QStringLiteral("export.outcome"))->text()));
+    QFile file(target);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.read(2), QByteArray("PK")); // an .xlsx is a zip
+    QVERIFY(!QFile::exists(target + QStringLiteral(".partial")));
+    file.close();
+
+    // Opened as a spreadsheet program would open it, where one is installed.
+    const QString office = QStandardPaths::findExecutable(QStringLiteral("soffice"));
+    if (office.isEmpty())
+        QSKIP("LibreOffice is not installed; the workbook was written but not read back");
+    QTemporaryDir profile;
+    QProcess convert;
+    convert.setWorkingDirectory(disk.dir.filePath(QStringLiteral("exports")));
+    convert.start(office, {QStringLiteral("-env:UserInstallation=file://") + profile.path(), QStringLiteral("--headless"),
+                              QStringLiteral("--convert-to"),
+                              QStringLiteral("csv:Text - txt - csv (StarCalc):44,34,76,1,,0,false,true,false,false,false,-1"),
+                              QStringLiteral("pinax.xlsx")});
+    QVERIFY(convert.waitForFinished(120000));
+    QFile books(disk.dir.filePath(QStringLiteral("exports/pinax-Books.csv")));
+    QVERIFY2(books.open(QIODevice::ReadOnly), "LibreOffice did not read the workbook");
+    const QList<QByteArray> lines = books.readAll().trimmed().split('\n');
+    QCOMPARE(lines.size(), 2); // the header and one book
+    QVERIFY(lines.at(0).startsWith("#,Title,Author,Series,Vol.,Shelf,Series status,Still missing"));
+    QVERIFY(lines.at(1).startsWith("1,Consider Phlebas,"));
+    QVERIFY(QFile::exists(disk.dir.filePath(QStringLiteral("exports/pinax-Series status.csv"))));
+    QVERIFY(QFile::exists(disk.dir.filePath(QStringLiteral("exports/pinax-Authors.csv"))));
 }
 
 QTEST_MAIN(TestCatalogue)

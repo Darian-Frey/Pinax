@@ -408,8 +408,19 @@ and the application agree by construction.
 
 **Authors** — `Author`, `Books held`, `Read`, `Unread`.
 
-Written with libxlsxwriter. Headers present; no formulas — the figures are the
+Written with libxlsxwriter (D-025). Headers present; no formulas — the figures are the
 computed values at export time.
+
+As built: Books runs in the list's order — author, then series and
+position — with a book's first series where it has several; `Shelf` is
+Read, Unread, Reading or Abandoned; `Series status` and `Still missing` are
+that series' (`v_series_status`, `v_missing_entries`). `Still missing` lists
+named volumes with their positions and counts placeholders, as the panel
+does: "Consider Phlebas (1); and 2 not yet identified". On Series status,
+`Author` is the series' usual credits. Authors counts author credits only,
+never an editor's (IMP-004). Headers are bold, frozen and filterable;
+numbers are numbers; an absent value is an empty cell. Written to
+`<file>.partial`, renamed into place on success.
 
 ### 5.2 CSV — F-023
 The current view, filters and sort applied, in the column order of §1, so a
