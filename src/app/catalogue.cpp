@@ -18,7 +18,11 @@
 #include <cmath>
 #include <cctype>
 #include <filesystem>
+#include <QString>
+
+#include <cctype>
 #include <chrono>
+#include <set>
 #include <ctime>
 #include <map>
 
@@ -306,6 +310,12 @@ Catalogue::SaveResult Catalogue::save(const domain::BookEdit& edit, std::optiona
             authors.removeUncredited();
         }
 
+        // The form's series, before any attachment so it is not undone.
+        if (edit.series) {
+            if (const auto problem = placeInSeries(book.id, book.title, *edit.series))
+                return {0, problem};
+        }
+
         if (attachTo) {
             db::SeriesRepository series(connection_);
             auto entry = series.findEntry(*attachTo);
@@ -322,6 +332,93 @@ Catalogue::SaveResult Catalogue::save(const domain::BookEdit& edit, std::optiona
         return {0, describe(error, book)};
     }
     return {book.id, std::nullopt};
+}
+
+std::optional<std::string> Catalogue::placeInSeries(std::int64_t bookId, const std::string& title,
+    const std::vector<domain::SeriesPlacement>& placements)
+{
+    db::SeriesRepository repository(connection_);
+    const auto statuses = repository.statuses();
+    std::set<std::int64_t> kept;
+
+    for (const auto& placement : placements) {
+        // The series: chosen, or named — an existing one case-blind, else new.
+        std::string name = placement.seriesName;
+        while (!name.empty() && std::isspace(static_cast<unsigned char>(name.back())))
+            name.pop_back();
+        while (!name.empty() && std::isspace(static_cast<unsigned char>(name.front())))
+            name.erase(name.begin());
+        std::optional<std::int64_t> seriesId = placement.seriesId;
+        if (!seriesId) {
+            if (name.empty())
+                continue; // an empty row
+            for (const auto& status : statuses) {
+                if (QString::fromStdString(status.name).compare(QString::fromStdString(name), Qt::CaseInsensitive) == 0)
+                    seriesId = status.id;
+            }
+            if (!seriesId)
+                seriesId = repository.findOrCreate(name);
+        }
+        if (!kept.insert(*seriesId).second)
+            return "The book is listed in “" + (name.empty() ? std::string("one series") : name) + "” twice.";
+
+        // The sort number: as given, else by the importer's rule (AV-006).
+        std::optional<double> sort = placement.sortPosition;
+        if (!sort && placement.position)
+            sort = io::deriveSortPosition(*placement.position);
+
+        if (auto held = repository.entryForBook(*seriesId, bookId)) {
+            held->position = placement.position;
+            if (sort)
+                held->sortPosition = sort; // else the number it had stays
+            if (!held->position && !held->title)
+                held->title = title;
+            repository.updateEntry(*held);
+            continue;
+        }
+
+        // A volume the series waits for, at this position or by this title,
+        // takes the book rather than a second entry (AV-007).
+        std::optional<domain::SeriesEntry> waiting;
+        for (const auto& row : repository.rows(*seriesId)) {
+            if (row.owned())
+                continue;
+            const bool samePlace = placement.position && row.position == placement.position;
+            const bool sameTitle = row.entryTitle && !domain::isPlaceholderTitle(row.entryTitle)
+                && domain::titlesAgree(*row.entryTitle, title);
+            if (samePlace || sameTitle) {
+                waiting = repository.findEntry(row.entryId);
+                break;
+            }
+        }
+        if (waiting) {
+            waiting->bookId = bookId;
+            if (placement.position)
+                waiting->position = placement.position;
+            if (sort)
+                waiting->sortPosition = sort;
+            repository.updateEntry(*waiting);
+            continue;
+        }
+
+        domain::SeriesEntry entry;
+        entry.seriesId = *seriesId;
+        entry.bookId = bookId;
+        entry.position = placement.position;
+        entry.sortPosition = sort ? sort : std::optional(nextSortPosition(*seriesId));
+        if (!entry.position)
+            entry.title = title;
+        repository.addEntry(entry);
+    }
+
+    // Series no longer listed stop counting the book.
+    for (const auto& membership : repository.membershipsForBook(bookId)) {
+        if (kept.count(membership.seriesId))
+            continue;
+        if (const auto entry = repository.entryForBook(membership.seriesId, bookId))
+            repository.removeEntry(entry->id);
+    }
+    return std::nullopt;
 }
 
 std::optional<domain::SeriesEntry> Catalogue::entry(std::int64_t entryId)

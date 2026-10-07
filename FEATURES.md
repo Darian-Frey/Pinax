@@ -133,7 +133,9 @@ rejected, not clamped.
 **Status:** Complete (2026-10-06). Positions are stored as printed with a sort number
 entered beside them, never derived outside the importer (AV-006); a series
 lists in sort order; entries are added, edited and removed on the series'
-page; a book may sit in several series.
+page; a book may sit in several series. Since BUG-005 (2026-10-07) a book's
+series are edited with the book too — chosen, or typed to start a new
+series — with a missing volume filled rather than duplicated.
 **Notes:** D-005. `position` is free text; `sort_position` is the numeric sort
 key. Never parse one from the other at display time — see AV-006. Derivation
 rules in SPEC.md §1.2.

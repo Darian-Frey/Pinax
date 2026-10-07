@@ -36,7 +36,7 @@ database and exports to SQL, CSV and Excel.
 | `DECISIONS.md` | Complete. D-001 to D-024; D-008 superseded by D-019, the rest Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, what a fetch writes (§3.5), cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-013. Detection implemented for AV-001, AV-002, AV-004, AV-005, AV-008; partly for AV-006, AV-007, AV-010, AV-012, AV-013; the rest `not implemented`. |
-| `BUGS.md` | No open bugs. BUG-001 to BUG-004 fixed. |
+| `BUGS.md` | No open bugs. BUG-001 to BUG-005 fixed. |
 | `IMPROVEMENTS.md` | IMP-007 suggested (free-text fallback for Google, whose qualified queries return nothing); IMP-008 suggested (leave Open Library's library-service subjects such as "Accessible book" out of genres); IMP-009 suggested (genres differing only in case are one); IMP-010 suggested (a finish date for books read before Pinax). IMP-001 to IMP-005 applied; IMP-006 deferred. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
@@ -211,6 +211,10 @@ Not vectors, but worth knowing:
   updates. The R toggle is not a re-read: unmarking takes back the read it
   counted (D-017), so `Catalogue::toggleRead` writes `times_read` on the way
   down and leaves the trigger to count on the way up.
+- **`BookEdit::series` is nullopt except from the edit form** (BUG-005).
+  The form always sends its rows, so a save from it rewrites the book's
+  series: a row dropped is a series left. Every other path (Add by ISBN,
+  Mark as owned, imports) leaves it nullopt and the book's series alone.
 - **The edit form shows `times_read`; it does not set it.** The count moves
   only by read-state transitions through `trg_book_finished` (F-006). A form
   that wrote it would race the trigger.

@@ -218,6 +218,12 @@ Phase 3 (metadata enrichment) in progress.
   change needed.
 
 ### Fixed
+- BUG-005: a book's series are edited with the book. The edit form has a
+  Series section — one row per series, chosen from yours or typed to start a
+  new one, with the position as printed and a sort number worked out if left
+  blank — and saving fills a missing volume at that place or title rather
+  than adding a second. Before, a book could join a series only from the
+  series' page, and no series could be created at all.
 - BUG-004: giving the candidate list focus no longer chooses its first
   search result; Use this follows a real selection (AV-010).
 

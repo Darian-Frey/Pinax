@@ -25,6 +25,7 @@
 #include "ui/missing_page.h"
 
 #include <QAction>
+#include <QApplication>
 #include <QDateTime>
 #include <QImage>
 #include <QLabel>
@@ -146,6 +147,10 @@ private slots:
     void filtersCombineWithTheRail();
     // F-018
     void groupingThroughTheWindow();
+
+    // BUG-005
+    void aBooksSeriesAreEditedWithTheBook();
+    void theFormPlacesABookInASeries();
     void aSeriesTheProviderNamesIsProposed();
     void anIsbnHeldIsNotAddedTwice();
     void aHeldCopyWithoutAnIsbnIsRecognised();
@@ -1653,6 +1658,116 @@ void TestCatalogue::groupingThroughTheWindow()
     QCOMPARE(window.detailPanel()->state(), DetailPanel::State::Viewing);
     QCOMPARE(window.detailPanel()->view()->findChild<QLabel*>(QStringLiteral("title"))->text(),
         QStringLiteral("Surface Detail"));
+}
+
+void TestCatalogue::aBooksSeriesAreEditedWithTheBook()
+{
+    using pinax::domain::SeriesPlacement;
+    Catalogue catalogue(":memory:");
+    seedCultureWithAGap(catalogue); // Excession 5, Surface Detail 9 held; Consider Phlebas 1 missing
+    pinax::domain::BookEdit phlebas;
+    phlebas.book.title = "Consider Phlebas";
+    phlebas.credits = {{"Iain M. Banks", pinax::domain::CreditRole::Author}};
+    const auto id = catalogue.save(phlebas).id;
+    auto statusOf = [&](const std::string& name) {
+        for (const auto& status : catalogue.seriesStatuses()) {
+            if (status.name == name)
+                return std::make_pair(status.held, status.known);
+        }
+        return std::make_pair(-1, -1);
+    };
+    QVERIFY(statusOf("The Culture") == std::make_pair(2, 3));
+
+    // Joining by name, case aside, at the missing volume's place: it fills
+    // the waiting entry rather than adding one (AV-007).
+    auto edit = phlebas;
+    edit.book = catalogue.detail(id)->book;
+    edit.series = std::vector<SeriesPlacement> {{std::nullopt, "the culture", std::string("1"), std::nullopt}};
+    QVERIFY(!catalogue.save(edit).problem);
+    QVERIFY(statusOf("The Culture") == std::make_pair(3, 3));
+    QVERIFY(catalogue.missingVolumes().empty());
+    QVERIFY(catalogue.detail(id)->series.front().sortPosition == 1.0);
+
+    // A second series, new: created, the sort number worked out (AV-006).
+    edit.series->push_back({std::nullopt, "Banks Firsts", std::string("1"), std::nullopt});
+    QVERIFY(!catalogue.save(edit).problem);
+    QVERIFY(statusOf("Banks Firsts") == std::make_pair(1, 1));
+    QCOMPARE(catalogue.detail(id)->series.size(), std::size_t(2));
+
+    // Moved within a series: the same entry, its position changed.
+    (*edit.series)[0].position = "0";
+    (*edit.series)[0].sortPosition = 0.5;
+    QVERIFY(!catalogue.save(edit).problem);
+    const auto culture = catalogue.detail(id)->series;
+    QVERIFY(std::any_of(culture.begin(), culture.end(), [](const auto& m) {
+        return m.name == "The Culture" && m.position == std::optional<std::string>("0") && m.sortPosition == 0.5;
+    }));
+    QVERIFY(statusOf("The Culture") == std::make_pair(3, 3));
+
+    // Leaving a series: it no longer counts the book.
+    edit.series->erase(edit.series->begin());
+    QVERIFY(!catalogue.save(edit).problem);
+    QVERIFY(statusOf("The Culture") == std::make_pair(2, 2));
+    QCOMPARE(catalogue.detail(id)->series.size(), std::size_t(1));
+
+    // Listed twice: refused, nothing changed.
+    edit.series->push_back({std::nullopt, "banks firsts", std::nullopt, std::nullopt});
+    QVERIFY(catalogue.save(edit).problem);
+    QCOMPARE(catalogue.detail(id)->series.size(), std::size_t(1));
+
+    // Saved without series rows given (every other path): left alone.
+    auto untouched = catalogue.detail(id)->book;
+    untouched.notes = "Signed.";
+    QVERIFY(!catalogue.save(pinax::domain::BookEdit {untouched, phlebas.credits}).problem);
+    QCOMPARE(catalogue.detail(id)->series.size(), std::size_t(1));
+}
+
+void TestCatalogue::theFormPlacesABookInASeries()
+{
+    Catalogue catalogue(":memory:");
+    seedCultureWithAGap(catalogue);
+    pinax::domain::BookEdit phlebas;
+    phlebas.book.title = "Consider Phlebas";
+    phlebas.credits = {{"Iain M. Banks", pinax::domain::CreditRole::Author}};
+    const auto id = catalogue.save(phlebas).id;
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    window.bookList()->selectBook(id);
+    QTest::keyClick(window.bookList(), Qt::Key_F2);
+    auto* editor = window.detailPanel()->editor();
+    QCOMPARE(editor->findChildren<QComboBox*>(QStringLiteral("edit.series.name")).size(), 0);
+
+    QTest::mouseClick(editor->findChild<QPushButton*>(QStringLiteral("edit.series.add")), Qt::LeftButton);
+    auto* name = editor->findChild<QComboBox*>(QStringLiteral("edit.series.name"));
+    QVERIFY(name);
+    QVERIFY(name->findText(QStringLiteral("The Culture")) >= 0); // offered
+    name->setCurrentIndex(name->findText(QStringLiteral("The Culture")));
+    // No position typed: the title alone finds the waiting volume.
+    QTest::mouseClick(editor->findChild<QPushButton*>(QStringLiteral("edit.save")), Qt::LeftButton);
+    QCOMPARE(window.detailPanel()->state(), DetailPanel::State::Viewing);
+    QVERIFY(catalogue.missingVolumes().empty());
+    QVERIFY(catalogue.detail(id)->series.front().position == std::optional<std::string>("1"));
+    // The panel shows it in the series now.
+    QCOMPARE(window.detailPanel()->view()->findChild<QLabel*>(QStringLiteral("series.name"))->text(),
+        QStringLiteral("The Culture"));
+
+    // Back in the form: the row is there, filled; a bad sort number is refused.
+    QTest::keyClick(window.bookList(), Qt::Key_F2);
+    QCOMPARE(window.detailPanel()->state(), DetailPanel::State::Editing);
+    QCOMPARE(editor->findChild<QComboBox*>(QStringLiteral("edit.series.name"))->currentText(), QStringLiteral("The Culture"));
+    QCOMPARE(editor->findChild<QLineEdit*>(QStringLiteral("edit.series.position"))->text(), QStringLiteral("1"));
+    editor->findChild<QLineEdit*>(QStringLiteral("edit.series.sort"))->setText(QStringLiteral("first"));
+    QTest::mouseClick(editor->findChild<QPushButton*>(QStringLiteral("edit.save")), Qt::LeftButton);
+    QCOMPARE(window.detailPanel()->state(), DetailPanel::State::Editing);
+    QVERIFY(editor->findChild<QLabel*>(QStringLiteral("edit.error"))->text().contains(QStringLiteral("sort number")));
+
+    // Removing the row takes the book out of the series.
+    QTest::mouseClick(editor->findChild<QToolButton*>(QStringLiteral("edit.series.remove")), Qt::LeftButton);
+    QApplication::processEvents();
+    QTest::mouseClick(editor->findChild<QPushButton*>(QStringLiteral("edit.save")), Qt::LeftButton);
+    QVERIFY(catalogue.detail(id)->series.empty());
 }
 
 QTEST_MAIN(TestCatalogue)

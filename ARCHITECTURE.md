@@ -179,7 +179,9 @@ module permitted to know about all the others.
   write in one transaction). `save(BookEdit, attachTo)` creates when the id
   is 0, resolves credit names to authors, and with `attachTo` puts the new
   book in that waiting entry in the same transaction (AV-007). `saveEntry`,
-  `removeEntry` and `attach` edit series entries. Credit changes and deletions remove
+  `removeEntry` and `attach` edit series entries; `save` places a book in
+  the series its form lists (`placeInSeries`, BUG-005), creating a series
+  newly named. Credit changes and deletions remove
   authors left uncredited and without notes (IMP-003). `save` turns a constraint failure into a
   sentence for the owner.
 - **Enricher** — asks the providers about one book for Fetch metadata

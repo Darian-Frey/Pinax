@@ -5,6 +5,7 @@
 #include "ui/style.h"
 
 #include <QComboBox>
+#include <QCompleter>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -13,6 +14,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QShortcut>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -112,6 +114,26 @@ BookEditor::BookEditor(QWidget* parent)
                             "brackets: (editor), (translator), (illustrator)."));
     form->addRow(tr("Authors"), authors_);
 
+    // Series, one row each (BUG-005).
+    auto* series = new QWidget(this);
+    series->setObjectName(QStringLiteral("edit.series"));
+    auto* seriesBox = new QVBoxLayout(series);
+    seriesBox->setContentsMargins(0, 0, 0, 0);
+    seriesBox->setSpacing(6);
+    seriesLayout_ = new QVBoxLayout;
+    seriesLayout_->setSpacing(8);
+    seriesBox->addLayout(seriesLayout_);
+    auto* addSeries = new QPushButton(tr("+ Add to a series"), series);
+    addSeries->setObjectName(QStringLiteral("edit.series.add"));
+    addSeries->setAutoDefault(false);
+    addSeries->setToolTip(tr("Choose one of your series, or type a new name to start one"));
+    connect(addSeries, &QPushButton::clicked, this, [this] {
+        addSeriesRow();
+        seriesRows_.back().name->setFocus();
+    });
+    seriesBox->addWidget(addSeries, 0, Qt::AlignLeft);
+    form->addRow(tr("Series"), series);
+
     readState_ = new QComboBox(this);
     readState_->setObjectName(QStringLiteral("edit.readState"));
     readState_->addItems({tr("Unread"), tr("Reading"), tr("Read"), tr("Abandoned")});
@@ -204,6 +226,10 @@ void BookEditor::editBook(const domain::BookDetail& detail)
     title_->setText(QString::fromStdString(book.title));
     subtitle_->setText(text(book.subtitle));
     authors_->setText(QString::fromStdString(domain::formatCredits(detail.credits)));
+    while (!seriesRows_.empty())
+        removeSeriesRow(seriesRows_.back().widget);
+    for (const auto& membership : detail.series)
+        addSeriesRow(&membership);
 
     const auto state = std::find(readStates.begin(), readStates.end(), book.readStatus);
     readState_->setCurrentIndex(static_cast<int>(state - readStates.begin()));
@@ -302,6 +328,29 @@ void BookEditor::save()
     }
     book.notes = optionalText(notes_->toPlainText());
 
+    std::vector<domain::SeriesPlacement> placements;
+    for (const SeriesRow& row : seriesRows_) {
+        domain::SeriesPlacement placement;
+        const QString name = row.name->currentText().trimmed();
+        if (name.isEmpty())
+            continue;
+        placement.seriesName = name.toStdString();
+        // Chosen from the list, unless the text has since been changed.
+        if (row.name->currentIndex() >= 0 && row.name->itemText(row.name->currentIndex()) == name)
+            placement.seriesId = row.name->currentData().toLongLong();
+        placement.position = optionalText(row.position->text());
+        if (const auto sort = optionalText(row.sort->text())) {
+            bool ok = false;
+            const double value = QString::fromStdString(*sort).toDouble(&ok);
+            if (ok && value >= 0)
+                placement.sortPosition = value;
+            else
+                errors << tr("The sort number for %1 must be a number, such as 5 or 6.5; or leave it "
+                             "blank to work it out from the position.").arg(name);
+        }
+        placements.push_back(std::move(placement));
+    }
+
     std::vector<domain::NamedCredit> credits;
     try {
         credits = domain::parseCredits(authors_->text().toStdString());
@@ -314,7 +363,81 @@ void BookEditor::save()
         return;
     }
     error_->hide();
-    emit saveRequested({book, credits});
+    emit saveRequested({book, credits, placements});
+}
+
+void BookEditor::setSeriesChoices(const std::vector<domain::FilterOption>& series)
+{
+    seriesChoices_ = series;
+}
+
+void BookEditor::addSeriesRow(const domain::SeriesMembership* membership)
+{
+    auto* row = new QWidget(this);
+    row->setObjectName(QStringLiteral("edit.series.row"));
+    auto* layout = new QVBoxLayout(row);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(2);
+
+    auto* name = new QComboBox(row);
+    name->setObjectName(QStringLiteral("edit.series.name"));
+    name->setEditable(true);
+    name->setInsertPolicy(QComboBox::NoInsert);
+    name->completer()->setFilterMode(Qt::MatchContains);
+    name->completer()->setCaseSensitivity(Qt::CaseInsensitive);
+    name->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    name->setMinimumContentsLength(10);
+    for (const auto& choice : seriesChoices_)
+        name->addItem(QString::fromStdString(choice.name), QVariant::fromValue<qlonglong>(choice.id));
+    name->setCurrentIndex(-1);
+    name->lineEdit()->setPlaceholderText(tr("Series, or a new name"));
+    layout->addWidget(name);
+
+    auto* place = new QHBoxLayout;
+    auto* position = makeLine(QStringLiteral("edit.series.position"), row);
+    position->setPlaceholderText(tr("as printed"));
+    position->setToolTip(tr("The position as the book prints it: 5, 6.5, 1-4, Companion"));
+    auto* sort = makeLine(QStringLiteral("edit.series.sort"), row);
+    sort->setPlaceholderText(tr("auto"));
+    sort->setToolTip(tr("Orders the series. Left blank, it is worked out from the position."));
+    sort->setMaximumWidth(56);
+    auto* remove = new QToolButton(row);
+    remove->setObjectName(QStringLiteral("edit.series.remove"));
+    remove->setText(QStringLiteral("×"));
+    remove->setToolTip(tr("Not in this series"));
+    place->addWidget(new QLabel(tr("No."), row));
+    place->addWidget(position, 1);
+    place->addWidget(new QLabel(tr("sort"), row));
+    place->addWidget(sort);
+    place->addWidget(remove);
+    layout->addLayout(place);
+
+    if (membership) {
+        const int index = name->findData(QVariant::fromValue<qlonglong>(membership->seriesId));
+        if (index >= 0)
+            name->setCurrentIndex(index);
+        else
+            name->setEditText(QString::fromStdString(membership->name));
+        position->setText(membership->position ? QString::fromStdString(*membership->position) : QString());
+        if (membership->sortPosition)
+            sort->setText(QString::number(*membership->sortPosition));
+    }
+
+    connect(remove, &QToolButton::clicked, this, [this, row] { removeSeriesRow(row); });
+    seriesLayout_->addWidget(row);
+    seriesRows_.push_back({row, name, position, sort});
+}
+
+void BookEditor::removeSeriesRow(QWidget* row)
+{
+    seriesRows_.erase(std::remove_if(seriesRows_.begin(), seriesRows_.end(),
+                          [row](const SeriesRow& candidate) { return candidate.widget == row; }),
+        seriesRows_.end());
+    seriesLayout_->removeWidget(row);
+    // Out of the form at once; deleted once its own × has finished.
+    row->hide();
+    row->setParent(nullptr);
+    row->deleteLater();
 }
 
 } // namespace pinax::ui

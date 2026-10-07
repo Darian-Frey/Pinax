@@ -199,6 +199,14 @@ public:
     std::optional<std::string> remove(const std::vector<std::int64_t>& ids);
 
 private:
+    // Puts the book in exactly these series, inside the caller's
+    // transaction (BUG-005): a place it holds is updated; a new one fills a
+    // missing volume at the same position, or with the same title, before
+    // adding an entry (AV-007); a series it is no longer in stops counting
+    // it. A new series name creates the series. Returns why not, if not.
+    std::optional<std::string> placeInSeries(std::int64_t bookId, const std::string& title,
+        const std::vector<domain::SeriesPlacement>& placements);
+
     std::string path_;
     db::Connection connection_;
 };

@@ -25,6 +25,7 @@ add_library(pinax_domain STATIC
     domain/name_match.h
     domain/placeholder.h
     domain/series_entry.h
+    domain/series_placement.h
     domain/series_proposal.h
     domain/series_detail.h
     domain/series_membership.h

@@ -24,6 +24,44 @@ detection becomes an entry here.
 
 ## Fixed
 
+### BUG-005 A book's series cannot be edited with the book, and no series can be created
+
+**Status:** fixed (2026-10-07)
+**Found:** 2026-10-07 (by the owner, editing a book)
+**Location:** `src/ui/book_editor.cpp` (no series fields); `src/app/catalogue.cpp`, `save(const BookEdit&)` (writes no series); nowhere in the application creates a `series` row
+**Severity:** medium
+**Description.** The edit form (F2) shows title, credits, edition facts,
+notes and synopsis, but not the series the book belongs to or its position
+in them. A book can be placed in a series only from the series' own page —
+add a volume, then Mark as owned — so the owner must know to go there
+first, and cannot move a book from one series to another, or correct its
+position, from the book itself. And no part of the application creates a
+series: series come only from `--import-series` and the importer, so a
+series begun since the import cannot be recorded at all. F-008's criteria
+are met on the series page, which is why it was marked Complete; the
+everyday path, from the book, was never built.
+**Reproduction.** Select any book, press F2: no series section. Look for a
+way to start a series not already in the catalogue: there is none.
+**Fix.** As proposed, by the owner's decision. A Series section in the edit form, one row per series the
+book is in — series name (chosen from the catalogue's series, or typed: a
+new name creates the series), position as printed, sort number — with
+Remove and "Add to a series". Saved with the book, in its transaction:
+- joining a series where a missing volume waits at the same position, or
+  with the same title, fills that entry rather than adding a second
+  (AV-007);
+- leaving a series removes the book's entry, as Remove from series does on
+  the series' page; the series stops counting it;
+- a sort number left empty is derived from the position by the importer's
+  rule, the only one (AV-006);
+- an omnibus may still share a position with its volumes.
+`BookEdit` carries the rows as `SeriesPlacement`s — nullopt on every path
+but the form, which leaves series alone — and `Catalogue::placeInSeries`
+applies them inside `save`'s transaction; an existing series is matched by
+name case-blind, a new one created. Tests: `aBooksSeriesAreEditedWithTheBook`
+and, through the form, `theFormPlacesABookInASeries`.
+**Notes.** The series page's entry editor stays as it is, for volumes not
+owned.
+
 ### BUG-004 Focusing the candidate list chose its first search result
 
 **Status:** fixed (2026-10-06)

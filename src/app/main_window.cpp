@@ -7,6 +7,7 @@
 #include "ui/book_list_view.h"
 #include "db/db_error.h"
 #include "domain/placeholder.h"
+#include "ui/book_editor.h"
 #include "ui/detail_panel.h"
 #include "ui/filter_bar.h"
 #include "ui/book_group_proxy.h"
@@ -749,6 +750,11 @@ void MainWindow::refreshRail()
     }
     rail_->setContents(contents);
     refreshFilterOptions();
+    // The edit form's series to choose from (BUG-005), every one known.
+    std::vector<domain::FilterOption> series;
+    for (const auto& status : contents.series)
+        series.push_back({status.id, status.name, status.held});
+    detail_->editor()->setSeriesChoices(series);
 }
 
 void MainWindow::applyFilter(const domain::BookFilter& filter, const QString& label)
