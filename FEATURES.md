@@ -354,7 +354,13 @@ each of its genres.
 **Acceptance:**
 - A single search field matches against title, author and series.
 - Results appear without an explicit submit action.
-**Status:** Not started
+**Status:** Complete (2026-10-07) — a search field at the top of the filter
+bar (Ctrl+F from anywhere) narrows the list with each keystroke. Every word
+must appear in the title, subtitle, a credited name of any role, or any
+series the book is in; case, accents and apostrophes do not matter, and part
+of a word will do. It combines with the filters and grouping, and Clear
+filters or All books clears it. Matching is in memory over text read once
+per change to the catalogue, not a query per keystroke.
 
 ---
 

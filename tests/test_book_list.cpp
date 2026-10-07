@@ -1,5 +1,6 @@
 #include "ui/book_group_proxy.h"
 #include "ui/book_list_model.h"
+#include "ui/search_text.h"
 #include "ui/book_list_view.h"
 #include "ui/book_sort_proxy.h"
 
@@ -80,6 +81,10 @@ private slots:
     void groupsBySeriesInPositionOrder();
     void headersAreNeitherSelectedNorActedOn();
     void aBookUnderTwoGenresIsOneBook();
+
+    // F-019
+    void searchKeysForgiveCaseAccentsAndApostrophes();
+    void searchFindsEveryWordAnywhere();
 };
 
 void TestBookList::showsOneRowPerBookWithItsColumns()
@@ -416,6 +421,50 @@ void TestBookList::aBookUnderTwoGenresIsOneBook()
     // Surface Detail is listed twice but is one book.
     view.selectAll();
     QCOMPARE(view.selectedBooks().size(), 5);
+    QCOMPARE(view.shownCount(), 5);
+}
+
+void TestBookList::searchKeysForgiveCaseAccentsAndApostrophes()
+{
+    using pinax::ui::searchKey;
+    QCOMPARE(searchKey(QStringLiteral("Stanisław Lem")), QStringLiteral("stanislaw lem"));
+    QCOMPARE(searchKey(QStringLiteral("The Hitchhiker’s Guide")), QStringLiteral("the hitchhikers guide"));
+    QCOMPARE(searchKey(QStringLiteral("Brontë, Émile")), QStringLiteral("bronte emile"));
+    QCOMPARE(searchKey(QStringLiteral("Guards! Guards!")), QStringLiteral("guards guards"));
+    QCOMPARE(pinax::ui::searchWords(QStringLiteral("  Banks   CULTURE ")), QStringList({"banks", "culture"}));
+    QVERIFY(pinax::ui::searchWords(QStringLiteral("  ")).isEmpty());
+}
+
+void TestBookList::searchFindsEveryWordAnywhere()
+{
+    BookListView view;
+    view.setBooks(shelf());
+    view.setSearchTexts({
+        {1, "Surface Detail Iain M. Banks The Culture"},
+        {2, "Excession Iain M. Banks The Culture"},
+        {3, "Mort Terry Pratchett Discworld Death"}, // a second series counts too
+        {4, "Tau Zero Poul Anderson"},
+        {5, "Guards! Guards! Terry Pratchett Discworld City Watch"},
+    });
+    view.sortByColumn(BookListModel::TitleColumn, Qt::AscendingOrder);
+
+    view.search(QStringLiteral("banks culture"));
+    QCOMPARE(shownTitles(view), QStringList({"Excession", "Surface Detail"}));
+    view.search(QStringLiteral("DEATH"));
+    QCOMPARE(shownTitles(view), QStringList({"Mort"}));
+    view.search(QStringLiteral("guards"));                 // a word
+    QCOMPARE(shownTitles(view), QStringList({"Guards! Guards!"}));
+    view.search(QStringLiteral("pratch wat"));             // parts of words
+    QCOMPARE(shownTitles(view), QStringList({"Guards! Guards!"}));
+    view.search(QStringLiteral("banks pratchett"));        // every word, one book
+    QVERIFY(shownTitles(view).isEmpty());
+
+    // With a filter: both must hold.
+    view.search(QStringLiteral("discworld"));
+    view.showOnly(QList<qint64>({3, 4}));
+    QCOMPARE(shownTitles(view), QStringList({"Mort"}));
+    view.showOnly(std::nullopt);
+    view.search(QString());
     QCOMPARE(view.shownCount(), 5);
 }
 

@@ -420,6 +420,24 @@ std::vector<std::int64_t> BookRepository::idsMatching(const domain::BookQuery& q
     return result;
 }
 
+std::map<std::int64_t, std::string> BookRepository::searchTexts()
+{
+    Statement select(connection_, R"(
+        SELECT b.id,
+               b.title || ' ' || COALESCE(b.subtitle, '')
+               || ' ' || COALESCE((SELECT group_concat(a.name, ' ')
+                                     FROM book_author ba JOIN author a ON a.id = ba.author_id
+                                    WHERE ba.book_id = b.id), '')
+               || ' ' || COALESCE((SELECT group_concat(s.name, ' ')
+                                     FROM series_entry se JOIN series s ON s.id = se.series_id
+                                    WHERE se.book_id = b.id), '')
+          FROM book b)");
+    std::map<std::int64_t, std::string> result;
+    while (select.step())
+        result[select.columnInt(0)] = select.columnText(1);
+    return result;
+}
+
 std::int64_t BookRepository::count()
 {
     Statement statement(connection_, "SELECT COUNT(*) FROM book");

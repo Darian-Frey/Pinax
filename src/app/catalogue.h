@@ -66,6 +66,8 @@ public:
     std::vector<domain::FilterOption> genreOptions();
     std::vector<domain::FilterOption> authorOptions();
     std::vector<domain::FilterOption> seriesOptions();
+    // What search reads for each book (F-019).
+    std::map<std::int64_t, std::string> searchTexts();
     // Each book's genres by name, for grouping by genre (F-018).
     std::map<std::int64_t, std::vector<std::string>> genresByBook();
 

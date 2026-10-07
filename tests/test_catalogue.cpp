@@ -151,6 +151,9 @@ private slots:
     // BUG-005
     void aBooksSeriesAreEditedWithTheBook();
     void theFormPlacesABookInASeries();
+
+    // F-019
+    void searchNarrowsAsYouType();
     void aSeriesTheProviderNamesIsProposed();
     void anIsbnHeldIsNotAddedTwice();
     void aHeldCopyWithoutAnIsbnIsRecognised();
@@ -1768,6 +1771,60 @@ void TestCatalogue::theFormPlacesABookInASeries()
     QApplication::processEvents();
     QTest::mouseClick(editor->findChild<QPushButton*>(QStringLiteral("edit.save")), Qt::LeftButton);
     QVERIFY(catalogue.detail(id)->series.empty());
+}
+
+void TestCatalogue::searchNarrowsAsYouType()
+{
+    Catalogue catalogue(":memory:");
+    seedCulture(catalogue); // Surface Detail, Excession (The Culture); Tau Zero
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    auto* search = window.filterBar()->findChild<QLineEdit*>(QStringLiteral("filter.search"));
+    auto* list = window.bookList();
+
+    // No submit: each keystroke narrows.
+    search->setFocus();
+    QTest::keyClicks(search, QStringLiteral("cult"));
+    QCOMPARE(list->shownCount(), 2);
+    QTest::keyClicks(search, QStringLiteral("ure exc"));
+    QCOMPARE(search->text(), QStringLiteral("culture exc")); // the space typed stays
+    QCOMPARE(list->shownCount(), 1);
+    QVERIFY(window.statusBar()->currentMessage().contains(QStringLiteral("1 of 3")));
+    // Esc clears it.
+    QTest::keyClick(search, Qt::Key_Escape);
+    QVERIFY(search->text().isEmpty());
+    QCOMPARE(list->shownCount(), 3);
+
+    // With a filter, and cleared with the filters.
+    QTest::keyClicks(search, QStringLiteral("anderson"));
+    window.rail()->chooseFilter({pinax::domain::BookFilter::Kind::ReadState, ReadStatus::Unread, 0});
+    QCOMPARE(list->shownCount(), 1);
+    QTest::mouseClick(window.filterBar()->findChild<QPushButton*>(QStringLiteral("filter.clear")), Qt::LeftButton);
+    QVERIFY(search->text().isEmpty());
+    QCOMPARE(list->shownCount(), 3);
+
+    // Ctrl+F from a series' page: back to the list, in the search field.
+    window.rail()->chooseFilter({pinax::domain::BookFilter::Kind::Series, ReadStatus::Unread,
+        catalogue.seriesStatuses().front().id});
+    QVERIFY(window.showingSeries());
+    QTest::keyClick(&window, Qt::Key_F, Qt::ControlModifier);
+    QVERIFY(!window.showingSeries());
+    QTRY_VERIFY(search->hasFocus());
+
+    // A book renamed through the window is found by its new name.
+    QTest::keyClick(search, Qt::Key_Escape);
+    window.bookList()->setFocus();
+    window.bookList()->selectBook(idOf(catalogue, "Tau Zero"));
+    QTest::keyClick(window.bookList(), Qt::Key_F2);
+    auto* title = window.detailPanel()->editor()->findChild<QLineEdit*>(QStringLiteral("edit.title"));
+    title->setText(QStringLiteral("Tau Zero Revisited"));
+    QTest::mouseClick(window.detailPanel()->editor()->findChild<QPushButton*>(QStringLiteral("edit.save")),
+        Qt::LeftButton);
+    search->setFocus();
+    QTest::keyClicks(search, QStringLiteral("revisited"));
+    QCOMPARE(list->shownCount(), 1);
 }
 
 QTEST_MAIN(TestCatalogue)

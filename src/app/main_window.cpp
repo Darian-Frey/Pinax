@@ -20,6 +20,7 @@
 #include <QLabel>
 #include <QPointer>
 #include <QProgressBar>
+#include <QShortcut>
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QStatusBar>
@@ -69,6 +70,16 @@ MainWindow::MainWindow(QWidget* parent)
         applyQuery();
     });
     connect(filterBar_, &ui::FilterBar::groupingChanged, this, &MainWindow::applyGrouping);
+    // Ctrl+F: to the search, from anywhere in the window (F-019).
+    auto* find = new QShortcut(QKeySequence::Find, this);
+    find->setContext(Qt::WindowShortcut);
+    connect(find, &QShortcut::activated, this, [this] {
+        if (!catalogue_ || detail_->isBusy())
+            return;
+        if (centre_->currentWidget() != listPage_)
+            applyQuery(); // back to the list, filters as they were
+        filterBar_->focusSearch();
+    });
     centre_->addWidget(listPage_);
     centre_->addWidget(seriesPage_);
     missingPage_->setObjectName(QStringLiteral("missingPage"));
@@ -750,6 +761,9 @@ void MainWindow::refreshRail()
     }
     rail_->setContents(contents);
     refreshFilterOptions();
+    // What search finds each book by (F-019); the list holds still until
+    // the search next changes.
+    list_->setSearchTexts(catalogue_ ? catalogue_->searchTexts() : std::map<std::int64_t, std::string> {});
     // The edit form's series to choose from (BUG-005), every one known.
     std::vector<domain::FilterOption> series;
     for (const auto& status : contents.series)
@@ -802,6 +816,7 @@ void MainWindow::applyQuery()
     centre_->setCurrentWidget(listPage_);
     const auto ids = catalogue_->matchingIds(query_);
     list_->showOnly(ids ? std::optional(QList<qint64>(ids->begin(), ids->end())) : std::nullopt);
+    list_->search(QString::fromStdString(query_.text));
     list_->clearSelection();
     filterBar_->setQuery(query_);
     const int total = static_cast<int>(catalogue_->count());

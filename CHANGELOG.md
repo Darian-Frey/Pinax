@@ -15,6 +15,12 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- Search (F-019): a field at the top of the filter bar, Ctrl+F from
+  anywhere, narrows the list as you type. Every word must turn up in the
+  title, a credited name — editors and translators too — or any series the
+  book is in; capitals, accents and apostrophes are ignored, so "lem" finds
+  Stanisław Lem and "hitchhikers" The Hitchhiker's Guide. Esc in the field
+  clears it; it combines with the filters and grouping.
 - Group by (F-018): the filter bar groups the book list by series, author or
   genre under headings such as "Discworld · 27", counting what the filters
   leave. Series are filed as titles with the unseries'd last, each in

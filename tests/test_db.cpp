@@ -560,6 +560,12 @@ void TestDb::filtersCombine()
     series.unratedOnly = true;
     QCOMPARE(ids(series), (Ids {2}));               // unrated Culture books
 
+    // Search reads every name, any role, and every series (F-019).
+    const auto texts = books.searchTexts();
+    QVERIFY(texts.at(4).find("Mike Ashley") != std::string::npos);  // an editor
+    QVERIFY(texts.at(2).find("The Culture") != std::string::npos);
+    QVERIFY(texts.at(1).find("Excession") != std::string::npos);
+
     // The choices, with counts; editors are not offered as authors.
     const auto authors = pinax::db::AuthorRepository(connection).withCounts();
     QCOMPARE(authors.size(), std::size_t(1));

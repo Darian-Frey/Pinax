@@ -190,9 +190,12 @@ std::optional<std::vector<std::int64_t>> Catalogue::bookIds(const domain::BookFi
 
 std::optional<std::vector<std::int64_t>> Catalogue::matchingIds(const domain::BookQuery& query)
 {
-    if (query.empty())
+    // The words are the list's to match; the rest is SQL's.
+    domain::BookQuery structured = query;
+    structured.text.clear();
+    if (structured.empty())
         return std::nullopt;
-    return db::BookRepository(connection_).idsMatching(query);
+    return db::BookRepository(connection_).idsMatching(structured);
 }
 
 std::vector<domain::FilterOption> Catalogue::genreOptions()
@@ -203,6 +206,11 @@ std::vector<domain::FilterOption> Catalogue::genreOptions()
 std::vector<domain::FilterOption> Catalogue::authorOptions()
 {
     return db::AuthorRepository(connection_).withCounts();
+}
+
+std::map<std::int64_t, std::string> Catalogue::searchTexts()
+{
+    return db::BookRepository(connection_).searchTexts();
 }
 
 std::map<std::int64_t, std::vector<std::string>> Catalogue::genresByBook()

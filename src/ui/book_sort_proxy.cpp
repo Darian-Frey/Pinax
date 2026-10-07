@@ -112,12 +112,33 @@ void BookSortProxy::showOnly(std::optional<QSet<qint64>> ids)
     invalidateFilter();
 }
 
+void BookSortProxy::setSearchTexts(QHash<qint64, QString> texts)
+{
+    searchTexts_ = std::move(texts);
+}
+
+void BookSortProxy::setSearch(const QStringList& words)
+{
+    words_ = words;
+    invalidateFilter();
+}
+
 bool BookSortProxy::filterAcceptsRow(int sourceRow, const QModelIndex&) const
 {
-    if (!shown_)
-        return true;
     const auto* books = qobject_cast<const BookListModel*>(sourceModel());
-    return books && shown_->contains(books->book(sourceRow).id);
+    if (!books)
+        return true;
+    const qint64 id = books->book(sourceRow).id;
+    if (shown_ && !shown_->contains(id))
+        return false;
+    if (words_.isEmpty())
+        return true;
+    const QString text = searchTexts_.value(id);
+    for (const QString& word : words_) {
+        if (!text.contains(word))
+            return false;
+    }
+    return true;
 }
 
 bool BookSortProxy::lessThan(const QModelIndex& left, const QModelIndex& right) const

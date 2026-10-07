@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QShortcut>
 #include <QSpinBox>
 #include <QVBoxLayout>
 
@@ -72,6 +73,7 @@ void choose(QComboBox* combo, const std::optional<std::int64_t>& id)
 
 FilterBar::FilterBar(QWidget* parent)
     : QWidget(parent)
+    , search_(new QLineEdit(this))
     , readState_(makeChoice(QStringLiteral("filter.read"), this))
     , rating_(makeChoice(QStringLiteral("filter.rating"), this))
     , genre_(makeSearchable(QStringLiteral("filter.genre"), this))
@@ -84,6 +86,11 @@ FilterBar::FilterBar(QWidget* parent)
     , shown_(new QLabel(this))
     , clear_(new QPushButton(tr("Clear filters"), this))
 {
+    search_->setObjectName(QStringLiteral("filter.search"));
+    search_->setPlaceholderText(tr("Search title, author, series  (Ctrl+F)"));
+    search_->setClearButtonEnabled(true);
+    search_->setToolTip(tr("Every word must appear in the title, an author's name or a series; "
+                           "case and accents do not matter. Esc clears."));
     readState_->addItem(tr("Any read state"));
     readState_->addItem(tr("Unread"), static_cast<int>(ReadStatus::Unread));
     readState_->addItem(tr("Reading"), static_cast<int>(ReadStatus::Reading));
@@ -128,6 +135,7 @@ FilterBar::FilterBar(QWidget* parent)
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(6, 6, 6, 4);
     layout->setSpacing(4);
+    layout->addWidget(search_);
     auto* choices = new QHBoxLayout;
     for (QComboBox* combo : {readState_, rating_, genre_, author_, series_})
         choices->addWidget(combo, 1);
@@ -142,6 +150,11 @@ FilterBar::FilterBar(QWidget* parent)
 
     for (QComboBox* combo : {readState_, rating_, genre_, author_, series_})
         connect(combo, &QComboBox::currentIndexChanged, this, &FilterBar::changed);
+    // As typed: no button to press (F-019).
+    connect(search_, &QLineEdit::textChanged, this, &FilterBar::changed);
+    auto* clearSearch = new QShortcut(QKeySequence(Qt::Key_Escape), search_);
+    clearSearch->setContext(Qt::WidgetShortcut);
+    connect(clearSearch, &QShortcut::activated, search_, &QLineEdit::clear);
     // Typed text that matches nothing reverts to the choice it had.
     for (QComboBox* combo : {genre_, author_, series_}) {
         connect(combo->lineEdit(), &QLineEdit::editingFinished, this,
@@ -178,6 +191,9 @@ void FilterBar::setOptions(const std::vector<FilterOption>& genres, const std::v
 void FilterBar::setQuery(const BookQuery& query)
 {
     quiet_ = true;
+    // Only what differs beyond spacing: a space just typed must stay.
+    if (search_->text().trimmed() != QString::fromStdString(query.text))
+        search_->setText(QString::fromStdString(query.text));
     readState_->setCurrentIndex(query.readStatus ? readState_->findData(static_cast<int>(*query.readStatus)) : 0);
     if (query.unratedOnly) {
         rating_->setCurrentIndex(Unrated);
@@ -199,6 +215,7 @@ void FilterBar::setQuery(const BookQuery& query)
 BookQuery FilterBar::query() const
 {
     BookQuery query;
+    query.text = search_->text().trimmed().toStdString();
     if (readState_->currentIndex() > 0)
         query.readStatus = static_cast<ReadStatus>(readState_->currentData().toInt());
     if (rating_->currentIndex() == Unrated) {
@@ -211,6 +228,12 @@ BookQuery FilterBar::query() const
     query.authorId = chosenId(author_);
     query.seriesId = chosenId(series_);
     return query;
+}
+
+void FilterBar::focusSearch()
+{
+    search_->setFocus(Qt::ShortcutFocusReason);
+    search_->selectAll();
 }
 
 Grouping FilterBar::grouping() const

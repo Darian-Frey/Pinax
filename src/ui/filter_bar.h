@@ -9,13 +9,15 @@
 
 class QComboBox;
 class QLabel;
+class QLineEdit;
 class QPushButton;
 class QSpinBox;
 
 namespace pinax::ui {
 
-// The book list's filters, combined (F-017): read state, rating (unrated, or
-// a range), genre, author and series. Changing any emits the whole query;
+// The book list's filters, combined (F-017): a search across title, author
+// and series (F-019), read state, rating (unrated, or a range), genre,
+// author and series. Changing any emits the whole query;
 // the caller narrows the list. Clear filters resets them all in one action.
 // Fed its choices; issues no SQL.
 class FilterBar : public QWidget {
@@ -32,6 +34,9 @@ public:
     void setQuery(const domain::BookQuery& query);
     domain::BookQuery query() const;
 
+    // Puts the cursor in the search field, its text selected.
+    void focusSearch();
+
     // How the list is grouped (F-018). Not a filter: Clear filters keeps it.
     Grouping grouping() const;
 
@@ -46,6 +51,7 @@ private:
     void changed();
     void updateClear();
 
+    QLineEdit* search_;
     QComboBox* readState_;
     QComboBox* rating_;
     QComboBox* genre_;

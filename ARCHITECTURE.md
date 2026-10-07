@@ -160,6 +160,10 @@ Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.
   each series, author or genre (F-018) and passes rows straight through
   when not grouping; a header maps to no book, and a book under two genres
   appears twice but is selected and acted on once.
+  Search (F-019) is matched in `BookSortProxy` against text per book from
+  `BookRepository::searchTexts`, normalised by `searchKey` (case, accents and
+  apostrophes dropped); the words travel in `BookQuery::text`, which SQL
+  never sees.
   `FilterBar` sits above the book list: read state, rating, genre, author
   and series, combined into a `domain::BookQuery` (F-017); fed its choices
   with counts, it issues no SQL — `BookRepository::idsMatching` answers.

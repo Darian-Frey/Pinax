@@ -19,10 +19,14 @@ struct BookQuery {
     std::optional<std::int64_t> genreId;
     std::optional<std::int64_t> authorId; // credited as author, not editor (IMP-004)
     std::optional<std::int64_t> seriesId;
+    // Words to find in a book's title, subtitle, credited names and series
+    // (F-019), all of them, anywhere. Matched in the list, not in SQL.
+    std::string text;
 
     bool empty() const
     {
-        return !readStatus && !unratedOnly && !ratingFrom && !ratingTo && !genreId && !authorId && !seriesId;
+        return !readStatus && !unratedOnly && !ratingFrom && !ratingTo && !genreId && !authorId && !seriesId
+            && text.empty();
     }
 
     bool operator==(const BookQuery&) const = default;

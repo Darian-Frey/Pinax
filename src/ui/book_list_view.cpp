@@ -4,6 +4,7 @@
 #include "ui/book_list_model.h"
 #include "ui/book_sort_proxy.h"
 #include "ui/list_keys.h"
+#include "ui/search_text.h"
 
 #include <QHeaderView>
 #include <QKeyEvent>
@@ -121,6 +122,20 @@ void BookListView::showOnly(const std::optional<QList<qint64>>& ids)
         proxy_->showOnly(QSet<qint64>(ids->begin(), ids->end()));
     else
         proxy_->showOnly(std::nullopt);
+}
+
+void BookListView::setSearchTexts(const std::map<std::int64_t, std::string>& texts)
+{
+    QHash<qint64, QString> keys;
+    keys.reserve(static_cast<qsizetype>(texts.size()));
+    for (const auto& [id, text] : texts)
+        keys.insert(id, searchKey(QString::fromStdString(text)));
+    proxy_->setSearchTexts(std::move(keys));
+}
+
+void BookListView::search(const QString& text)
+{
+    proxy_->setSearch(searchWords(text));
 }
 
 int BookListView::shownCount() const

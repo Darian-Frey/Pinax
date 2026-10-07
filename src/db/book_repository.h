@@ -6,6 +6,7 @@
 #include "domain/credit.h"
 
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -65,6 +66,10 @@ public:
     // The books meeting every filter set in the query (F-017). An author
     // matches only through an 'author' credit, never an editor's (IMP-004).
     std::vector<std::int64_t> idsMatching(const domain::BookQuery& query);
+
+    // What search reads for each book (F-019): title, subtitle, every
+    // credited name whatever the role, and every series it is in.
+    std::map<std::int64_t, std::string> searchTexts();
 
     // One book as the list view shows it.
     std::optional<domain::BookSummary> summary(std::int64_t id);

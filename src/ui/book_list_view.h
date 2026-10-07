@@ -44,6 +44,10 @@ public:
     void setGrouping(Grouping grouping, std::map<std::int64_t, std::vector<std::string>> genres = {});
     Grouping grouping() const;
 
+    // Search (F-019): what each book is found by, and the words to find.
+    void setSearchTexts(const std::map<std::int64_t, std::string>& texts);
+    void search(const QString& text);
+
     // How many books are listed under the current filter.
     int shownCount() const;
 

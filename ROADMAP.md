@@ -139,7 +139,7 @@ moves the series to complete, without creating a second record.
 - [x] Sort, filter and group controls over the list view — 2026-10-07:
       sorting by column header (F-016), the filter bar (F-017), Group by
       (F-018)
-- [ ] Search field
+- [x] Search field — 2026-10-07 (F-019), as you type, with Ctrl+F
 - [ ] `VACUUM INTO` backup
 - [ ] Plain-text SQL dump
 - [ ] `.xlsx` writer: books, series status, authors

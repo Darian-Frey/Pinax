@@ -162,6 +162,8 @@ add_library(pinax_ui STATIC
     ui/series_entry_model.h
     ui/series_page.cpp
     ui/series_page.h
+    ui/search_text.cpp
+    ui/search_text.h
     ui/series_view.cpp
     ui/series_view.h
     ui/style.cpp
