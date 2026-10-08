@@ -261,6 +261,10 @@ Phase 3 (metadata enrichment) in progress.
   change needed.
 
 ### Changed
+- IMP-009 applied, schema version 6: genres that differ only in capitals —
+  "Science fiction" and "Science Fiction" — are one. The catalogue merges
+  any it holds into the spelling stored first when it next opens, keeps
+  each book's link, and will not let them part again.
 - IMP-008 applied: Open Library's lending and list tags — "Accessible book",
   "Protected DAISY", "OverDrive", "Large type books", "New York Times
   bestseller", machine tags such as `award:hugo_award=2006` — are no longer

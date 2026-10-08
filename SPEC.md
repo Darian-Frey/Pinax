@@ -298,7 +298,7 @@ offered ready to accept, a search's never is.
 | `title`, `subtitle`, credits, series | never |
 | edition and condition notes, acquisition, notes | never |
 | read state, `times_read`, rating | never |
-| genres | each category added verbatim with the provider as source — those from a gap-filling provider under its own name; a genre already linked keeps its source, so the owner's stay `manual`; never a lending or list tag (IMP-008), and any such link a provider made earlier is removed when the catalogue opens |
+| genres | each category added verbatim with the provider as source, joining an existing genre whatever its capitals (IMP-009) — those from a gap-filling provider under its own name; a genre already linked keeps its source, so the owner's stay `manual`; never a lending or list tag (IMP-008), and any such link a provider made earlier is removed when the catalogue opens |
 | cover | fetched into the cache (§4) unless `cover_source` is `manual` |
 | `metadata_status`, `metadata_fetched_at` | `matched` and the time, UTC; a status of `manual` stays |
 

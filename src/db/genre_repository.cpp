@@ -15,7 +15,8 @@ GenreRepository::GenreRepository(Connection& connection)
 
 std::int64_t GenreRepository::findOrCreate(const std::string& name)
 {
-    Statement select(connection_, "SELECT id FROM genre WHERE name = :name");
+    // Whatever its capitals (IMP-009): the spelling stored first stands.
+    Statement select(connection_, "SELECT id FROM genre WHERE name = :name COLLATE NOCASE");
     select.bind(":name", name);
     if (select.step())
         return select.columnInt(0);

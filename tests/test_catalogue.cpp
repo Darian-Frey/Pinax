@@ -1340,14 +1340,19 @@ void TestCatalogue::enrichingWritesTheCandidateAndItsGenres()
     QVERIFY(genres.forBook(id).front().source == pinax::domain::Source::OpenLibrary);
 
     // A genre from the provider that filled the gaps is recorded as its own
-    // (schema version 5).
+    // (schema version 5) — and "Science fiction" is the "Science Fiction"
+    // already there, whatever its capitals (IMP-009): one link, as it was.
     auto filled = phlebas();
     filled.filledFrom = pinax::domain::Source::BritishLibrary;
-    filled.filledCategories = {"Science fiction"};
+    filled.filledCategories = {"Science fiction", "Space colonies"};
     QVERIFY(!catalogue.enrich(id, filled, true).problem);
     const auto links = genres.forBook(id);
+    QCOMPARE(links.size(), std::size_t(3));
     QVERIFY(std::find(links.begin(), links.end(),
-                pinax::db::GenreLink {"Science fiction", pinax::domain::Source::BritishLibrary})
+                pinax::db::GenreLink {"Science Fiction", pinax::domain::Source::OpenLibrary})
+        != links.end());
+    QVERIFY(std::find(links.begin(), links.end(),
+                pinax::db::GenreLink {"Space colonies", pinax::domain::Source::BritishLibrary})
         != links.end());
 
     // Fetching again duplicates nothing.

@@ -1,5 +1,5 @@
 -- Pinax — physical library catalogue
--- SQLite schema, version 5
+-- SQLite schema, version 6
 --
 -- This file is always the latest full schema, applied whole to an empty
 -- database. Older files are carried forward by db/migrations/NNN_*.sql, one
@@ -37,6 +37,7 @@ INSERT INTO schema_version (version, note) VALUES (2, 'v_book_display: sort keys
 INSERT INTO schema_version (version, note) VALUES (3, 'v_book_display: editors stand in when a book has no author');
 INSERT INTO schema_version (version, note) VALUES (4, 'v_missing_entries: entry_id');
 INSERT INTO schema_version (version, note) VALUES (5, 'book_genre.source: british_library');
+INSERT INTO schema_version (version, note) VALUES (6, 'genre names unique whatever their capitals');
 
 
 -- ---------------------------------------------------------------------------
@@ -200,6 +201,10 @@ CREATE TABLE book_genre (
 );
 
 CREATE INDEX idx_book_genre_genre ON book_genre (genre_id);
+
+-- One genre whatever its capitals: "Science fiction" and "Science Fiction"
+-- are the same (IMP-009). ASCII letters only, as SQLite's NOCASE folds them.
+CREATE UNIQUE INDEX idx_genre_name_nocase ON genre (name COLLATE NOCASE);
 
 
 -- ---------------------------------------------------------------------------

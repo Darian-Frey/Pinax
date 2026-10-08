@@ -23,27 +23,6 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
-### IMP-009 Treat genre names that differ only in case as one genre
-
-**Status:** suggested
-**Found:** 2026-10-06 (adding the British Library, D-022)
-**Location:** `db/schema.sql`, table `genre` (`name TEXT NOT NULL UNIQUE`); `src/db/genre_repository.cpp`, `findOrCreate`
-**Effort:** small
-**Description.** The British Library heads a subject "Science fiction";
-Open Library and Google say "Science Fiction". `genre.name` is unique as
-written, so one fetch of *Titan* links the book to both, and the genre
-filter (F-017) would list two entries for one idea.
-**Proposal.** Match genres case-insensitively in `findOrCreate` (`WHERE name =
-:name COLLATE NOCASE`), keeping the first spelling stored; in the next
-schema change, declare the column `COLLATE NOCASE` so the unique index
-agrees. The names stay verbatim apart from case (D-009).
-**Trade-offs.** Whichever spelling arrives first is the one shown, so the
-display depends on fetch order. A migration that merges existing
-case-variants must repoint `book_genre` rows, which is more than a column
-change. Leaving it means duplicate genres to tidy by hand later.
-**Notes.** Only exact case variants; "Fiction, science fiction, general" and
-"Science fiction" remain different genres, as D-009 intends.
-
 ### IMP-010 Let a finish date be entered for books read before Pinax
 
 **Status:** suggested
@@ -69,6 +48,41 @@ column only describes reading done with Pinax.
 settle both together.
 
 ## Applied
+
+### IMP-009 Treat genre names that differ only in case as one genre
+
+**Status:** applied (2026-10-08)
+**Found:** 2026-10-06 (adding the British Library, D-022)
+**Location:** `db/schema.sql`, table `genre` (`name TEXT NOT NULL UNIQUE`); `src/db/genre_repository.cpp`, `findOrCreate`
+**Effort:** small
+**Description.** The British Library heads a subject "Science fiction";
+Open Library and Google say "Science Fiction". `genre.name` is unique as
+written, so one fetch of *Titan* links the book to both, and the genre
+filter (F-017) would list two entries for one idea.
+**Proposal.** Match genres case-insensitively in `findOrCreate` (`WHERE name =
+:name COLLATE NOCASE`), keeping the first spelling stored; in the next
+schema change, declare the column `COLLATE NOCASE` so the unique index
+agrees. The names stay verbatim apart from case (D-009).
+**Trade-offs.** Whichever spelling arrives first is the one shown, so the
+display depends on fetch order. A migration that merges existing
+case-variants must repoint `book_genre` rows, which is more than a column
+change. Leaving it means duplicate genres to tidy by hand later.
+**Notes.** Only exact case variants; "Fiction, science fiction, general" and
+"Science fiction" remain different genres, as D-009 intends.
+**Applied.** As proposed, by the owner's decision, in schema version 6
+rather than by declaring the column `COLLATE NOCASE`, which would have meant
+rebuilding `genre` and the foreign key that points at it. The migration
+(`006_genre_name_nocase.sql`) merges genres that differ only in case into
+the one stored first — each book keeping a single link, marked the owner's
+if either link was — and then adds a case-blind unique index,
+`idx_genre_name_nocase`, so they cannot part again. `findOrCreate` matches
+case-blind, so the spelling stored first stands. On the owner's catalogue
+one book's "Science Fiction" became "Science fiction", the spelling five
+books already used. SQLite's NOCASE folds ASCII letters only, which covers
+the genres providers send. `tests/test_db.cpp`,
+`version6MergesGenresThatDifferOnlyInCase`; the migration test now runs
+version 1 to 6.
+
 
 ### IMP-008 Leave Open Library's library-service subjects out of genres
 

@@ -25,6 +25,7 @@ class GenreRepository {
 public:
     explicit GenreRepository(Connection& connection);
 
+    // The genre of this name whatever its capitals, created if absent.
     std::int64_t findOrCreate(const std::string& name);
 
     // Links the book to the genre unless already linked; an existing link

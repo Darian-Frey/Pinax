@@ -96,6 +96,7 @@ private slots:
     void foreignKeysEnforcedOnEveryConnection();
     void migratingVersion1MatchesFreshSchema();
     void genreLinksSurviveTheVersion5Rebuild();
+    void version6MergesGenresThatDifferOnlyInCase();
 
     // BookRepository
     void bookRoundTripsEveryField();
@@ -207,6 +208,34 @@ void TestDb::genreLinksSurviveTheVersion5Rebuild()
     // Still cascades with its book.
     connection.exec("DELETE FROM book WHERE id = 1");
     QCOMPARE(scalar(connection, "SELECT COUNT(*) FROM book_genre"), 0);
+}
+
+void TestDb::version6MergesGenresThatDifferOnlyInCase()
+{
+    // IMP-009: three spellings of one genre, stored before version 6.
+    QFile fixture(QStringLiteral(PINAX_TEST_FIXTURES "/schema_v1.sql"));
+    QVERIFY(fixture.open(QIODevice::ReadOnly));
+    Connection connection(":memory:");
+    connection.exec(fixture.readAll().toStdString());
+    connection.exec("INSERT INTO book (id, title, sort_title) VALUES (1, 'Titan', 'Titan'), (2, 'Voyage', 'Voyage');"
+                    "INSERT INTO genre (id, name) VALUES (1, 'Science fiction'), (2, 'Science Fiction'),"
+                    " (3, 'SCIENCE FICTION'), (4, 'Space opera');"
+                    "INSERT INTO book_genre (book_id, genre_id, source) VALUES"
+                    " (1, 1, 'open_library'), (1, 2, 'manual'),"   // both on one book; one the owner's
+                    " (2, 3, 'google_books'), (2, 4, 'open_library');");
+    pinax::db::migrate(connection);
+
+    // The first spelling stands; every link moved to it, once per book.
+    QCOMPARE(scalarText(connection, "SELECT group_concat(name, '|') FROM (SELECT name FROM genre ORDER BY id)"),
+        std::string("Science fiction|Space opera"));
+    QCOMPARE(scalar(connection, "SELECT COUNT(*) FROM book_genre WHERE book_id = 1"), 1);
+    QCOMPARE(scalarText(connection, "SELECT source FROM book_genre WHERE book_id = 1"), std::string("manual"));
+    QCOMPARE(scalar(connection, "SELECT genre_id FROM book_genre WHERE book_id = 2 AND source = 'google_books'"), 1);
+
+    // And they stay merged: another spelling finds the same genre, and a
+    // raw insert of one is refused.
+    QCOMPARE(pinax::db::GenreRepository(connection).findOrCreate("science FICTION"), std::int64_t(1));
+    QVERIFY_THROWS_EXCEPTION(DbError, connection.exec("INSERT INTO genre (name) VALUES ('Space Opera')"));
 }
 
 void TestDb::migratingVersion1MatchesFreshSchema()
