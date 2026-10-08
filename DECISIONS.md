@@ -1111,3 +1111,53 @@ search, ticked or not; ISBNs come from the book itself (D-024).
 
 **Reversal conditions.** Revisit if Open Library's search comes to name
 editions outright.
+
+---
+
+### D-030 Light and dark themes are Pinax's own palettes over Fusion
+**Decided:** 2026-10-08
+**Recorded:** 2026-10-08
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-08)
+**Related:** F-029, D-001, D-028
+
+**Context.** The owner asked for a light and a dark theme. Pinax took the
+desktop's style and palette as it found them, though the mock-up (design/)
+is dark. Much of the panel muted its text by baking a colour into a widget's
+palette when it was built, so a theme changed later would not have reached
+it.
+
+**Options.**
+- **A. View ▸ Theme: System, Light, Dark. Light and Dark set Qt's Fusion
+  style and a palette of Pinax's own; System puts back the desktop's style
+  and palette as they were at start-up. Applied at once and remembered in
+  the settings of D-028.** Chosen.
+- **B. A stylesheet for each theme.** Rejected: stylesheets override the
+  palette widget by widget and fight the native styles. Every view would
+  need rules, and every new widget too.
+- **C. Follow the desktop only.** Rejected: that is what the owner had.
+
+**Decision.** Option A, in `ui/theme.h`. The Dark palette is the mock-up's
+near-black browns and parchment text. Light is a warm paper, so the amber
+accent sits in both. Muted text is drawn in a palette *role*,
+`PlaceholderText`, through `ui::setMuted`, not in a colour copied from the
+palette. A change of theme therefore reaches it without anyone setting it
+again. The few colours still baked, the progress bars' stylesheets and the
+rail's counts, are redone: `SeriesView` on `QEvent::PaletteChange`, and
+the rail and panel by the window redrawing them after a choice. Qt tells
+existing widgets of a new application palette only once its event loop runs,
+so `applyTheme` tells them itself; the saved theme is applied at start-up,
+before that.
+
+**Consequences.**
+- System is the default, so nothing changes for anyone who never opens the
+  menu.
+- Light and Dark use Fusion whatever the desktop uses, so they look the same
+  on every Linux desktop.
+- Anything new that colours text must use `setMuted`, a palette role, or
+  redo its colour on `PaletteChange`. A colour copied from the palette once
+  is stuck in the theme it was copied in.
+
+**Reversal conditions.** Revisit if Qt's own colour-scheme support (Qt 6.5
+and later) reaches the target distribution, which would let System follow a
+desktop that changes between light and dark.

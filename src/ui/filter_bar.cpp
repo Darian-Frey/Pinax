@@ -126,9 +126,7 @@ FilterBar::FilterBar(QWidget* parent)
     range_->hide();
 
     shown_->setObjectName(QStringLiteral("filter.shown"));
-    QPalette palette = shown_->palette();
-    palette.setColor(QPalette::WindowText, muted(shown_));
-    shown_->setPalette(palette);
+    setMuted(shown_);
     clear_->setObjectName(QStringLiteral("filter.clear"));
     clear_->setToolTip(tr("Show every book again"));
 

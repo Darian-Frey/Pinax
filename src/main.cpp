@@ -223,6 +223,7 @@ int main(int argc, char* argv[])
     pinax::app::Enricher enricher(fetcher, googleKey);
 
     pinax::app::MainWindow window;
+    window.applySavedTheme();
     window.setEnricher(&enricher);
     if (catalogue) {
         window.adoptCatalogue(std::move(catalogue));

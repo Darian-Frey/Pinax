@@ -122,9 +122,7 @@ CandidateView::CandidateView(QWidget* parent)
 
     status_->setObjectName(QStringLiteral("candidates.status"));
     status_->setWordWrap(true);
-    QPalette palette = status_->palette();
-    palette.setColor(QPalette::WindowText, muted(status_));
-    status_->setPalette(palette);
+    setMuted(status_);
     layout->addWidget(status_);
 
     list_->setObjectName(QStringLiteral("candidates.list"));

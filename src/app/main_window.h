@@ -4,6 +4,7 @@
 #include "metadata/cover_cache.h"
 #include "domain/book_edit.h"
 #include "ui/add_by_isbn_view.h"
+#include "ui/theme.h"
 #include "domain/candidate.h"
 #include "domain/book_filter.h"
 #include "domain/book_query.h"
@@ -81,6 +82,13 @@ public:
     // Where recent catalogues are remembered (D-028); Pinax's own settings
     // file unless a test supplies one.
     void setSettings(QSettings* settings);
+    // The theme remembered in the settings (F-029), applied and shown as
+    // chosen in View ▸ Theme. Called once at start-up, after setSettings.
+    void applySavedTheme();
+    // As if chosen from View ▸ Theme: applied, remembered, and the rail and
+    // panel redrawn in it.
+    void chooseTheme(ui::Theme theme);
+    QAction* themeAction(ui::Theme theme) const;
     QMenu* recentMenu() const { return recentMenu_; }
     // Where backups go — the safety copies before an import or restore, and
     // the suggestion for Back up; Documents/Pinax backups unless set.
@@ -242,6 +250,7 @@ private:
     QAction* quit_ = nullptr;
     QAction* find_ = nullptr;
     QAction* about_ = nullptr;
+    QList<QAction*> themeActions_; // System, Light, Dark, in Theme's order
     QString backupFolder_;
     Enricher* enricher_ = nullptr;
     // What the last lookup offered, for the candidate chosen.

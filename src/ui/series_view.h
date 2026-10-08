@@ -35,6 +35,10 @@ signals:
     void markOwnedRequested(qint64 entryId);
     void editEntryRequested(qint64 entryId);
 
+protected:
+    // The progress bar's colours are baked; a change of theme redoes them.
+    void changeEvent(QEvent* event) override;
+
 private:
     QWidget* card_;
     QLabel* cardTitle_;

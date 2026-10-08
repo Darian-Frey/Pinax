@@ -42,13 +42,6 @@ QLabel* makeNote(QWidget* parent, const QString& name)
     return label;
 }
 
-void setMuted(QLabel* label)
-{
-    QPalette palette = label->palette();
-    palette.setColor(QPalette::WindowText, muted(label));
-    label->setPalette(palette);
-}
-
 QString providerName(Source source)
 {
     switch (source) {

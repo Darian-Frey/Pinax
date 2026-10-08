@@ -7,7 +7,8 @@
 > listed, sorted, filtered, searched, viewed and edited, with reading state,
 > ratings, and series that know what they lack; metadata is fetched one book
 > at a time or for the whole catalogue; it backs up and exports to SQL,
-> Excel and CSV. Phase 5, barcode scanning, waits on a webcam. Toolchain
+> Excel and CSV, in light or dark. Phase 5, barcode scanning, waits on a
+> webcam. Toolchain
 > fixed by D-001. `LICENSE` is deliberately absent — see Licence.
 
 A Linux desktop catalogue for a personal physical library. Pinax tracks what is
@@ -50,6 +51,11 @@ with its cover, and nothing is written until you choose one.
 
 *Group by series*, one of the filter bar's groupings (series, author or
 genre).
+
+![The library in the dark theme](docs/screenshots/library-dark.png)
+
+*The dark theme*, after the mock-up. View ▸ Theme switches between System,
+Light and Dark at once, and Pinax remembers the choice.
 
 ---
 
@@ -96,6 +102,9 @@ imported backlog gains its ISBNs. Google Books is asked as well if
 you have an API key: put it in `google-books.key` beside the catalogue, or in
 the folder Pinax is started from, or in `PINAX_GOOGLE_BOOKS_KEY` (D-021).
 Never commit it; `.gitignore` covers `*.key`.
+
+View ▸ Theme switches between your desktop's look and Pinax's own light
+and dark themes, at once, and remembers the choice (F-029).
 
 The File menu opens, creates and closes catalogues — Open Recent lists the
 last few — restores one from a backup or an SQL dump, and imports books
@@ -170,10 +179,10 @@ pinax/
 ├── seed/                 the real catalogue; git-ignored, never committed
 ├── README.md
 ├── BUILD.md              requirements, build, test, troubleshooting
-├── FEATURES.md           F-001 … F-028, MoSCoW priorities, acceptance criteria
+├── FEATURES.md           F-001 … F-029, MoSCoW priorities, acceptance criteria
 ├── ROADMAP.md            Phases 0–4 complete; Phase 5 planned
 ├── ARCHITECTURE.md       modules, data flow, invariants
-├── DECISIONS.md          D-001 … D-029, append-only
+├── DECISIONS.md          D-001 … D-030, append-only
 ├── SPEC.md               CSV format, ISBN validation, provider contracts, exports
 ├── ATTACK_VECTORS.md     AV-001 … AV-014, failure modes with detection
 ├── BUGS.md               BUG-001 … BUG-006, all fixed

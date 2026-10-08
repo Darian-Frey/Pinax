@@ -43,9 +43,7 @@ BackupView::BackupView(QWidget* parent)
     auto* intro = makeNote(QStringLiteral("backup.intro"), this);
     intro->setText(tr("A complete copy of the catalogue, taken while Pinax stays open, then checked "
                       "before it is kept. Covers are not included: they can be fetched again."));
-    QPalette palette = intro->palette();
-    palette.setColor(QPalette::WindowText, muted(intro));
-    intro->setPalette(palette);
+    setMuted(intro);
     layout->addWidget(intro);
 
     layout->addWidget(new QLabel(tr("Back up to"), this));

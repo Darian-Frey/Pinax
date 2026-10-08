@@ -4,6 +4,7 @@
 
 #include "ui/style.h"
 
+#include <QEvent>
 #include <QFrame>
 #include <QGridLayout>
 #include <QLabel>
@@ -83,10 +84,7 @@ SeriesView::SeriesView(QWidget* parent)
     progress_->setObjectName(QStringLiteral("seriesView.progress"));
     progress_->setTextVisible(false);
     progress_->setFixedHeight(5);
-    progress_->setStyleSheet(QStringLiteral(
-        "QProgressBar { border: none; background: %1; border-radius: 2px; }"
-        "QProgressBar::chunk { background: %2; border-radius: 2px; }")
-            .arg(muted(this).darker(200).name(QColor::HexArgb), accent().name()));
+    progress_->setStyleSheet(progressStyle(this));
     held_ = makeValue(QStringLiteral("seriesView.held"), this);
     held_->setWordWrap(false);
     progressRow->addWidget(progress_, 1);
@@ -154,9 +152,7 @@ SeriesView::SeriesView(QWidget* parent)
                                "move the moment a volume is added."),
         this);
     note->setWordWrap(true);
-    QPalette palette = note->palette();
-    palette.setColor(QPalette::WindowText, muted(note));
-    note->setPalette(palette);
+    setMuted(note);
     layout->addWidget(note);
     layout->addStretch();
 }
@@ -235,6 +231,13 @@ void SeriesView::showSeries(const SeriesDetail& detail, const std::optional<doma
     complete_->setText(QString::number(detail.library.complete));
     withGaps_->setText(QString::number(detail.library.withGaps));
     notOwned_->setText(QString::number(detail.library.volumesNotOwned));
+}
+
+void SeriesView::changeEvent(QEvent* event)
+{
+    if (event->type() == QEvent::PaletteChange)
+        progress_->setStyleSheet(progressStyle(this));
+    QWidget::changeEvent(event);
 }
 
 } // namespace pinax::ui

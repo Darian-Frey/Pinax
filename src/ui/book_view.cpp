@@ -37,9 +37,7 @@ QFrame* makeRule(QWidget* parent)
     auto* rule = new QFrame(parent);
     rule->setFrameShape(QFrame::HLine);
     rule->setFrameShadow(QFrame::Plain);
-    QPalette palette = rule->palette();
-    palette.setColor(QPalette::WindowText, muted(rule).darker(250));
-    rule->setPalette(palette);
+    rule->setForegroundRole(QPalette::Mid); // follows the theme (F-029)
     return rule;
 }
 
@@ -50,14 +48,6 @@ QLabel* makeValue(const QString& name, QWidget* parent)
     label->setWordWrap(true);
     label->setTextInteractionFlags(Qt::TextSelectableByMouse);
     return label;
-}
-
-void setMuted(QLabel* label, bool isMuted)
-{
-    QPalette palette = label->parentWidget()->palette();
-    if (isMuted)
-        palette.setColor(QPalette::WindowText, muted(label));
-    label->setPalette(palette);
 }
 
 QString readStateName(ReadStatus status)
@@ -423,7 +413,7 @@ void BookView::showSeries(const std::vector<SeriesMembership>& series)
         auto* name = new QLabel(text(membership.name), block);
         name->setObjectName(QStringLiteral("series.name"));
         QPalette namePalette = name->palette();
-        namePalette.setColor(QPalette::WindowText, accent());
+        namePalette.setColor(QPalette::WindowText, accent()); // the same in either theme
         name->setPalette(namePalette);
         QFont nameFont = name->font();
         nameFont.setBold(true);
@@ -442,10 +432,7 @@ void BookView::showSeries(const std::vector<SeriesMembership>& series)
         progress->setValue(membership.held);
         progress->setTextVisible(false);
         progress->setFixedHeight(5);
-        progress->setStyleSheet(QStringLiteral(
-            "QProgressBar { border: none; background: %1; border-radius: 2px; }"
-            "QProgressBar::chunk { background: %2; border-radius: 2px; }")
-                .arg(muted(this).darker(200).name(QColor::HexArgb), accent().name()));
+        progress->setStyleSheet(progressStyle(this));
         auto* held = new QLabel(tr("%1 of %2 held").arg(membership.held).arg(membership.known), block);
         held->setObjectName(QStringLiteral("series.held"));
         setMuted(held, true);

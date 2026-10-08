@@ -481,6 +481,22 @@ updated, unchanged, and each failure by line — appears in the panel.
 
 ---
 
+## Appearance
+
+### F-029 Light and dark themes
+**Priority:** Should
+**Acceptance:**
+- View ▸ Theme offers System, Light and Dark; System leaves the desktop's
+  look alone.
+- A choice applies at once, to everything on screen, without a restart.
+- The choice is remembered for the next start.
+**Status:** Complete (2026-10-08). The owner asked for it after Phase 4
+closed. Dark is the mock-up's palette, Light a warm paper, both over Fusion
+(D-030). Muted text follows the theme through a palette role, and the rail
+and panel are redrawn when the theme changes.
+
+---
+
 ## Out of scope
 
 - **Ebook management.** No reading, conversion, device sync or file handling.

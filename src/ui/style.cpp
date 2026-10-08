@@ -12,9 +12,19 @@ QColor accent()
 
 QColor muted(const QWidget* widget)
 {
-    QColor colour = widget->palette().color(QPalette::WindowText);
-    colour.setAlphaF(0.55f);
-    return colour;
+    return widget->palette().color(QPalette::PlaceholderText);
+}
+
+void setMuted(QWidget* widget, bool isMuted)
+{
+    widget->setForegroundRole(isMuted ? QPalette::PlaceholderText : QPalette::WindowText);
+}
+
+QString progressStyle(const QWidget* widget)
+{
+    return QStringLiteral("QProgressBar { border: none; background: %1; border-radius: 2px; }"
+                          "QProgressBar::chunk { background: %2; border-radius: 2px; }")
+        .arg(widget->palette().color(QPalette::Mid).name(), accent().name());
 }
 
 QString readMark(domain::ReadStatus status)
@@ -42,9 +52,7 @@ QLabel* makeSectionHeading(const QString& text, QWidget* parent)
     font.setBold(true);
     label->setFont(font);
 
-    QPalette palette = label->palette();
-    palette.setColor(QPalette::WindowText, muted(label));
-    label->setPalette(palette);
+    setMuted(label);
     return label;
 }
 

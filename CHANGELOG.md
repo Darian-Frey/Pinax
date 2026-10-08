@@ -17,6 +17,11 @@ Phase 3 (metadata enrichment) and Phase 4 (browsing and export) closed
 owner's catalogue. Phase 5 (barcode scanning) waits on a webcam.
 
 ### Added
+- Light and dark themes (F-029, D-030): View ▸ Theme ▸ System, Light or
+  Dark, applied at once and remembered. Dark is the mock-up's palette, Light a
+  warm paper, both over Fusion; System leaves the desktop's look alone. Muted
+  text now follows the palette through a role (`ui::setMuted`), so a change
+  of theme reaches it; the series progress bars' track is the palette's Mid.
 - Screenshots in the README (`docs/screenshots/`): the library, a series
   page, the shopping list, Fetch metadata's candidates and Group by series,
   taken from a demo catalogue of well-known books, not the owner's.

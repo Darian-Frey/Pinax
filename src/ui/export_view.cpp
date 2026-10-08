@@ -45,9 +45,7 @@ ExportView::ExportView(QWidget* parent)
 
     format_->setObjectName(QStringLiteral("export.format"));
     layout->addWidget(format_);
-    QPalette palette = description_->palette();
-    palette.setColor(QPalette::WindowText, muted(description_));
-    description_->setPalette(palette);
+    setMuted(description_);
     layout->addWidget(description_);
 
     layout->addWidget(new QLabel(tr("Export to"), this));

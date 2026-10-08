@@ -26,6 +26,7 @@
 #include "ui/series_page.h"
 
 #include <QAction>
+#include <QActionGroup>
 #include <QCloseEvent>
 #include <QCoreApplication>
 #include <QDate>
@@ -393,6 +394,20 @@ void MainWindow::buildMenus()
     books->addAction(fetchAll_);
     books->addAction(review_);
 
+    QMenu* view = menuBar()->addMenu(tr("&View"));
+    QMenu* theme = view->addMenu(tr("&Theme"));
+    theme->setObjectName(QStringLiteral("themeMenu"));
+    auto* themes = new QActionGroup(this);
+    for (const auto& [choice, name] : {std::pair {ui::Theme::System, tr("&System")},
+             std::pair {ui::Theme::Light, tr("&Light")}, std::pair {ui::Theme::Dark, tr("&Dark")}}) {
+        QAction* action = theme->addAction(name, this, [this, choice = choice] { chooseTheme(choice); });
+        action->setObjectName(QStringLiteral("theme.") + ui::themeKey(choice));
+        action->setCheckable(true);
+        themes->addAction(action);
+        themeActions_.append(action);
+    }
+    themeActions_.front()->setChecked(true);
+
     QMenu* help = menuBar()->addMenu(tr("&Help"));
     about_ = help->addAction(tr("&About Pinax"), this, [this] {
         detail_->showReport(tr("Pinax %1").arg(QCoreApplication::applicationVersion()),
@@ -448,6 +463,36 @@ void MainWindow::setBackupFolder(const QString& folder)
 void MainWindow::setSettings(QSettings* settings)
 {
     settings_ = settings;
+}
+
+// ---------------------------------------------------------------------------
+// Theme (F-029, D-030)
+
+namespace {
+const QString themeSetting = QStringLiteral("appearance/theme");
+}
+
+void MainWindow::applySavedTheme()
+{
+    const auto theme = ui::themeFromKey(settings().value(themeSetting).toString()).value_or(ui::Theme::System);
+    ui::applyTheme(theme);
+    themeAction(theme)->setChecked(true);
+}
+
+void MainWindow::chooseTheme(ui::Theme theme)
+{
+    ui::applyTheme(theme);
+    themeAction(theme)->setChecked(true);
+    settings().setValue(themeSetting, ui::themeKey(theme));
+    // The rail's counts and the panel's pills and bars bake their colours;
+    // drawn again, they take the new palette. An open form is left alone.
+    refreshRail();
+    refreshPanel();
+}
+
+QAction* MainWindow::themeAction(ui::Theme theme) const
+{
+    return themeActions_.at(static_cast<int>(theme));
 }
 
 QSettings& MainWindow::settings()

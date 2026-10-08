@@ -186,7 +186,9 @@ add_library(pinax_ui STATIC
     ui/series_view.cpp
     ui/series_view.h
     ui/style.cpp
-    ui/style.h)
+    ui/style.h
+    ui/theme.cpp
+    ui/theme.h)
 target_include_directories(pinax_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(pinax_ui PUBLIC pinax_domain Qt6::Widgets)
 

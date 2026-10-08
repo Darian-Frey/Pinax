@@ -186,7 +186,7 @@ void TestCatalogueFiles::menusHoldTheCommands()
     QStringList menus;
     for (QAction* action : w.window.menuBar()->actions())
         menus << action->text().remove(QLatin1Char('&'));
-    QCOMPARE(menus, QStringList({"File", "Books", "Help"}));
+    QCOMPARE(menus, QStringList({"File", "Books", "View", "Help"}));
     QCOMPARE(w.window.openCatalogueAction()->shortcut(), QKeySequence(QKeySequence::Open));
     QCOMPARE(w.window.closeCatalogueAction()->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_W));
     QCOMPARE(w.window.quitAction()->shortcut(), QKeySequence(QKeySequence::Quit));

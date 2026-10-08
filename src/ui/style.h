@@ -14,8 +14,20 @@ namespace pinax::ui {
 QColor accent();
 
 // A muted colour for "not recorded" and placeholder text, taken from the
-// current palette so it works in light and dark themes.
+// current palette so it works in light and dark themes. For painting and
+// stylesheets; a widget's text is muted with setMuted, which follows a
+// change of theme by itself.
 QColor muted(const QWidget* widget);
+
+// Draws the widget's text in the palette's muted colour (PlaceholderText),
+// or in its ordinary colour again. A role, not a colour, so a change of
+// theme reaches it (F-029).
+void setMuted(QWidget* widget, bool isMuted = true);
+
+// The thin series progress bar's stylesheet: a track in the palette's Mid,
+// filled in the accent. Baked from the palette, so set it again on
+// QEvent::PaletteChange.
+QString progressStyle(const QWidget* widget);
 
 // The read-state mark of the list's first column: ● read, ◐ reading,
 // ○ unread, × abandoned.

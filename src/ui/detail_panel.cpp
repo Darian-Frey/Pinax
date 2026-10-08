@@ -40,9 +40,7 @@ QLabel* makeNotice(QWidget* parent)
     label->setAlignment(Qt::AlignCenter);
     label->setWordWrap(true);
     label->setMargin(24);
-    QPalette palette = label->palette();
-    palette.setColor(QPalette::WindowText, muted(label));
-    label->setPalette(palette);
+    setMuted(label);
     return label;
 }
 

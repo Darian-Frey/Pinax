@@ -122,9 +122,7 @@ void EntryEditor::editEntry(const domain::SeriesEntry& entry, const QString& ser
     heading_->setText(entry.id == 0 ? tr("New volume in %1").arg(seriesName)
                                     : tr("A volume of %1").arg(seriesName));
     owned_->setText(ownedBy.isEmpty() ? tr("Not on the shelf.") : tr("On the shelf: %1").arg(ownedBy));
-    QPalette palette = owned_->palette();
-    palette.setColor(QPalette::WindowText, muted(owned_));
-    owned_->setPalette(palette);
+    setMuted(owned_);
 
     position_->setText(text(entry.position));
     sortPosition_->setText(entry.sortPosition ? number(*entry.sortPosition) : QString());
