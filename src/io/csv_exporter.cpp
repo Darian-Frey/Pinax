@@ -58,8 +58,9 @@ std::string field(const std::optional<double>& number)
     return buffer;
 }
 
-const char* const header = "title,subtitle,authors,series,position,sort_position,shelf,times_read,rating,"
-                           "isbn13,publisher,published_year,binding,edition_note,condition_note,notes";
+const char* const header = "title,subtitle,authors,series,position,sort_position,shelf,times_read,"
+                           "date_started,date_finished,rating,isbn13,publisher,published_year,binding,"
+                           "edition_note,condition_note,notes";
 
 } // namespace
 
@@ -81,7 +82,8 @@ void writeBooksCsv(db::Connection& connection, const std::vector<std::int64_t>& 
         const std::string common = field(book->title) + ',' + field(book->subtitle) + ','
             + field(domain::formatCredits(credits));
         const std::string rest = std::string(domain::toString(book->readStatus)) + ','
-            + std::to_string(book->timesRead) + ',' + field(book->rating) + ',' + field(book->isbn13) + ','
+            + std::to_string(book->timesRead) + ',' + field(book->dateStarted) + ',' + field(book->dateFinished)
+            + ',' + field(book->rating) + ',' + field(book->isbn13) + ','
             + field(book->publisher) + ',' + field(book->publishedYear) + ','
             + (book->binding ? std::string(domain::toString(*book->binding)) : std::string()) + ','
             + field(book->editionNote) + ',' + field(book->conditionNote) + ',' + field(book->notes);

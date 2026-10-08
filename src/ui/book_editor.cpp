@@ -1,6 +1,7 @@
 #include "ui/book_editor.h"
 
 #include "domain/credit_text.h"
+#include "domain/dates.h"
 #include "domain/isbn.h"
 #include "ui/style.h"
 
@@ -138,6 +139,16 @@ BookEditor::BookEditor(QWidget* parent)
     readState_->setObjectName(QStringLiteral("edit.readState"));
     readState_->addItems({tr("Unread"), tr("Reading"), tr("Read"), tr("Abandoned")});
     form->addRow(tr("Read state"), readState_);
+    // When, as precisely as remembered (IMP-010).
+    dateStarted_ = makeLine(QStringLiteral("edit.dateStarted"), this);
+    dateStarted_->setPlaceholderText(tr("YYYY-MM-DD"));
+    dateStarted_->setToolTip(tr("When last started — a day, a month (2019-03) or just a year (2019)."));
+    form->addRow(tr("Started"), dateStarted_);
+    dateFinished_ = makeLine(QStringLiteral("edit.dateFinished"), this);
+    dateFinished_->setPlaceholderText(tr("YYYY-MM-DD"));
+    dateFinished_->setToolTip(tr("When last finished — a day, a month (2019-03) or just a year (2019). Left "
+                                 "empty, marking a book read records today."));
+    form->addRow(tr("Finished"), dateFinished_);
 
     timesRead_ = new QLabel(this);
     timesRead_->setObjectName(QStringLiteral("edit.timesRead"));
@@ -248,6 +259,8 @@ void BookEditor::editBook(const domain::BookDetail& detail)
     isbn10_->setText(text(book.isbn10));
     editionNote_->setText(text(book.editionNote));
     conditionNote_->setText(text(book.conditionNote));
+    dateStarted_->setText(text(book.dateStarted));
+    dateFinished_->setText(text(book.dateFinished));
     acquiredDate_->setText(text(book.acquiredDate));
     acquiredNote_->setText(text(book.acquiredNote));
     synopsis_->setPlainText(text(book.synopsis));
@@ -313,10 +326,15 @@ void BookEditor::save()
 
     book.editionNote = optionalText(editionNote_->text());
     book.conditionNote = optionalText(conditionNote_->text());
-    book.acquiredDate = optionalText(acquiredDate_->text());
-    static const QRegularExpression isoDate(QStringLiteral("^\\d{4}(-\\d{2}(-\\d{2})?)?$"));
-    if (book.acquiredDate && !isoDate.match(QString::fromStdString(*book.acquiredDate)).hasMatch())
-        errors << tr("Acquired must be a date such as 2024-03-01, or just a year.");
+    auto date = [&errors](QLineEdit* field, const QString& name) -> std::optional<std::string> {
+        const auto value = optionalText(field->text());
+        if (value && !domain::isPartialIsoDate(*value))
+            errors << tr("%1 must be a date such as 2024-03-01, a month such as 2024-03, or a year.").arg(name);
+        return value;
+    };
+    book.dateStarted = date(dateStarted_, tr("Started"));
+    book.dateFinished = date(dateFinished_, tr("Finished"));
+    book.acquiredDate = date(acquiredDate_, tr("Acquired"));
     book.acquiredNote = optionalText(acquiredNote_->text());
 
     // A synopsis the owner has touched is theirs: marked manual, so

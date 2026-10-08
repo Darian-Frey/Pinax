@@ -71,6 +71,8 @@ private slots:
     void exportedCsvReimportsWithoutLoss();
     void anExportThatWouldMergeBooksIsRefused();
     void aFurtherRowMayOnlyAddASeries();
+    // IMP-010
+    void datesComeInAndGoOutWithTheBooks();
     // CSV reading
     void csvHandlesQuotesAndLineBreaks();
     void csvRejectsUnclosedQuote();
@@ -508,6 +510,42 @@ void TestImport::aFurtherRowMayOnlyAddASeries()
     const auto mort = BookRepository(connection).findByTitleAndFirstAuthor("Mort", std::string("Terry Pratchett"));
     QVERIFY(mort->readStatus == pinax::domain::ReadStatus::Read);
     QCOMPARE(pinax::db::SeriesRepository(connection).membershipsForBook(mort->id).size(), std::size_t(2));
+}
+
+void TestImport::datesComeInAndGoOutWithTheBooks()
+{
+    Connection connection(":memory:");
+    pinax::db::migrate(connection);
+    const auto first = CsvImporter(connection).importText(
+        "title,authors,shelf,date_started,date_finished\n"
+        "Mort,Terry Pratchett,read,2019-02,2019-03-14\n"
+        "Ubik,Philip K. Dick,unread,,\n"
+        "Emma,Jane Austen,read,,last spring\n");
+    QCOMPARE(first.inserted, 2);
+    QCOMPARE(first.failures.size(), std::size_t(1));
+    QCOMPARE(first.failures.front().line, 4);
+    QVERIFY(first.failures.front().message.find("date_finished") != std::string::npos);
+    BookRepository books(connection);
+    const auto mort = books.findByTitleAndFirstAuthor("Mort", std::string("Terry Pratchett"));
+    QVERIFY(mort->dateStarted == std::optional<std::string>("2019-02"));
+    QVERIFY(mort->dateFinished == std::optional<std::string>("2019-03-14"));
+
+    // A book moved into read by the file: the file's date wins over the
+    // read stamp, and the read is counted once.
+    CsvImporter(connection).importText("title,authors,shelf,date_finished\nUbik,Philip K. Dick,read,2001\n");
+    const auto ubik = books.findByTitleAndFirstAuthor("Ubik", std::string("Philip K. Dick"));
+    QVERIFY(ubik->dateFinished == std::optional<std::string>("2001"));
+    QCOMPARE(ubik->timesRead, 1);
+
+    // Out with the export, and back the same.
+    std::ostringstream out;
+    pinax::io::writeBooksCsv(connection, {mort->id, ubik->id}, out);
+    QVERIFY(out.str().find(",read,1,2019-02,2019-03-14,") != std::string::npos);
+    Connection again(":memory:");
+    pinax::db::migrate(again);
+    QVERIFY(CsvImporter(again).importText(out.str()).failures.empty());
+    QVERIFY(BookRepository(again).findByTitleAndFirstAuthor("Mort", std::string("Terry Pratchett"))->dateFinished
+        == std::optional<std::string>("2019-03-14"));
 }
 
 QTEST_APPLESS_MAIN(TestImport)

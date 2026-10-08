@@ -37,7 +37,7 @@ database and exports to SQL, CSV and Excel.
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, what a fetch writes (§3.5), cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-014. Detection implemented for AV-001, AV-002, AV-003, AV-004, AV-005, AV-008, AV-011, AV-014; partly for AV-006, AV-007, AV-010, AV-012, AV-013; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001 to BUG-006 fixed. |
-| `IMPROVEMENTS.md` | IMP-010 suggested (a finish date for books read before Pinax). IMP-001 to IMP-005 and IMP-007 to IMP-009 applied; IMP-006 deferred. |
+| `IMPROVEMENTS.md` | No improvement awaiting a decision. IMP-001 to IMP-005 and IMP-007 to IMP-010 applied; IMP-006 deferred. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
@@ -109,7 +109,7 @@ Suggested order:
 
 Every Phase 3 deliverable is ticked; closing the phase is the owner's call.
 
-Open with the owner: IMP-010; whether to ask metadata@bl.uk
+Open with the owner: whether to ask metadata@bl.uk
 about the open SRU endpoint (D-022). IMP-006 is deferred.
 
 The seed: `seed/library.csv` and `seed/series.csv`, made by
@@ -232,6 +232,12 @@ Not vectors, but worth knowing:
   only `setCatalogue` remember nothing.
 - **Never open a file without `db::inspect`** (AV-014): `Catalogue`'s
   constructor migrates, and migrating someone else's database rewrites it.
+- **A typed finish date beats the read stamp only if it was changed**
+  (IMP-010). `Catalogue::save` compares the edit's `dateFinished` with the
+  stored one: changed in this edit, it is written back after
+  `trg_book_finished` stamps today; carried along, the stamp stands, so a
+  re-read is dated the day it ends. The importer lets a file's
+  `date_finished` win the same way.
 - **The edit form shows `times_read`; it does not set it.** The count moves
   only by read-state transitions through `trg_book_finished` (F-006). A form
   that wrote it would race the trigger.

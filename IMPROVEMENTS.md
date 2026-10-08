@@ -23,9 +23,11 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
+## Applied
+
 ### IMP-010 Let a finish date be entered for books read before Pinax
 
-**Status:** suggested
+**Status:** applied (2026-10-08)
 **Found:** 2026-10-07 (F-016, adding the Finished column)
 **Location:** `src/ui/book_editor.cpp` (no date field); `src/io/csv_importer.cpp` (no date column); SPEC.md §1
 **Effort:** small
@@ -46,8 +48,21 @@ guessed date sorts as confidently as a true one. Leaving it means the
 column only describes reading done with Pinax.
 **Notes.** `date_started` has the same gap and the same trigger-free status;
 settle both together.
+**Applied.** As proposed, by the owner's decision, for both dates as the
+entry's note asked. The edit form gains Started and Finished, each a day, a
+month or a year (`domain::isPartialIsoDate`, which the Acquired field now
+shares); the import format gains optional `date_started` and
+`date_finished` columns, checked the same way and reported by line; the CSV
+export writes them, so a round trip keeps them. The trade-off the entry
+named is handled: a finish date the owner *changed* in the edit that also
+marks the book read wins over the trigger's stamp of today; one merely
+carried along does not, so a re-read through the form is dated the day it
+ends. A file's `date_finished` likewise wins over the stamp. Guessed dates
+still sort as confidently as true ones; that is the owner's to weigh.
+`tests/test_domain.cpp`, `datesAreAsPreciseAsRemembered`;
+`tests/test_catalogue.cpp`, `aFinishDateTypedIsKeptButAReReadIsStamped`;
+`tests/test_import.cpp`, `datesComeInAndGoOutWithTheBooks`.
 
-## Applied
 
 ### IMP-009 Treat genre names that differ only in case as one genre
 

@@ -23,6 +23,8 @@ a header, quoting per RFC 4180.
 | `sort_position` | no | real | Omitted: derived by the rule below. |
 | `shelf` | no | enum | `read` \| `unread` \| `reading` \| `abandoned`. Default `unread`. |
 | `times_read` | no | integer | **Set explicitly for read books.** Omitted or empty on a new book: 1 if `shelf` is `read`, else 0. See §1.3. |
+| `date_started` | no | date | When last started: `2019-03-14`, `2019-03` or `2019` (IMP-010). |
+| `date_finished` | no | date | When last finished, the same forms. Wins over the date marking a book read would stamp. |
 | `rating` | no | integer | 1–10, or empty for unrated. |
 | `isbn13` | no | text | Validated per §2. |
 | `publisher` | no | text | — |
@@ -440,7 +442,8 @@ round trip through F-003 loses nothing.
 - Rows: the books the list shows, in its order — filters, search and sort
   applied; group headings left out, and a book under two genres written
   once. `pinax --csv` writes every book in the list's opening order.
-- Columns: all of §1's, in its order, with the header. `authors` in the
+- Columns: all of §1's, in its order, with the header — `date_started` and
+  `date_finished` among them since IMP-010. `authors` in the
   credit notation of §1.1, roles included; `shelf`, `binding` as their enum
   words; `times_read` and `sort_position` always written, so nothing is
   re-derived on import (AV-005, AV-006); reals with the fewest digits that

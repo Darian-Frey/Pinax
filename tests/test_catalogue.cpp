@@ -1,6 +1,7 @@
 #include "app/catalogue.h"
 
 #include <QDir>
+#include <functional>
 #include <memory>
 #include "db/connection.h"
 #include "db/db_error.h"
@@ -159,6 +160,8 @@ private slots:
     // BUG-005
     void aBooksSeriesAreEditedWithTheBook();
     void theFormPlacesABookInASeries();
+    // IMP-010
+    void aFinishDateTypedIsKeptButAReReadIsStamped();
 
     // F-019
     void searchNarrowsAsYouType();
@@ -2101,6 +2104,56 @@ void TestCatalogue::openingTidiesLendingTagsAwayButNotTheOwners()
     QCOMPARE(count.columnInt(0), std::int64_t(2));
     // Opening again finds nothing more to do.
     QCOMPARE(genres.removeServiceSubjects(), 0);
+}
+
+void TestCatalogue::aFinishDateTypedIsKeptButAReReadIsStamped()
+{
+    Catalogue catalogue(":memory:");
+    seed(catalogue); // Tau Zero unread
+    const auto id = idOf(catalogue, "Tau Zero");
+    MainWindow window;
+    window.setCatalogue(&catalogue);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    auto* editor = window.detailPanel()->editor();
+    auto edit = [&](const std::function<void()>& change) {
+        window.bookList()->selectBook(id);
+        QTest::keyClick(window.bookList(), Qt::Key_F2);
+        change();
+        QTest::mouseClick(editor->findChild<QPushButton*>(QStringLiteral("edit.save")), Qt::LeftButton);
+    };
+    auto* state = editor->findChild<QComboBox*>(QStringLiteral("edit.readState"));
+    auto* finished = editor->findChild<QLineEdit*>(QStringLiteral("edit.dateFinished"));
+    const QString today = QDateTime::currentDateTimeUtc().date().toString(Qt::ISODate);
+
+    // Read years ago, marked read and dated in one edit: the date typed
+    // wins over the read stamp, and the read is counted.
+    edit([&] {
+        state->setCurrentIndex(state->findText(QStringLiteral("Read")));
+        finished->setText(QStringLiteral("2019-03"));
+        editor->findChild<QLineEdit*>(QStringLiteral("edit.dateStarted"))->setText(QStringLiteral("2019-02"));
+    });
+    auto book = catalogue.detail(id)->book;
+    QVERIFY(book.dateFinished == std::optional<std::string>("2019-03"));
+    QVERIFY(book.dateStarted == std::optional<std::string>("2019-02"));
+    QCOMPARE(book.timesRead, 1);
+
+    // A re-read through the form: the old date merely carried along, so the
+    // new finish is stamped today.
+    edit([&] { state->setCurrentIndex(state->findText(QStringLiteral("Reading"))); });
+    edit([&] { state->setCurrentIndex(state->findText(QStringLiteral("Read"))); });
+    book = catalogue.detail(id)->book;
+    QVERIFY(book.dateFinished == std::optional<std::string>(today.toStdString()));
+    QCOMPARE(book.timesRead, 2);
+
+    // Correcting the date alone is just that.
+    edit([&] { finished->setText(QStringLiteral("2026-01-02")); });
+    QVERIFY(catalogue.detail(id)->book.dateFinished == std::optional<std::string>("2026-01-02"));
+
+    // Not a date: refused, nothing saved.
+    edit([&] { finished->setText(QStringLiteral("last spring")); });
+    QCOMPARE(window.detailPanel()->state(), DetailPanel::State::Editing);
+    QVERIFY(editor->findChild<QLabel*>(QStringLiteral("edit.error"))->text().contains(QStringLiteral("Finished")));
 }
 
 QTEST_MAIN(TestCatalogue)

@@ -14,6 +14,8 @@ add_library(pinax_domain STATIC
     domain/credit.h
     domain/credit_text.cpp
     domain/credit_text.h
+    domain/dates.cpp
+    domain/dates.h
     domain/enrichment.cpp
     domain/enrichment.h
     domain/enums.cpp

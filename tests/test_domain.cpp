@@ -1,4 +1,5 @@
 #include "domain/credit_text.h"
+#include "domain/dates.h"
 #include "domain/enrichment.h"
 #include "domain/enums.h"
 #include "domain/genre_filter.h"
@@ -34,6 +35,8 @@ private slots:
     void typicalFiguresAreNeverWritten();
     // IMP-008
     void lendingAndListTagsAreNotGenres();
+    // IMP-010
+    void datesAreAsPreciseAsRemembered();
     void filledGapsKeepTheirProvider();
     void titlesAgreeAcrossProviderNoise();
     void isbn13ConvertsTo10WhereItCan();
@@ -284,6 +287,15 @@ void TestDomain::lendingAndListTagsAreNotGenres()
     QVERIFY(planEnrichment(book, candidate, true, "t").genres
         == (std::vector<EnrichmentPlan::Genre> {{"Fiction", Source::OpenLibrary},
             {"Science fiction", Source::BritishLibrary}}));
+}
+
+void TestDomain::datesAreAsPreciseAsRemembered()
+{
+    for (const char* date : {"2019", "2019-03", "2019-03-14", "2024-02-29", "1999-12-31"})
+        QVERIFY2(isPartialIsoDate(date), date);
+    for (const char* date : {"", "19", "2019-3", "2019-13", "2019-00", "2019-03-32", "2023-02-29", "2019/03/14",
+             "14-03-2019", "2019-03-14T10:00", "last spring"})
+        QVERIFY2(!isPartialIsoDate(date), date);
 }
 
 void TestDomain::aManualStatusStaysManual()

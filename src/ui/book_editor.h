@@ -81,6 +81,8 @@ private:
     QLineEdit* isbn10_;
     QLineEdit* editionNote_;
     QLineEdit* conditionNote_;
+    QLineEdit* dateStarted_;
+    QLineEdit* dateFinished_;
     QLineEdit* acquiredDate_;
     QLineEdit* acquiredNote_;
     QPlainTextEdit* synopsis_;

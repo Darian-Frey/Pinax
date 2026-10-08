@@ -322,8 +322,8 @@ for misreads. Books printed before barcodes were common — roughly pre-1975,
 header: read state, title (ignoring a leading article), author (by filing
 name, then series and position, IMP-001), series position, rating, year,
 times read (Reads) and date finished (Finished), with missing values last in
-both directions. A finish date is recorded when a book is marked read; the
-books imported as read have none (IMP-010).
+both directions. A finish date is recorded when a book is marked read, and
+can be entered or imported for books read before Pinax (IMP-010).
 
 ### F-017 Filter
 **Priority:** Must

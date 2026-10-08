@@ -261,6 +261,11 @@ Phase 3 (metadata enrichment) in progress.
   change needed.
 
 ### Changed
+- IMP-010 applied: the edit form has Started and Finished dates — a day, a
+  month or a year — and CSV imports and exports carry `date_started` and
+  `date_finished`, so books read before Pinax can be dated and sorted by
+  when they were finished. A date typed while marking a book read is kept
+  rather than replaced by today; a re-read is still dated the day it ends.
 - IMP-009 applied, schema version 6: genres that differ only in capitals —
   "Science fiction" and "Science Fiction" — are one. The catalogue merges
   any it holds into the spelling stored first when it next opens, keeps

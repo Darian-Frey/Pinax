@@ -8,6 +8,7 @@
 #include "db/series_repository.h"
 #include "db/transaction.h"
 #include "domain/credit_text.h"
+#include "domain/dates.h"
 #include "domain/isbn.h"
 #include "io/csv_reader.h"
 #include "io/import_support.h"
@@ -34,10 +35,10 @@ using domain::ReadStatus;
 namespace {
 
 // SPEC.md §1, in its column order.
-constexpr std::array<std::string_view, 16> knownColumns{
+constexpr std::array<std::string_view, 18> knownColumns{
     "title", "subtitle", "authors", "series", "position", "sort_position",
-    "shelf", "times_read", "rating", "isbn13", "publisher", "published_year",
-    "binding", "edition_note", "condition_note", "notes"};
+    "shelf", "times_read", "date_started", "date_finished", "rating", "isbn13", "publisher",
+    "published_year", "binding", "edition_note", "condition_note", "notes"};
 
 using detail::optionalText;
 using detail::parseNumber;
@@ -107,6 +108,15 @@ Row parseRow(const CsvRecord& record, const std::vector<std::string_view>& heade
         throw RowError { "position '" + *row.position + "' given without a series" };
     if (row.has("sort_position"))
         row.sortPosition = parseNumber<double>(row.cell("sort_position"), "sort_position");
+    for (const char* column : {"date_started", "date_finished"}) {
+        if (row.has(column)) {
+            const auto value = optionalText(row.cell(column));
+            if (value && !domain::isPartialIsoDate(*value)) {
+                throw RowError { std::string(column) + " '" + *value
+                    + "' is not a date such as 2019-03-14, 2019-03 or 2019" };
+            }
+        }
+    }
     if (!row.sortPosition && row.position)
         row.sortPosition = deriveSortPosition(*row.position);
 
@@ -158,6 +168,10 @@ void applyRow(const Row& row, Book& book)
         book.readStatus = *row.shelf;
     if (row.timesRead)
         book.timesRead = *row.timesRead;
+    if (row.has("date_started"))
+        book.dateStarted = optionalText(row.cell("date_started"));
+    if (row.has("date_finished"))
+        book.dateFinished = optionalText(row.cell("date_finished"));
     if (row.has("rating"))
         book.rating = row.rating;
     if (row.has("isbn13"))
@@ -297,6 +311,15 @@ private:
             Book stored = *books_.find(existing->id);
             if (stored.timesRead != *row.timesRead) {
                 stored.timesRead = *row.timesRead;
+                books_.update(stored);
+            }
+        }
+        // The trigger also stamps today's finish date; the file's wins.
+        if (row.has("date_finished")) {
+            Book stored = *books_.find(existing->id);
+            const auto fileDate = optionalText(row.cell("date_finished"));
+            if (fileDate && stored.dateFinished != fileDate) {
+                stored.dateFinished = fileDate;
                 books_.update(stored);
             }
         }

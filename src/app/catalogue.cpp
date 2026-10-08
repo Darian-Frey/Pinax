@@ -311,8 +311,21 @@ Catalogue::SaveResult Catalogue::save(const domain::BookEdit& edit, std::optiona
             if (book.readStatus == domain::ReadStatus::Read && book.timesRead == 0)
                 book.timesRead = 1;
             book.id = books.create(book);
-        } else if (!books.update(book)) {
-            return {0, "This book is no longer in the catalogue."};
+        } else {
+            const auto before = books.find(book.id);
+            if (!before || !books.update(book))
+                return {0, "This book is no longer in the catalogue."};
+            // Moving into Read stamps today's date (trg_book_finished). A
+            // finish date the owner changed in this very edit wins over it;
+            // one merely carried along does not, so a re-read gets its new
+            // date (IMP-010).
+            if (book.dateFinished && book.dateFinished != before->dateFinished) {
+                auto stored = books.find(book.id);
+                if (stored && stored->dateFinished != book.dateFinished) {
+                    stored->dateFinished = book.dateFinished;
+                    books.update(*stored);
+                }
+            }
         }
 
         std::vector<domain::Credit> credits;
