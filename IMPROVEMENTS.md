@@ -23,6 +23,29 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
+### IMP-011 Let Fetch all move on while Google Books is backing off
+
+**Status:** suggested
+**Found:** 2026-10-08 (closing Phase 3, a full Fetch all over a copy of the owner's catalogue)
+**Location:** `src/app/enricher.cpp`, `findByTitle`; `src/app/batch_enricher.cpp`; `src/metadata/request_queue.cpp`
+**Effort:** small to medium
+**Description.** Google Books is asked only when Open Library finds
+nothing, yet while its queue backs off the whole batch waits. During the
+run Google answered `503 backendFailed` in bursts, on our requests and on a
+plain query sent by hand; the queue paused 30 s, 60 s, 120 s and so on, up
+to its ten-minute ceiling, and the first attempt sat idle for over ten
+minutes with Open Library answering normally throughout. That is AV-009's
+pause behaving as designed, but a second-opinion provider holding up every
+book is a poor trade.
+**Proposal.** When the Google queue is paused, let the batch put that book
+back at the end of its run (or record it as not yet asked) and carry on with
+the next one, returning to it once the pause ends; the panel's single fetch
+keeps waiting, since the owner is watching it.
+**Trade-offs.** A book's outcome then depends on the order the batch
+reached it, and progress figures need a "deferred" count. Leaving it as it
+is keeps one book in flight at a time and the run simple to resume, at the
+cost of long silent waits.
+
 ## Applied
 
 ### IMP-010 Let a finish date be entered for books read before Pinax

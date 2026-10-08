@@ -96,7 +96,19 @@ everything published reports complete to date.
 
 ## Phase 3 — Metadata enrichment
 **Goal:** Synopses, covers and genre pulled from public providers.
-**Status:** In progress
+**Status:** Complete (2026-10-08). Fetch all ran live over a copy of the
+owner's catalogue of 447 books. It was stopped once, after Google Books
+stalled it with bursts of `503 backendFailed` (IMP-011), and resumed. Between
+the two runs every book was looked up: 24 matched earlier, 12 found nowhere
+and marked failed, and 411 found by title and queued for review. None was
+taken unasked, since the catalogue holds no ISBNs yet (AV-010). Twelve
+hand-entered fields were snapshotted for each of the 447 books before the run
+and compared afterwards; none differed. Open Library has no daily quota, and
+Google was asked only when Open Library had nothing. Add by ISBN filling a
+missing volume was shown on 2026-10-07: *Consider Phlebas* attached to The
+Culture's waiting entry and made the series 10 of 10, with no second record.
+F-015 closes with one exception: publisher, year and page count have no
+source column.
 **Features delivered:** F-011, F-012, F-013, F-014, F-015, F-024
 **Deliverables:**
 - [x] `GenreRepository`, carried from Phase 1 — 2026-10-06
@@ -133,8 +145,10 @@ moves the series to complete, without creating a second record.
 
 ## Phase 4 — Browsing and export
 **Goal:** Get data in and out, and find things in it.
-**Status:** In progress — every deliverable done (2026-10-07); closing the
-phase is the owner's call
+**Status:** Complete (2026-10-08). On a copy of the owner's catalogue the
+application, its exported workbook and its SQL dump restored into an empty
+file all gave 447 books, 180 read and 267 unread, and 52 of 145 series
+complete with 340 entries held.
 **Features delivered:** F-016 to F-023, and F-026 to F-028
 **Deliverables:**
 - [x] Sort, filter and group controls over the list view — 2026-10-07:

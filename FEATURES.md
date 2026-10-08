@@ -196,7 +196,7 @@ in either form (2026-10-07).
 - The provider that supplied it is recorded alongside it.
 - A failed lookup marks the book as unmatched and leaves prior content intact.
 - A synopsis edited by hand is marked manual and survives subsequent fetches.
-**Status:** In progress — Fetch metadata in the panel looks one book up, by
+**Status:** Complete (2026-10-08) — Fetch metadata in the panel looks one book up, by
 ISBN (an ISBN-10 as its ISBN-13) or else by title and first author, and
 offers the candidates; the one chosen writes its synopsis with its source. A
 lookup that finds nothing records `failed` (SPEC.md §3.4) — "not matched"
@@ -218,7 +218,7 @@ title-and-author match is never auto-accepted).
   path, not image data.
 - A book with no cover found displays a placeholder rather than failing.
 - Re-running enrichment does not re-download a cover already cached.
-**Status:** In progress — the cover cache downloads once, refuses anything
+**Status:** Complete (2026-10-08) — the cover cache downloads once, refuses anything
 but a real image, keeps covers beside the database and removes them with
 their book; the panel shows a cached cover or the placeholder. A candidate
 chosen in Fetch metadata brings its cover, unless the book's cover was set by
@@ -239,10 +239,10 @@ a thumbnail shows that cover at twice the size (2026-10-08).
 - The source of each category is recorded, so a hand-entered category is
   distinguishable from a fetched one.
 - The catalogue can be filtered and grouped by category.
-**Status:** In progress — a chosen candidate's categories are stored verbatim
+**Status:** Complete (2026-10-08) — a chosen candidate's categories are stored verbatim
 in `genre`/`book_genre` with their source, beside any the owner added, which
-keep theirs; the panel lists a book's genres. Filtering and grouping by
-genre wait for Phase 4 (F-017, F-018). The British Library's subject
+keep theirs; the panel lists a book's genres. The list filters by genre
+(F-017) and groups by it (F-018). The British Library's subject
 headings arrive as genres under its own name (D-022, schema version 5).
 **Notes:** Subgenre classification at the level of hard SF versus space opera
 is explicitly out of scope at this version — see below.
@@ -252,14 +252,16 @@ is explicitly out of scope at this version — see below.
 **Acceptance:**
 - Every fetched field records which provider supplied it and when.
 - A field entered by hand is never silently replaced by a fetched value.
-**Status:** In progress — synopsis, cover and each genre record their
+**Status:** Complete (2026-10-08), with one exception the owner accepted on
+closing Phase 3 — synopsis, cover and each genre record their
 provider; the book records `metadata_status` and `metadata_fetched_at`. A
 searched candidate's publisher and page count are taken only when the owner
 ticks "This is my edition", and then from the edition behind its cover
 (D-029).
 Publisher, year and page count carry no source column, so a fetch fills
 them only when empty and never replaces one (SPEC.md §3.5). A per-field
-source for those would need a schema change, not proposed.
+source for those would need a schema change; the second criterion holds
+for them, the first does not, and that is the exception.
 
 ### F-024 Add a book by ISBN
 **Priority:** Must

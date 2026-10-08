@@ -2,11 +2,12 @@
 
 > **Status:** Active
 > **Provenance:** Shane Hartley (author); Claude (primary auditor)
-> **Last reviewed:** 2026-10-06
-> **Why this status:** Phases 1 and 2 complete — the catalogue is imported,
-> listed, sorted, viewed and edited, with reading state, ratings, and series
-> that know what they lack. Phase 3, metadata enrichment, is under way:
-> one book at a time from the panel. Toolchain
+> **Last reviewed:** 2026-10-08
+> **Why this status:** Phases 1 to 4 complete — the catalogue is imported,
+> listed, sorted, filtered, searched, viewed and edited, with reading state,
+> ratings, and series that know what they lack; metadata is fetched one book
+> at a time or for the whole catalogue; it backs up and exports to SQL,
+> Excel and CSV. Phase 5, barcode scanning, waits on a webcam. Toolchain
 > fixed by D-001. `LICENSE` is deliberately absent — see Licence.
 
 A Linux desktop catalogue for a personal physical library. Pinax tracks what is
@@ -116,7 +117,7 @@ Packages, verified versions and troubleshooting are in [`BUILD.md`](BUILD.md).
 ```
 pinax/
 ├── db/
-│   ├── schema.sql        schema version 4, always the latest in full
+│   ├── schema.sql        schema version 6, always the latest in full
 │   └── migrations/       NNN_*.sql, one step per version, for older files
 ├── CMakeLists.txt
 ├── src/                  one directory per module, per ARCHITECTURE.md §2
@@ -135,14 +136,14 @@ pinax/
 ├── seed/                 the real catalogue; git-ignored, never committed
 ├── README.md
 ├── BUILD.md              requirements, build, test, troubleshooting
-├── FEATURES.md           F-001 … F-025, MoSCoW priorities, acceptance criteria
-├── ROADMAP.md            Phases 0–2 complete; Phases 3–5 planned
+├── FEATURES.md           F-001 … F-028, MoSCoW priorities, acceptance criteria
+├── ROADMAP.md            Phases 0–4 complete; Phase 5 planned
 ├── ARCHITECTURE.md       modules, data flow, invariants
-├── DECISIONS.md          D-001 … D-020, append-only
+├── DECISIONS.md          D-001 … D-029, append-only
 ├── SPEC.md               CSV format, ISBN validation, provider contracts, exports
-├── ATTACK_VECTORS.md     AV-001 … AV-013, failure modes with detection
-├── BUGS.md               empty; present so Rule 8 applies from commit one
-├── IMPROVEMENTS.md       empty; same reason
+├── ATTACK_VECTORS.md     AV-001 … AV-014, failure modes with detection
+├── BUGS.md               BUG-001 … BUG-006, all fixed
+├── IMPROVEMENTS.md       IMP-001 … IMP-011
 ├── CLAUDE.md             handoff: current state, invariants, pitfalls
 └── CHANGELOG.md
 ```

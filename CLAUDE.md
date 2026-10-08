@@ -17,7 +17,7 @@ database and exports to SQL, CSV and Excel.
 
 ## 2. Current state
 
-**Phases 1 and 2 closed (2026-10-05, 2026-10-06).** The application opens and upgrades its database, imports books (`--import`) and series contents (`--import-series`), lists and sorts, edits books and credits in the panel (F2), adds (Ctrl+N), deletes (Delete), toggles read (R) and rates (1–9, 0). The rail filters by read state and series; a series has its own page with the volumes not owned in place, an entry editor and Mark as owned; NEEDS ATTENTION is the shopping list. F-001–F-010 Complete. Phase 3 under way: Fetch metadata in the panel looks one book up, offers candidates, and writes the chosen one under SPEC.md §3.5; Fetch all does it for the catalogue, with Review matches for what needs confirming; Add by ISBN adds a book, or gives a held copy its ISBN, after a confirmation card.
+**Phases 1 to 4 closed (2026-10-05, 2026-10-06, and 3 and 4 on 2026-10-08).** The application opens, creates and upgrades catalogues, imports books (`--import`) and series contents (`--import-series`), lists, sorts, filters, groups and searches, edits books and credits in the panel (F2), adds (Ctrl+N), deletes (Delete), toggles read (R) and rates (1–9, 0). The rail filters by read state and series; a series has its own page with the volumes not owned in place, an entry editor and Mark as owned; NEEDS ATTENTION is the shopping list. Fetch metadata in the panel looks one book up, offers candidates, and writes the chosen one under SPEC.md §3.5; Fetch all does it for the catalogue, with Review matches for what needs confirming; Add by ISBN adds a book, or gives a held copy its ISBN, after a confirmation card. It backs up, restores, and exports to SQL, Excel and CSV. Every committed feature is Complete but F-025, the webcam scanner (a Could).
 
 | Path | State |
 |---|---|
@@ -30,14 +30,14 @@ database and exports to SQL, CSV and Excel.
 | `src/app/`, `src/main.cpp` | `Catalogue` (connection + repositories: `summaries`, `detail`, `save(Book)`, `save(BookEdit)` which creates at id 0 and resolves credits, `remove`, `toggleRead`, `setRating`). Also `countWithReadStatus`, `seriesStatuses` (filed as titles), `bookIds(BookFilter)`, `seriesRows`, `seriesDetail`, `entry`, `saveEntry`, `removeEntry`, `attach`, `seriesCredits`, `nextSortPosition`; `save(BookEdit, attachTo)` for Mark as owned; `missingVolumes`, `libraryTotals`; for Add by ISBN `bookWithIsbn`, `creditsFor`, `booksLike`, `seriesProposals`, `addBook`, `giveIsbn`; `dataDirectory`, `setCover` (never over a manual cover), `enrich` (a chosen candidate, one transaction, returns the cover URL), `markLookupFailed`. `Enricher` asks the providers (ISBN then title, Open Library then Google with a key; one queue per host), completes a searched candidate's synopsis, fetches covers, and `cancel`s; it writes nothing. `findGoogleBooksKey` (D-021). `BatchEnricher` runs Fetch all over unmatched books (D-023): takes an ISBN's single title-agreeing answer, queues the rest in memory for review, marks misses failed, stops on unreachable providers. Toolbar: Add a book, Add by ISBN (Ctrl+I), Fetch all metadata, Review matches (n); a progress bar in the status bar. `MainWindow` owns the catalogue it opens (`openCatalogue`, `adoptCatalogue`, `closeCatalogue`; F-026), inspects every file first (`db::inspect`, AV-014), restores (`db::restoreFrom`, `db::restoreDump`; F-027) and imports CSV (F-028), with a menu bar (File, Books, Help), files through a `FileChooser` (D-027) and `RecentCatalogues` in Qt settings (D-028); a splitter of `rail`, `list`, `detail`; rail choice → Catalogue ids → list; selection → panel; panel save → Catalogue → row and rail refreshed. `main` opens argv[1], else the last catalogue open, else `~/.local/share/pinax/pinax.db` — refusing a non-catalogue (exit 1 for a command-line task) — runs `--import` and `--import-series`, or `--backup` / `--dump` / `--xlsx` / `--csv <file>` and quits without a window (F-020 to F-023), finds the Google key, builds the `Enricher` over a `NetworkFetcher`, shows the count. |
 | `tests/` | Qt Test, headless under ctest: `test_main_window`, `test_domain`, `test_db`, `test_book_list`, `test_rail`, `test_series_page`, `test_entry_editor`, `test_import` and `test_series_import` (their seed tests skip without `seed/`), `test_metadata` (recorded responses only; see `tests/fixtures/README.md`), `test_detail_panel`, `test_catalogue`, `test_enricher` (providers, the panel flow and the batch run end to end, over `fake_fetcher.h`, whose replies die with it), `test_catalogue_files` (open, new, close, recent, restore, imports — with settings, backups and file choices in a scratch folder). Add new ones with `pinax_add_test`. `fixtures/schema_v1.sql` is frozen. |
 | `README.md` | Complete. |
-| `FEATURES.md` | Complete. F-001 to F-028. F-001 to F-011, F-016 to F-024 and F-026 to F-028 Complete; F-012, F-013, F-014, F-015 In progress; the rest Not started. |
-| `ROADMAP.md` | Complete. Phases 0–2 done; Phases 3 and 4 have every deliverable ticked, closing each the owner's call; Phase 5 (webcam scanning) not started, waiting on hardware. |
+| `FEATURES.md` | Complete. F-001 to F-028. F-001 to F-024 and F-026 to F-028 Complete (F-015 with its exception: publisher, year and pages have no source column); F-025 and the rest Not started. |
+| `ROADMAP.md` | Complete. Phases 0–4 done, Phases 3 and 4 closed 2026-10-08 with their evidence in the phase status; Phase 5 (webcam scanning) not started, waiting on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
 | `DECISIONS.md` | Complete. D-001 to D-029; D-008 superseded by D-019, the rest Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, what a fetch writes (§3.5), cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-014. Detection implemented for AV-001, AV-002, AV-003, AV-004, AV-005, AV-008, AV-011, AV-014; partly for AV-006, AV-007, AV-010, AV-012, AV-013; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001 to BUG-006 fixed. |
-| `IMPROVEMENTS.md` | No improvement awaiting a decision. IMP-001 to IMP-005 and IMP-007 to IMP-010 applied; IMP-006 deferred. |
+| `IMPROVEMENTS.md` | IMP-011 suggested (let Fetch all move on while Google Books backs off). IMP-001 to IMP-005 and IMP-007 to IMP-010 applied; IMP-006 deferred. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
@@ -56,61 +56,22 @@ code.
 
 ## 3. Active task
 
-**Phases 3 and 4 have every deliverable done** (Phase 4 on 2026-10-07:
-sort, filter, group, search, backup, and SQL, Excel and CSV export; on
-2026-10-08, at the owner's request, catalogue files — F-026 to F-028).
-Closing each is the owner's call, after trying Fetch all and the exports on
-the real catalogue. Phase 5 (webcam scanning) waits on a camera. The
-Phase 3 record below stays until the phase is closed.
+**Nothing is in hand.** Phases 3 and 4 closed on 2026-10-08. Phase 3 closed
+on a live Fetch all over a copy of the owner's catalogue: 447 books, every
+one looked up across an interrupted and a resumed run, and no hand-entered
+field changed. Phase 4 closed when a workbook and a restored dump matched
+the application's counts. The owner's own catalogue has still not had a
+full Fetch all; that is theirs to run, from the toolbar.
 
-**Phase 3 — Metadata enrichment** (F-011 to F-015, F-024). Phases 1 and 2 are
-closed; their history is in ROADMAP.md and CHANGELOG.md.
+**Next: Phase 5 — barcode scanning** (F-025, D-014), blocked until the
+owner buys a webcam with autofocus. Its deliverables are in ROADMAP.md. In
+short: Qt6 Multimedia and ZXing-C++ as optional dependencies that compile
+out cleanly, an EAN-13 capture component in `io` under SPEC.md §6, and a
+live preview feeding Add by ISBN (D-024). Scanning onto an existing book
+backfills ISBNs. AV-012 (misreads) is the vector to test against.
 
-Suggested order:
-
-1. ~~**The `metadata` module and its first dependency.**~~ Done 2026-10-06
-   (D-020), with step 2's clients. Qt Network for HTTP
-   (D-001 already names it). A client with a rate limiter and retry that
-   pauses on HTTP 429 rather than failing (AV-009), asynchronous on the UI
-   thread as ARCHITECTURE.md §4 plans. Tests use recorded JSON responses,
-   never the live providers.
-2. ~~**Google Books by ISBN, then by title and author** (SPEC.md §3.1), mapped
-   to a `domain::Candidate`.~~ Done 2026-10-06, with the providers swapped:
-   Google Books gives a keyless quota of 0, so Open Library is primary and
-   Google needs a key (D-019, SPEC.md §3). A title-and-author match is never accepted
-   without confirmation (AV-010) — and none of the 443 seeded books has an
-   ISBN, so this path is the one the backlog takes.
-3. ~~**Open Library fallback** for covers and older titles (§3.2), and the
-   **cover cache** beside the database (§4).~~ Done 2026-10-06: `CoverCache`
-   and `Catalogue::setCover`.
-4. ~~**Fetch metadata for one book**, provenance on write (F-015), the
-   carried F-004 / AV-001 rule and `GenreRepository`.~~ Done 2026-10-06:
-   `domain::planEnrichment` (SPEC.md §3.5), `Catalogue::enrich`,
-   `app::Enricher`, the panel's Fetching state; the key as D-021. A real
-   fetch of *Surface Detail* into a catalogue copy found it by search and
-   wrote synopsis, year, five genres and the cover. The owner's catalogue
-   has not been fetched into. The British Library was added the same day
-   (D-022): asked with Open Library for an ISBN, it fills publisher, pages
-   and original years, and its headings become genres (schema version 5).
-5. ~~**Batch enrichment**: progress, cancel, resume after interruption or
-   quota (AV-009), and a queue of title-and-author candidates for the owner
-   to confirm or reject.~~ Done 2026-10-06 (D-023): `BatchEnricher`, the
-   toolbar's Fetch all metadata and Review matches. A live 45-second run on
-   a catalogue copy looked up 45 books, queued 40 and found 5 nowhere;
-   the owner's catalogue has not had a full run. BUG-004 (a focused list
-   preselected a search result) found and fixed on the way.
-6. ~~**Add by ISBN** (F-024, D-012): lookup, a confirmation card in the panel,
-   duplicate and series checks, attaching to a waiting volume (AV-007).~~
-   Done 2026-10-07 (D-024): `AddByIsbnView`, Ctrl+I. Held copies without an
-   ISBN are recognised and given it — the way the backlog gains ISBNs. Live
-   on a catalogue copy: *Consider Phlebas* (Orbit 2023) fills The Culture to
-   10 of 10; *Titan* is recognised as held. The webcam scanner (Phase 5)
-   will feed this.
-
-Every Phase 3 deliverable is ticked; closing the phase is the owner's call.
-
-Open with the owner: whether to ask metadata@bl.uk
-about the open SRU endpoint (D-022). IMP-006 is deferred.
+Open with the owner: IMP-011; whether to ask metadata@bl.uk about the open
+SRU endpoint (D-022). IMP-006 is deferred.
 
 The seed: `seed/library.csv` and `seed/series.csv`, made by
 `seed/convert_catalogue.py` from the spreadsheet (all git-ignored). The converter fixes two credits the ` & `

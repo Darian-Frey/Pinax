@@ -12,7 +12,9 @@ change can be traced to the capability or decision that motivated it.
 ## [Unreleased]
 
 Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
-Phase 3 (metadata enrichment) in progress.
+Phase 3 (metadata enrichment) and Phase 4 (browsing and export) closed
+2026-10-08, on a full Fetch all and on exports checked against a copy of the
+owner's catalogue. Phase 5 (barcode scanning) waits on a webcam.
 
 ### Added
 - A cover enlarged on hover: resting the pointer on a candidate's thumbnail,
