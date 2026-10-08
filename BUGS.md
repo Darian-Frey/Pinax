@@ -24,6 +24,26 @@ detection becomes an entry here.
 
 ## Fixed
 
+### BUG-006 Restore from Backup was offered only with a catalogue open
+
+**Status:** fixed (2026-10-08)
+**Found:** 2026-10-08 (by the owner, trying F-027 before it was committed)
+**Location:** `src/app/main_window.cpp`, `restoreChosen` and `updateActions`
+**Severity:** medium
+**Description.** Restore from Backup replaced the open catalogue, so with no
+catalogue open it was greyed out. The owner backed up, closed the catalogue
+— a natural first step before replacing it — and then could not restore.
+**Reproduction (was).** Open a catalogue, Back up, Close Catalogue: File ▸
+Restore from Backup is disabled.
+**Fix.** Restore is offered whenever the panel is not busy. With a
+catalogue open it replaces that one, as before; with none open, the save
+dialogue asks where to restore, suggesting the catalogue last open. A
+catalogue at that path is backed up first; a file there that is not a
+catalogue is refused (AV-014); a new path simply receives the catalogue.
+Either way it then opens. `tests/test_catalogue_files.cpp`,
+`restoringWithNothingOpen`, follows the owner's steps. Fixed in the same
+change as F-027, which had not been committed; logged for the owner's sight.
+
 ### BUG-005 A book's series cannot be edited with the book, and no series can be created
 
 **Status:** fixed (2026-10-07)

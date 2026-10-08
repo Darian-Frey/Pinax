@@ -15,6 +15,15 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- Catalogue files (F-026 to F-028), asked for by the owner: a menu bar with
+  File ▸ New Catalogue, Open Catalogue, Open Recent, Close Catalogue and
+  Quit; Restore from Backup, which backs the open catalogue up first; Import
+  ▸ Catalogue from SQL Dump, rebuilt into a new file and checked; and Import
+  ▸ Books from CSV, as `--import` does, its report in the panel. Files are
+  chosen in the system's dialogue (D-027, amending D-011). Pinax reopens the
+  catalogue last open (D-028). A file that is not a Pinax catalogue, or is
+  from a newer Pinax, is refused and left untouched (AV-014) — in the window
+  and on the command line, which now exits 1 rather than open a window.
 - CSV export (F-023): Export (Ctrl+E) now offers "CSV of the book list" —
   the books the list shows, with its filters, search and sort — in Pinax's
   own import format, so the file can be imported again; each file is

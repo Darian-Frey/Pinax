@@ -135,7 +135,7 @@ moves the series to complete, without creating a second record.
 **Goal:** Get data in and out, and find things in it.
 **Status:** In progress — every deliverable done (2026-10-07); closing the
 phase is the owner's call
-**Features delivered:** F-016, F-017, F-018, F-019, F-020, F-021, F-022, F-023
+**Features delivered:** F-016 to F-023, and F-026 to F-028
 **Deliverables:**
 - [x] Sort, filter and group controls over the list view — 2026-10-07:
       sorting by column header (F-016), the filter bar (F-017), Group by
@@ -149,6 +149,10 @@ phase is the owner's call
       D-025), Export or `--xlsx`
 - [x] CSV export of the current view — 2026-10-07 (F-023), checked by
       re-importing it; a book in several series is a row per series (D-026)
+- [x] Catalogue files, added at the owner's request — 2026-10-08: New, Open,
+      Open Recent, Close, Quit (F-026), restore from a backup or an SQL dump
+      (F-027), import books from CSV in the window (F-028); a menu bar and
+      the system file dialogue (D-027), the last catalogue reopened (D-028)
 **Acceptance:** An exported workbook matches the application's own counts for
 books, read/unread split and series completeness. A dump restores onto an
 empty database and reproduces those same counts.

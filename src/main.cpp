@@ -2,16 +2,21 @@
 #include "app/enricher.h"
 #include "app/main_window.h"
 #include "app/provider_key.h"
+#include "app/recent_catalogues.h"
+#include "db/backup.h"
+#include "db/migrations.h"
 #include "db/db_error.h"
 #include "io/csv_importer.h"
 #include "io/series_importer.h"
 #include "metadata/http.h"
+#include "ui/detail_panel.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
 #include <QFileInfo>
 #include <QNetworkAccessManager>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QStatusBar>
 
@@ -51,11 +56,16 @@ QString reportImport(const QString& csvPath, const pinax::io::ImportReport& repo
     return summary;
 }
 
+// The catalogue named on the command line; else the one last open in the
+// window (F-026, D-028); else ~/.local/share/pinax/pinax.db.
 QString databasePath(const QCommandLineParser& parser)
 {
     const QStringList arguments = parser.positionalArguments();
     if (!arguments.isEmpty())
         return arguments.first();
+    QSettings settings;
+    if (const QString last = pinax::app::RecentCatalogues(settings).last(); !last.isEmpty())
+        return last;
 
     const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
         + QStringLiteral("/pinax");
@@ -112,10 +122,17 @@ int main(int argc, char* argv[])
 
     const QString path = databasePath(parser);
 
-    // Declared before the window, which holds a pointer to it.
+    // Opened here for the command-line tasks; the window then takes it.
     std::unique_ptr<pinax::app::Catalogue> catalogue;
     QString status;
     try {
+        // Never migrate a database that is not a catalogue into one, nor
+        // one from a newer Pinax (F-026).
+        const auto found = pinax::db::inspect(path.toStdString());
+        if (!found.empty && !found.catalogue)
+            throw pinax::db::DbError("this is not a Pinax catalogue: " + found.problem, 26);
+        if (found.catalogue && found.version > pinax::db::latestSchemaVersion)
+            throw pinax::db::DbError("it was made by a newer Pinax", 26);
         catalogue = std::make_unique<pinax::app::Catalogue>(path.toStdString());
 
         QString importSummary;
@@ -185,6 +202,14 @@ int main(int argc, char* argv[])
         status = volumes + QStringLiteral(" · ") + (importSummary.isEmpty() ? path : importSummary);
     } catch (const pinax::db::DbError& error) {
         catalogue.reset();
+        // A task for the command line has nothing to do without its
+        // catalogue: say so and stop, rather than open a window.
+        for (const auto* task : {&backupOption, &dumpOption, &xlsxOption, &csvOption, &importOption, &importSeriesOption}) {
+            if (parser.isSet(*task)) {
+                std::fprintf(stderr, "%s: cannot open: %s\n", path.toLocal8Bit().constData(), error.what());
+                return 1;
+            }
+        }
         qCritical("pinax.db: %s", error.what());
         status = QObject::tr("Could not open %1: %2").arg(path, QString::fromUtf8(error.what()));
     }
@@ -198,8 +223,13 @@ int main(int argc, char* argv[])
     pinax::app::Enricher enricher(fetcher, googleKey);
 
     pinax::app::MainWindow window;
-    window.setCatalogue(catalogue.get());
     window.setEnricher(&enricher);
+    if (catalogue) {
+        window.adoptCatalogue(std::move(catalogue));
+    } else {
+        window.detailPanel()->showReport(QObject::tr("No catalogue open"),
+            status + QStringLiteral("\n\n") + QObject::tr("File ▸ Open Catalogue or New Catalogue."), true);
+    }
     window.statusBar()->showMessage(status);
 
     window.show();

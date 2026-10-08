@@ -32,6 +32,7 @@ ExportView::ExportView(QWidget* parent)
     , format_(new QComboBox(this))
     , description_(makeNote(QStringLiteral("export.description"), this))
     , path_(new QLineEdit(this))
+    , choose_(new QPushButton(tr("Choose…"), this))
     , warning_(makeNote(QStringLiteral("export.warning"), this))
     , outcome_(makeNote(QStringLiteral("export.outcome"), this))
     , export_(new QPushButton(tr("Export"), this))
@@ -56,7 +57,13 @@ ExportView::ExportView(QWidget* parent)
     auto* completer = new QCompleter(files, this);
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     path_->setCompleter(completer);
-    layout->addWidget(path_);
+    auto* where = new QHBoxLayout;
+    where->addWidget(path_, 1);
+    choose_->setObjectName(QStringLiteral("export.choose"));
+    choose_->setAutoDefault(false);
+    where->addWidget(choose_);
+    layout->addLayout(where);
+    connect(choose_, &QPushButton::clicked, this, &ExportView::chooseRequested);
     warning_->setStyleSheet(QStringLiteral("color: %1;").arg(accent().name()));
     layout->addWidget(warning_);
 
@@ -132,6 +139,11 @@ void ExportView::showProblem(const QString& message)
 {
     outcome_->setStyleSheet(QStringLiteral("color: #d9534f;"));
     outcome_->setText(message);
+}
+
+void ExportView::setPath(const QString& path)
+{
+    path_->setText(path);
 }
 
 QString ExportView::path() const

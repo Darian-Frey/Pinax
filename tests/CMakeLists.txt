@@ -30,3 +30,4 @@ target_compile_definitions(test_import PRIVATE
 pinax_add_test(test_enricher pinax_app)
 target_compile_definitions(test_enricher PRIVATE
     PINAX_TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
+pinax_add_test(test_catalogue_files pinax_app pinax_io)

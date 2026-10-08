@@ -23,16 +23,21 @@ public:
     void showProblem(const QString& message);
 
     QString path() const;
+    // A path chosen elsewhere (the save dialogue, D-027).
+    void setPath(const QString& path);
     void focusPath();
 
 signals:
     void backupRequested(const QString& path);
     void closed();
+    // Choose… pressed: the caller offers the save dialogue.
+    void chooseRequested();
 
 private:
     void updateWarning();
 
     QLineEdit* path_;
+    QPushButton* choose_;
     QLabel* warning_;
     QLabel* outcome_;
     QPushButton* backUp_;

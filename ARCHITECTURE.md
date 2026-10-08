@@ -221,7 +221,15 @@ module permitted to know about all the others.
   again. The window's Review matches walks the queue in the panel.
 - **Provider key** — `findGoogleBooksKey` reads the Google key from the
   environment or a `google-books.key` file, never from the build (D-021).
-- **MainWindow** — a toolbar (Add a book, Ctrl+N), the splitter. While the
+- **Catalogue files** (F-026 to F-028) — `MainWindow` owns the catalogue it
+  opens (`openCatalogue`, `adoptCatalogue` from `main`, `closeCatalogue`),
+  inspecting every file first (`db::inspect`, AV-014); `RecentCatalogues`
+  keeps the recent list in Qt's settings (D-028). Restores go through
+  `db::restoreFrom` and `db::restoreDump`, each behind a safety backup or
+  into a new file. Files are chosen through a `FileChooser` — the system
+  dialogue, or a test's function (D-027).
+- **MainWindow** — a menu bar (File, Books, Help) and a toolbar sharing their
+  actions, the splitter. While the
   panel is busy — editing, or asking about a deletion — the list and Add a
   book are disabled, so the selection cannot move under an unfinished edit
   (IMP-002). List selection drives the detail panel

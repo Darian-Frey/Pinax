@@ -22,4 +22,23 @@ struct BackupReport {
 // DbError is thrown with the reason.
 BackupReport backupTo(Connection& live, const std::string& path);
 
+// What a file is, looked at read-only before anything opens it for writing
+// (F-026): a Pinax catalogue at some schema version, or not.
+struct CatalogueFile {
+    bool exists = false;
+    bool empty = false;      // no file, or a file of no bytes: a new catalogue may go there
+    bool catalogue = false;  // an SQLite database with Pinax's schema_version table
+    int version = 0;         // its schema version, if a catalogue
+    std::int64_t books = 0;  // if a catalogue
+    std::string problem;     // why it is not one, in the owner's terms
+};
+CatalogueFile inspect(const std::string& path);
+
+// Replaces the catalogue at `target` — which must not be open — with the one
+// at `source`, a backup (F-027): `source` is copied with VACUUM INTO to a
+// partial file beside `target`, checked as backupTo checks, and only then
+// renamed over `target`, whose -wal and -shm files go first. On any failure
+// `target` is untouched and DbError is thrown.
+BackupReport restoreFrom(const std::string& source, const std::string& target);
+
 } // namespace pinax::db

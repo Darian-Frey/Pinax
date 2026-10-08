@@ -13,10 +13,14 @@
 #include <QList>
 #include <QMainWindow>
 
+#include <functional>
+#include <memory>
 #include <optional>
 #include <vector>
 
 class QAction;
+class QMenu;
+class QSettings;
 class QProgressBar;
 class QSplitter;
 class QStackedWidget;
@@ -45,9 +49,42 @@ class MainWindow : public QMainWindow {
 
 public:
     explicit MainWindow(QWidget* parent = nullptr);
+    ~MainWindow() override;
 
-    // Shows this catalogue's books. The catalogue must outlive the window.
+    // Shows this catalogue's books. The catalogue must outlive the window;
+    // the window does not own it (tests). nullptr shows none.
     void setCatalogue(Catalogue* catalogue);
+
+    // Catalogue files (F-026). The window owns what it opens.
+    // Opens the catalogue at `path` — creating it if `create` — and shows it;
+    // the one open before is closed. Refuses a file that is not a Pinax
+    // catalogue, or one from a newer Pinax, saying why in the panel.
+    bool openCatalogue(const QString& path, bool create = false);
+    // Takes a catalogue already opened, as main opens one for its imports.
+    void adoptCatalogue(std::unique_ptr<Catalogue> catalogue);
+    void closeCatalogue();
+    // The open catalogue's file, or empty.
+    QString cataloguePath() const;
+
+    // Choosing a file (D-027): the system's dialogue unless a test supplies
+    // its own chooser. An empty answer is "cancelled".
+    struct FileRequest {
+        enum class Kind { OpenCatalogue, NewCatalogue, ImportCsv, ImportDump, DumpTarget, RestoreBackup, Save };
+        Kind kind = Kind::OpenCatalogue;
+        QString caption;
+        QString start;
+        QString filter;
+        bool save = false;
+    };
+    using FileChooser = std::function<QString(const FileRequest&)>;
+    void setFileChooser(FileChooser chooser);
+    // Where recent catalogues are remembered (D-028); Pinax's own settings
+    // file unless a test supplies one.
+    void setSettings(QSettings* settings);
+    QMenu* recentMenu() const { return recentMenu_; }
+    // Where backups go — the safety copies before an import or restore, and
+    // the suggestion for Back up; Documents/Pinax backups unless set.
+    void setBackupFolder(const QString& folder);
     // Looks books up for "Fetch metadata". Without one, Fetch says so. The
     // enricher must outlive the window.
     void setEnricher(Enricher* enricher);
@@ -66,12 +103,41 @@ public:
     QAction* addByIsbnAction() const { return addByIsbn_; }
     QAction* backUpAction() const { return backUp_; }
     QAction* exportAction() const { return export_; }
+    QAction* newCatalogueAction() const { return newCatalogue_; }
+    QAction* openCatalogueAction() const { return openCatalogue_; }
+    QAction* closeCatalogueAction() const { return closeCatalogue_; }
+    QAction* importCsvAction() const { return importCsv_; }
+    QAction* importDumpAction() const { return importDump_; }
+    QAction* restoreAction() const { return restore_; }
+    QAction* quitAction() const { return quit_; }
     // True while a series is chosen and the middle panel lists its entries.
     bool showingSeries() const;
     // True while the shopping list is in the middle panel (F-010).
     bool showingMissing() const;
 
+protected:
+    // Not while a form is open: the edit would be lost unsaid.
+    void closeEvent(QCloseEvent* event) override;
+
 private:
+    void buildMenus();
+    // Every action's enabled state, from whether a catalogue is open and
+    // whether the panel is busy.
+    void updateActions();
+    void updateTitle();
+    void rebuildRecentMenu();
+    QSettings& settings();
+    QString chooseFile(const FileRequest& request);
+    QString documentsFolder(const QString& sub) const;
+    // A checked copy of the open catalogue before something replaces or
+    // merges into it; the path, or empty with `problem` set.
+    QString safetyBackup(const QString& why, QString& problem);
+    void newCatalogueChosen();
+    void openCatalogueChosen();
+    void importCsvChosen();
+    void importDumpChosen();
+    void restoreChosen();
+
     void showSelection(const QList<qint64>& ids);
     // The series page's selection: owned books and volumes not owned.
     void showSeriesSelection(const QList<qint64>& bookIds, int missing);
@@ -162,6 +228,21 @@ private:
     void lockWhileBusy();
 
     Catalogue* catalogue_ = nullptr;
+    std::unique_ptr<Catalogue> owned_; // what the window opened itself
+    FileChooser chooser_;
+    QSettings* settings_ = nullptr;
+    std::unique_ptr<QSettings> ownSettings_;
+    QMenu* recentMenu_ = nullptr;
+    QAction* newCatalogue_ = nullptr;
+    QAction* openCatalogue_ = nullptr;
+    QAction* closeCatalogue_ = nullptr;
+    QAction* importCsv_ = nullptr;
+    QAction* importDump_ = nullptr;
+    QAction* restore_ = nullptr;
+    QAction* quit_ = nullptr;
+    QAction* find_ = nullptr;
+    QAction* about_ = nullptr;
+    QString backupFolder_;
     Enricher* enricher_ = nullptr;
     // What the last lookup offered, for the candidate chosen.
     struct Offer {

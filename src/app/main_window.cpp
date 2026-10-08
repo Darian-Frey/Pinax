@@ -2,6 +2,12 @@
 
 #include "app/batch_enricher.h"
 #include "app/catalogue.h"
+#include "app/recent_catalogues.h"
+#include "db/backup.h"
+#include "db/connection.h"
+#include "db/dump.h"
+#include "db/migrations.h"
+#include "io/csv_importer.h"
 #include "app/enricher.h"
 #include "ui/book_list_model.h"
 #include "ui/book_list_view.h"
@@ -14,17 +20,25 @@
 #include "ui/add_by_isbn_view.h"
 #include "ui/backup_view.h"
 #include "ui/export_view.h"
+#include "ui/report_view.h"
 #include "ui/rail_view.h"
 #include "ui/missing_page.h"
 #include "ui/series_page.h"
 
 #include <QAction>
+#include <QCloseEvent>
+#include <QCoreApplication>
 #include <QDate>
+#include <QDateTime>
 #include <QDir>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QLabel>
+#include <QMenu>
+#include <QMenuBar>
 #include <QPointer>
 #include <QProgressBar>
+#include <QSettings>
 #include <QShortcut>
 #include <QSplitter>
 #include <QStackedWidget>
@@ -76,16 +90,6 @@ MainWindow::MainWindow(QWidget* parent)
         applyQuery();
     });
     connect(filterBar_, &ui::FilterBar::groupingChanged, this, &MainWindow::applyGrouping);
-    // Ctrl+F: to the search, from anywhere in the window (F-019).
-    auto* find = new QShortcut(QKeySequence::Find, this);
-    find->setContext(Qt::WindowShortcut);
-    connect(find, &QShortcut::activated, this, [this] {
-        if (!catalogue_ || detail_->isBusy())
-            return;
-        if (centre_->currentWidget() != listPage_)
-            applyQuery(); // back to the list, filters as they were
-        filterBar_->focusSearch();
-    });
     centre_->addWidget(listPage_);
     centre_->addWidget(seriesPage_);
     missingPage_->setObjectName(QStringLiteral("missingPage"));
@@ -227,6 +231,23 @@ MainWindow::MainWindow(QWidget* parent)
                "SQL dump keeps.")},
     });
     connect(detail_->exportView(), &ui::ExportView::exportRequested, this, &MainWindow::exportTo);
+    // Choose…: the save dialogue fills the path (D-027).
+    connect(detail_->backupView(), &ui::BackupView::chooseRequested, this, [this] {
+        const QString path = chooseFile({FileRequest::Kind::Save, tr("Back Up To"), detail_->backupView()->path(),
+            tr("Pinax catalogues (*.db)"), true});
+        if (!path.isEmpty())
+            detail_->backupView()->setPath(path);
+    });
+    connect(detail_->exportView(), &ui::ExportView::chooseRequested, this, [this] {
+        const QString path = chooseFile({FileRequest::Kind::Save, tr("Export To"), detail_->exportView()->path(),
+            QString(), true});
+        if (!path.isEmpty())
+            detail_->exportView()->setPath(path);
+    });
+    connect(detail_->reportView(), &ui::ReportView::closed, this, [this] {
+        detail_->showNothing();
+        refreshPanel();
+    });
     connect(detail_->exportView(), &ui::ExportView::closed, this, [this] {
         detail_->showNothing();
         refreshPanel();
@@ -261,7 +282,17 @@ MainWindow::MainWindow(QWidget* parent)
     statusBar()->addPermanentWidget(batchBar_);
     statusBar()->addPermanentWidget(keys);
 
+    buildMenus();
+    updateActions();
+    updateTitle();
     resize(railWidth + listWidth + detailWidth, 700);
+}
+
+MainWindow::~MainWindow()
+{
+    // The batch run refers to the catalogue: stopped and gone before it is.
+    delete batch_;
+    batch_ = nullptr;
 }
 
 void MainWindow::lockWhileBusy()
@@ -274,12 +305,7 @@ void MainWindow::lockWhileBusy()
     missingPage_->setEnabled(!busy);
     rail_->setEnabled(!busy);
     filterBar_->setEnabled(!busy);
-    addBook_->setEnabled(!busy);
-    backUp_->setEnabled(!busy && catalogue_);
-    export_->setEnabled(!busy && catalogue_);
-    addByIsbn_->setEnabled(!busy && enricher_ && catalogue_);
-    if (fetchAll_)
-        showBatchProgress();
+    updateActions();
     if (detail_->state() == ui::DetailPanel::State::Adding)
         statusBar()->showMessage(tr("Adding by ISBN — Esc cancels"));
     else if (detail_->state() == ui::DetailPanel::State::BackingUp)
@@ -301,12 +327,431 @@ void MainWindow::lockWhileBusy()
 void MainWindow::setCatalogue(Catalogue* catalogue)
 {
     catalogue_ = catalogue;
+    if (owned_ && owned_.get() != catalogue)
+        owned_.reset(); // one the window opened, now replaced by the caller's
     query_ = {};
     filterBar_->setQuery(query_);
     list_->setBooks(catalogue_ ? catalogue_->summaries() : std::vector<domain::BookSummary> {});
     refreshRail();
     // The batch run belongs to a catalogue; make it afresh for this one.
     setEnricher(enricher_);
+    detail_->showNothing();
+    updateActions();
+    updateTitle();
+    if (!catalogue_)
+        statusBar()->showMessage(tr("No catalogue open — File ▸ Open or New"));
+}
+
+// ---------------------------------------------------------------------------
+// Catalogue files and menus (F-026 to F-028, D-027, D-028)
+
+void MainWindow::buildMenus()
+{
+    QMenu* file = menuBar()->addMenu(tr("&File"));
+    newCatalogue_ = file->addAction(tr("&New Catalogue…"), this, &MainWindow::newCatalogueChosen);
+    newCatalogue_->setObjectName(QStringLiteral("newCatalogue"));
+    newCatalogue_->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
+    openCatalogue_ = file->addAction(tr("&Open Catalogue…"), this, &MainWindow::openCatalogueChosen);
+    openCatalogue_->setObjectName(QStringLiteral("openCatalogue"));
+    openCatalogue_->setShortcut(QKeySequence::Open);
+    recentMenu_ = file->addMenu(tr("Open &Recent"));
+    recentMenu_->setObjectName(QStringLiteral("recentMenu"));
+    connect(recentMenu_, &QMenu::aboutToShow, this, &MainWindow::rebuildRecentMenu);
+    closeCatalogue_ = file->addAction(tr("&Close Catalogue"), this, &MainWindow::closeCatalogue);
+    closeCatalogue_->setObjectName(QStringLiteral("closeCatalogue"));
+    closeCatalogue_->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_W));
+    file->addSeparator();
+    QMenu* import = file->addMenu(tr("&Import"));
+    importCsv_ = import->addAction(tr("Books from &CSV…"), this, &MainWindow::importCsvChosen);
+    importCsv_->setObjectName(QStringLiteral("importCsv"));
+    importCsv_->setToolTip(tr("Merge books from a CSV file into this catalogue (F-028)"));
+    importDump_ = import->addAction(tr("Catalogue from &SQL Dump…"), this, &MainWindow::importDumpChosen);
+    importDump_->setObjectName(QStringLiteral("importDump"));
+    restore_ = file->addAction(tr("&Restore from Backup…"), this, &MainWindow::restoreChosen);
+    restore_->setObjectName(QStringLiteral("restore"));
+    file->addAction(export_);
+    file->addAction(backUp_);
+    file->addSeparator();
+    quit_ = file->addAction(tr("&Quit"), this, &QWidget::close);
+    quit_->setObjectName(QStringLiteral("quit"));
+    quit_->setShortcut(QKeySequence::Quit);
+
+    QMenu* books = menuBar()->addMenu(tr("&Books"));
+    books->addAction(addBook_);
+    books->addAction(addByIsbn_);
+    find_ = books->addAction(tr("&Find…"), this, [this] {
+        // To the search, from anywhere in the window (F-019).
+        if (!catalogue_ || detail_->isBusy())
+            return;
+        if (centre_->currentWidget() != listPage_)
+            applyQuery(); // back to the list, filters as they were
+        filterBar_->focusSearch();
+    });
+    find_->setObjectName(QStringLiteral("find"));
+    find_->setShortcut(QKeySequence::Find);
+    books->addSeparator();
+    books->addAction(fetchAll_);
+    books->addAction(review_);
+
+    QMenu* help = menuBar()->addMenu(tr("&Help"));
+    about_ = help->addAction(tr("&About Pinax"), this, [this] {
+        detail_->showReport(tr("Pinax %1").arg(QCoreApplication::applicationVersion()),
+            tr("A catalogue for a personal physical library: what is on the shelf, what has been read, "
+               "and what each series still lacks.\n\nNamed for the Pinakes, Callimachus's catalogue of "
+               "the Library of Alexandria."));
+    });
+}
+
+void MainWindow::updateActions()
+{
+    const bool busy = detail_->isBusy();
+    const bool open = catalogue_ != nullptr;
+    for (QAction* action : {newCatalogue_, openCatalogue_, importDump_, restore_})
+        if (action)
+            action->setEnabled(!busy);
+    if (recentMenu_)
+        recentMenu_->setEnabled(!busy);
+    for (QAction* action : {closeCatalogue_, importCsv_, find_, addBook_, backUp_, export_})
+        if (action)
+            action->setEnabled(!busy && open);
+    if (addByIsbn_)
+        addByIsbn_->setEnabled(!busy && open && enricher_);
+    if (fetchAll_)
+        showBatchProgress();
+}
+
+void MainWindow::updateTitle()
+{
+    const QString path = cataloguePath();
+    setWindowTitle(path.isEmpty() ? QStringLiteral("Pinax")
+                                  : QStringLiteral("%1 — Pinax").arg(QFileInfo(path).fileName()));
+    setWindowFilePath(path);
+}
+
+QString MainWindow::cataloguePath() const
+{
+    if (!catalogue_ || catalogue_->path() == ":memory:")
+        return {};
+    return QFileInfo(QString::fromStdString(catalogue_->path())).absoluteFilePath();
+}
+
+void MainWindow::setFileChooser(FileChooser chooser)
+{
+    chooser_ = std::move(chooser);
+}
+
+void MainWindow::setBackupFolder(const QString& folder)
+{
+    backupFolder_ = folder;
+}
+
+void MainWindow::setSettings(QSettings* settings)
+{
+    settings_ = settings;
+}
+
+QSettings& MainWindow::settings()
+{
+    if (settings_)
+        return *settings_;
+    if (!ownSettings_)
+        ownSettings_ = std::make_unique<QSettings>(); // ~/.config/Pinax/Pinax.conf
+    return *ownSettings_;
+}
+
+QString MainWindow::chooseFile(const FileRequest& request)
+{
+    if (chooser_)
+        return chooser_(request);
+    // The one kind of dialogue Pinax shows (D-027).
+    return request.save ? QFileDialog::getSaveFileName(this, request.caption, request.start, request.filter)
+                        : QFileDialog::getOpenFileName(this, request.caption, request.start, request.filter);
+}
+
+QString MainWindow::documentsFolder(const QString& sub) const
+{
+    QString folder = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    if (folder.isEmpty())
+        folder = QDir::homePath();
+    return folder + QLatin1Char('/') + sub;
+}
+
+void MainWindow::rebuildRecentMenu()
+{
+    recentMenu_->clear();
+    const QStringList recent = RecentCatalogues(settings()).list();
+    for (const QString& path : recent) {
+        QAction* action = recentMenu_->addAction(QFileInfo(path).fileName(), this, [this, path] {
+            if (!detail_->isBusy())
+                openCatalogue(path);
+        });
+        action->setToolTip(path);
+        action->setData(path);
+        action->setEnabled(path != cataloguePath());
+    }
+    if (recent.isEmpty())
+        recentMenu_->addAction(tr("No catalogues yet"))->setEnabled(false);
+}
+
+bool MainWindow::openCatalogue(const QString& path, bool create)
+{
+    const QString file = QFileInfo(path).absoluteFilePath();
+    const auto found = db::inspect(file.toStdString());
+    auto refuse = [this, &file](const QString& why) {
+        detail_->showReport(tr("Not opened"), tr("%1\n\n%2").arg(file, why), true);
+        statusBar()->showMessage(tr("Not opened: %1").arg(why), 6000);
+        return false;
+    };
+    if (create && !found.empty)
+        return refuse(tr("A file is already there. Open it, or choose another name for the new catalogue."));
+    if (!create && !found.catalogue) {
+        return refuse(found.exists ? tr("This is not a Pinax catalogue: %1.").arg(QString::fromStdString(found.problem))
+                                   : tr("There is no such file."));
+    }
+    if (found.catalogue && found.version > db::latestSchemaVersion) {
+        return refuse(tr("It was made by a newer Pinax (schema version %1; this one knows %2). It has not been "
+                         "touched.")
+                          .arg(found.version)
+                          .arg(db::latestSchemaVersion));
+    }
+    std::unique_ptr<Catalogue> opened;
+    try {
+        QDir().mkpath(QFileInfo(file).absolutePath());
+        opened = std::make_unique<Catalogue>(file.toStdString());
+    } catch (const db::DbError& error) {
+        return refuse(QString::fromUtf8(error.what()));
+    }
+    adoptCatalogue(std::move(opened));
+    statusBar()->showMessage(create ? tr("New catalogue %1").arg(QFileInfo(file).fileName())
+                                    : tr("%1 · %2 books").arg(QFileInfo(file).fileName()).arg(catalogue_->count()),
+        6000);
+    return true;
+}
+
+void MainWindow::adoptCatalogue(std::unique_ptr<Catalogue> catalogue)
+{
+    // The old one stays alive until the window has let go of it.
+    std::unique_ptr<Catalogue> previous = std::move(owned_);
+    owned_ = std::move(catalogue);
+    setCatalogue(owned_.get());
+    previous.reset();
+    if (owned_ && owned_->path() != ":memory:")
+        RecentCatalogues(settings()).remember(cataloguePath());
+}
+
+void MainWindow::closeCatalogue()
+{
+    if (detail_->isBusy())
+        return;
+    setCatalogue(nullptr);
+    owned_.reset();
+}
+
+void MainWindow::closeEvent(QCloseEvent* event)
+{
+    if (detail_->isEditing()) {
+        statusBar()->showMessage(tr("A form is open — save or cancel it (Esc) before quitting"), 6000);
+        event->ignore();
+        return;
+    }
+    if (batch_)
+        batch_->stop();
+    QMainWindow::closeEvent(event);
+}
+
+QString MainWindow::safetyBackup(const QString& why, QString& problem)
+{
+    const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-ddTHH-mm-ss"));
+    const QString folder = backupFolder_.isEmpty() ? documentsFolder(QStringLiteral("Pinax backups")) : backupFolder_;
+    const QString path = folder + QStringLiteral("/pinax-before-%1-%2.db").arg(why, stamp);
+    const auto result = catalogue_->backupTo(path.toStdString());
+    if (result.problem) {
+        problem = QString::fromStdString(*result.problem);
+        return {};
+    }
+    return QString::fromStdString(result.path);
+}
+
+void MainWindow::newCatalogueChosen()
+{
+    if (detail_->isBusy())
+        return;
+    const QString path = chooseFile({FileRequest::Kind::NewCatalogue, tr("New Catalogue"),
+        documentsFolder(QStringLiteral("pinax.db")), tr("Pinax catalogues (*.db)"), true});
+    if (path.isEmpty())
+        return;
+    openCatalogue(path.endsWith(QStringLiteral(".db")) ? path : path + QStringLiteral(".db"), true);
+}
+
+void MainWindow::openCatalogueChosen()
+{
+    if (detail_->isBusy())
+        return;
+    const QString start = cataloguePath().isEmpty() ? documentsFolder(QString()) : QFileInfo(cataloguePath()).absolutePath();
+    const QString path = chooseFile({FileRequest::Kind::OpenCatalogue, tr("Open Catalogue"), start,
+        tr("Pinax catalogues and backups (*.db);;All files (*)"), false});
+    if (!path.isEmpty())
+        openCatalogue(path);
+}
+
+void MainWindow::importCsvChosen()
+{
+    if (!catalogue_ || detail_->isBusy())
+        return;
+    const QString csv = chooseFile({FileRequest::Kind::ImportCsv, tr("Import Books from CSV"), documentsFolder(QString()),
+        tr("CSV files (*.csv);;All files (*)"), false});
+    if (csv.isEmpty())
+        return;
+    QString problem;
+    const QString safety = safetyBackup(QStringLiteral("import"), problem);
+    if (safety.isEmpty()) {
+        detail_->showReport(tr("Not imported"), tr("The catalogue could not be backed up first, so nothing was "
+                                                   "imported: %1").arg(problem), true);
+        return;
+    }
+    const auto report = io::CsvImporter(catalogue_->connection()).importFile(csv.toStdString());
+    QStringList lines;
+    if (report.aborted) {
+        lines << tr("Nothing was imported: the file could not be read as a whole.");
+    } else {
+        lines << tr("%1 new, %2 updated, %3 unchanged, %4 failed.")
+                     .arg(report.inserted)
+                     .arg(report.updated)
+                     .arg(report.unchanged)
+                     .arg(report.failures.size());
+    }
+    for (const auto& failure : report.failures) {
+        lines << (failure.line > 0 ? tr("Line %1: %2").arg(failure.line).arg(QString::fromStdString(failure.message))
+                                   : QString::fromStdString(failure.message));
+    }
+    lines << QString() << tr("Before importing, the catalogue was backed up to %1.").arg(safety);
+    list_->setBooks(catalogue_->summaries());
+    refreshRail();
+    applyQuery();
+    detail_->showReport(tr("Imported %1").arg(QFileInfo(csv).fileName()), lines.join(QLatin1Char('\n')),
+        report.aborted || !report.failures.empty());
+}
+
+void MainWindow::importDumpChosen()
+{
+    if (detail_->isBusy())
+        return;
+    const QString dump = chooseFile({FileRequest::Kind::ImportDump, tr("Import Catalogue from SQL Dump"),
+        documentsFolder(QStringLiteral("Pinax exports")), tr("SQL dumps (*.sql);;All files (*)"), false});
+    if (dump.isEmpty())
+        return;
+    const QString suggested = QFileInfo(dump).absoluteDir().filePath(QFileInfo(dump).completeBaseName() + QStringLiteral(".db"));
+    QString target = chooseFile({FileRequest::Kind::DumpTarget, tr("Save the Restored Catalogue As"), suggested,
+        tr("Pinax catalogues (*.db)"), true});
+    if (target.isEmpty())
+        return;
+    if (!target.endsWith(QStringLiteral(".db")))
+        target += QStringLiteral(".db");
+    if (QFileInfo(target).absoluteFilePath() == cataloguePath()) {
+        detail_->showReport(tr("Not restored"), tr("That is the catalogue open now; choose a new file."), true);
+        return;
+    }
+    try {
+        const auto report = db::restoreDump(dump.toStdString(), target.toStdString());
+        if (openCatalogue(QString::fromStdString(report.path))) {
+            detail_->showReport(tr("Catalogue restored"), tr("%1 books rebuilt from %2 into %3, checked, and opened.")
+                                                             .arg(report.books)
+                                                             .arg(QFileInfo(dump).fileName(),
+                                                                 QString::fromStdString(report.path)));
+        }
+    } catch (const db::DbError& error) {
+        detail_->showReport(tr("Not restored"), QString::fromUtf8(error.what()), true);
+    }
+}
+
+void MainWindow::restoreChosen()
+{
+    if (detail_->isBusy())
+        return;
+    const QString source = chooseFile({FileRequest::Kind::RestoreBackup, tr("Restore from Backup"),
+        documentsFolder(QStringLiteral("Pinax backups")), tr("Pinax backups (*.db);;All files (*)"), false});
+    if (source.isEmpty())
+        return;
+    const auto found = db::inspect(source.toStdString());
+    if (!found.catalogue || found.version > db::latestSchemaVersion) {
+        detail_->showReport(tr("Not restored"),
+            found.catalogue ? tr("The backup was made by a newer Pinax.")
+                            : tr("%1 is not a Pinax backup: %2.").arg(source, QString::fromStdString(found.problem)),
+            true);
+        return;
+    }
+
+    // Over the catalogue open now; with none open, wherever the owner says,
+    // the catalogue last open suggested (BUG-006).
+    QString target = cataloguePath();
+    if (target.isEmpty()) {
+        QString suggested = RecentCatalogues(settings()).last();
+        if (suggested.isEmpty())
+            suggested = documentsFolder(QStringLiteral("pinax.db"));
+        target = chooseFile({FileRequest::Kind::Save, tr("Restore Into"), suggested, tr("Pinax catalogues (*.db)"), true});
+        if (target.isEmpty())
+            return;
+        if (!target.endsWith(QStringLiteral(".db")))
+            target += QStringLiteral(".db");
+        target = QFileInfo(target).absoluteFilePath();
+    }
+    if (QFileInfo(source).absoluteFilePath() == target) {
+        detail_->showReport(tr("Not restored"), tr("The backup and the catalogue it would replace are the same file."), true);
+        return;
+    }
+    const auto replacing = db::inspect(target.toStdString());
+    if (!replacing.empty && !replacing.catalogue) {
+        detail_->showReport(tr("Not restored"),
+            tr("%1 is not a Pinax catalogue, so it is not replaced: %2.").arg(target, QString::fromStdString(replacing.problem)),
+            true);
+        return;
+    }
+
+    // Whatever is replaced is kept first.
+    QString safety;
+    if (replacing.catalogue) {
+        QString problem;
+        if (catalogue_) {
+            safety = safetyBackup(QStringLiteral("restore"), problem);
+        } else {
+            try {
+                db::Connection closed(target.toStdString());
+                const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-ddTHH-mm-ss"));
+                const QString folder = backupFolder_.isEmpty() ? documentsFolder(QStringLiteral("Pinax backups")) : backupFolder_;
+                safety = QString::fromStdString(
+                    db::backupTo(closed, (folder + QStringLiteral("/pinax-before-restore-%1.db").arg(stamp)).toStdString()).path);
+            } catch (const db::DbError& error) {
+                problem = QString::fromUtf8(error.what());
+            }
+        }
+        if (safety.isEmpty()) {
+            detail_->showReport(tr("Not restored"), tr("The catalogue could not be backed up first, so nothing was "
+                                                       "replaced: %1").arg(problem), true);
+            return;
+        }
+    }
+
+    // Closed, so nothing holds the file while it is replaced.
+    closeCatalogue();
+    QString outcome;
+    bool failed = false;
+    try {
+        const auto report = db::restoreFrom(source.toStdString(), target.toStdString());
+        outcome = tr("%1 books restored from %2 into %3.").arg(report.books).arg(source, target);
+    } catch (const db::DbError& error) {
+        outcome = tr("The catalogue was not replaced: %1").arg(QString::fromUtf8(error.what()));
+        failed = true;
+    }
+    if (!QFileInfo::exists(target)) {
+        detail_->showReport(tr("Not restored"), outcome, true);
+        return;
+    }
+    if (openCatalogue(target)) {
+        QString body = outcome;
+        if (!safety.isEmpty())
+            body += QStringLiteral("\n\n") + tr("The catalogue as it was is kept at %1.").arg(safety);
+        detail_->showReport(failed ? tr("Not restored") : tr("Catalogue restored"), body, failed);
+    }
 }
 
 void MainWindow::setEnricher(Enricher* enricher)
@@ -706,12 +1151,8 @@ void MainWindow::beginBackup()
     if (!catalogue_ || detail_->isBusy())
         return;
     QString folder = lastBackupFolder_;
-    if (folder.isEmpty()) {
-        folder = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-        if (folder.isEmpty())
-            folder = QDir::homePath();
-        folder += QStringLiteral("/Pinax backups");
-    }
+    if (folder.isEmpty())
+        folder = backupFolder_.isEmpty() ? documentsFolder(QStringLiteral("Pinax backups")) : backupFolder_;
     const QString name = QStringLiteral("pinax-%1.db").arg(QDate::currentDate().toString(Qt::ISODate));
     list_->clearSelection();
     detail_->beginBackup(QDir(folder).filePath(name));

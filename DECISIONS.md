@@ -341,7 +341,8 @@ detail panel.
 - **C. The detail panel gains an edit state.** Chosen.
 
 **Decision.** Option C. The panel has a view state and an edit state. There are
-no modal dialogues anywhere in the application.
+no modal dialogues anywhere in the application. *Amended by D-027
+(2026-10-08): choosing a file uses the system's dialogue.*
 
 **Consequences.**
 - Focus never leaves the window, which matters for the single-keystroke read
@@ -996,3 +997,70 @@ repeat is still refused, by line, as before.
 
 **Reversal conditions.** Revisit if the import format ever gains a column
 that identifies a book outright, such as a catalogue id.
+
+---
+
+### D-027 Files are chosen in the system dialogue; commands live in a menu bar
+**Decided:** 2026-10-08
+**Recorded:** 2026-10-08
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-08)
+**Related:** D-011, F-020 to F-028
+
+**Context.** Opening, creating, importing and restoring catalogues (F-026 to
+F-028) all begin by choosing a file. D-011 forbade modal dialogues anywhere,
+so Back up and Export took a typed path with completion — workable for
+saving, poor for finding a file to open. The commands also outgrew the
+toolbar.
+
+**Options.**
+- **A. The system's file dialogue for choosing a file, everything else in
+  the panel; a menu bar.** Chosen.
+- **B. Typed paths everywhere, toolbar only.** Rejected: a file to open must
+  be found, not remembered.
+
+**Decision.** Option A. D-011 is amended to this one exception: choosing a
+file, through the system's own open or save dialogue. Every outcome, error
+and question still appears in the panel; there are no message boxes. Back
+up and Export keep their typed path and gain Choose…. Commands live in File,
+Books and Help menus, sharing their actions — and shortcuts — with the
+toolbar. Tests supply the choice through `MainWindow::setFileChooser` and
+never show a dialogue.
+
+**Consequences.**
+- The keyboard flow D-011 protects is broken only while a file is being
+  chosen, which the owner has asked for.
+- Close Catalogue is Ctrl+W, not Qt's Ctrl+F4.
+
+**Reversal conditions.** None foreseen.
+
+---
+
+### D-028 Pinax remembers the catalogues it has opened
+**Decided:** 2026-10-08
+**Recorded:** 2026-10-08
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-08)
+**Related:** F-026, D-002
+
+**Context.** With more than one catalogue possible, launch must know which
+to open, and the owner should not hunt for a file used yesterday.
+
+**Options.**
+- **A. Remember the last few in Pinax's settings file; reopen the last.**
+  Chosen.
+- **B. Always open the default.** Rejected by the owner.
+
+**Decision.** Option A. Qt's settings file (`~/.config/Pinax/Pinax.conf`)
+holds `catalogue/recent`, up to eight paths, most recent first;
+`RecentCatalogues` keeps it and leaves out files that have gone. At launch
+a catalogue named on the command line wins; otherwise the last one open;
+otherwise `~/.local/share/pinax/pinax.db`. The command-line tasks
+(`--backup`, `--dump` and the rest) follow the same rule.
+
+**Consequences.**
+- A scheduled `pinax --backup` with no catalogue named backs up the one last
+  open in the window; name it to be sure.
+- The settings file holds paths only — no library data, no key.
+
+**Reversal conditions.** None foreseen.

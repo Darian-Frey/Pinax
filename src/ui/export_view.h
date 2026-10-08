@@ -34,12 +34,16 @@ public:
     void showProblem(const QString& message);
 
     QString path() const;
+    // A path chosen elsewhere (the save dialogue, D-027).
+    void setPath(const QString& path);
     int format() const;
     void focusPath();
 
 signals:
     void exportRequested(int format, const QString& path);
     void closed();
+    // Choose… pressed: the caller offers the save dialogue.
+    void chooseRequested();
 
 private:
     void formatChosen();
@@ -49,6 +53,7 @@ private:
     QComboBox* format_;
     QLabel* description_;
     QLineEdit* path_;
+    QPushButton* choose_;
     QLabel* warning_;
     QLabel* outcome_;
     QPushButton* export_;

@@ -29,6 +29,7 @@ QLabel* makeNote(const QString& name, QWidget* parent)
 BackupView::BackupView(QWidget* parent)
     : QWidget(parent)
     , path_(new QLineEdit(this))
+    , choose_(new QPushButton(tr("Choose…"), this))
     , warning_(makeNote(QStringLiteral("backup.warning"), this))
     , outcome_(makeNote(QStringLiteral("backup.outcome"), this))
     , backUp_(new QPushButton(tr("Back up"), this))
@@ -55,7 +56,13 @@ BackupView::BackupView(QWidget* parent)
     auto* completer = new QCompleter(files, this);
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     path_->setCompleter(completer);
-    layout->addWidget(path_);
+    auto* where = new QHBoxLayout;
+    where->addWidget(path_, 1);
+    choose_->setObjectName(QStringLiteral("backup.choose"));
+    choose_->setAutoDefault(false);
+    where->addWidget(choose_);
+    layout->addLayout(where);
+    connect(choose_, &QPushButton::clicked, this, &BackupView::chooseRequested);
     warning_->setStyleSheet(QStringLiteral("color: %1;").arg(accent().name()));
     layout->addWidget(warning_);
 
@@ -105,6 +112,11 @@ void BackupView::showProblem(const QString& message)
 {
     outcome_->setStyleSheet(QStringLiteral("color: #d9534f;"));
     outcome_->setText(message);
+}
+
+void BackupView::setPath(const QString& path)
+{
+    path_->setText(path);
 }
 
 QString BackupView::path() const

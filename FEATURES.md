@@ -427,6 +427,54 @@ unchanged.
 
 ---
 
+## Catalogue files
+
+### F-026 Open, create and close catalogues
+**Priority:** Must
+**Acceptance:**
+- A new, empty catalogue can be created at a chosen path and opened.
+- Any Pinax catalogue or backup can be opened; the one open before is closed.
+- A file that is not a Pinax catalogue, or is from a newer Pinax, is refused
+  and left untouched.
+- The open catalogue can be closed, leaving the window empty, and the
+  application quit.
+- The catalogue last open reopens at the next launch; recent catalogues can
+  be reopened from a list.
+**Status:** Complete (2026-10-08) — the File menu: New Catalogue
+(Ctrl+Shift+N), Open Catalogue (Ctrl+O), Open Recent, Close Catalogue
+(Ctrl+W), Quit (Ctrl+Q); files chosen in the system dialogue (D-027). The
+window title names the open catalogue. A file named on the command line wins
+at launch; otherwise the last one open (D-028). Quitting with a form open is
+refused until it is saved or cancelled.
+
+### F-027 Restore a whole catalogue
+**Priority:** Must
+**Acceptance:**
+- A backup can replace the open catalogue's contents, the catalogue as it
+  was being backed up first.
+- An SQL dump (F-021) can be rebuilt into a new catalogue and opened.
+- Both are checked before they replace or create anything.
+**Status:** Complete (2026-10-08) — File ▸ Restore from Backup and File ▸
+Import ▸ Catalogue from SQL Dump. A restore copies the backup beside the
+catalogue, checks it, and only then replaces the file, after a safety
+backup to Pinax backups/pinax-before-restore-…; a dump is run into a new
+file, checked for integrity, links and a known schema version, and opened.
+Opening a backup as it is, without restoring, is File ▸ Open. With no
+catalogue open, Restore asks where to put it, suggesting the catalogue last
+open (BUG-006).
+
+### F-028 Import books from the window
+**Priority:** Should
+**Acceptance:**
+- A books CSV (SPEC.md §1) can be imported into the open catalogue from the
+  window, as `--import` does from the command line.
+- The outcome is shown line by line.
+**Status:** Complete (2026-10-08) — File ▸ Import ▸ Books from CSV. The
+catalogue is backed up first (pinax-before-import-…); the report — new,
+updated, unchanged, and each failure by line — appears in the panel.
+
+---
+
 ## Out of scope
 
 - **Ebook management.** No reading, conversion, device sync or file handling.

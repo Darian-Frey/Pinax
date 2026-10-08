@@ -25,6 +25,7 @@ class AddByIsbnView;
 class AttachView;
 class BackupView;
 class ExportView;
+class ReportView;
 class BookEditor;
 class CandidateView;
 class BookView;
@@ -39,7 +40,7 @@ class DetailPanel : public QWidget {
     Q_OBJECT
 
 public:
-    enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete, ViewingSeries, EditingEntry, Attaching, Fetching, Adding, BackingUp, Exporting };
+    enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete, ViewingSeries, EditingEntry, Attaching, Fetching, Adding, BackingUp, Exporting, Reporting };
     Q_ENUM(State)
 
     // True while the panel holds something the owner must finish — a form, a
@@ -99,6 +100,9 @@ public:
     // backupView()'s signals.
     void beginBackup(const QString& suggestedPath);
 
+    // An outcome to read (F-026 to F-028); not a form, so not busy.
+    void showReport(const QString& heading, const QString& body, bool problem = false);
+
     // Export (F-021 to F-023): a format and where to, then the outcome.
     void beginExport(const QString& folder, const QString& stem);
 
@@ -126,6 +130,7 @@ public:
     AddByIsbnView* addView() const { return addView_; }
     BackupView* backupView() const { return backupView_; }
     ExportView* exportView() const { return exportView_; }
+    ReportView* reportView() const { return reportView_; }
 
 signals:
     void saveRequested(const domain::BookEdit& edit);
@@ -174,6 +179,7 @@ private:
     AddByIsbnView* addView_;
     BackupView* backupView_;
     ExportView* exportView_;
+    ReportView* reportView_;
     std::function<void()> pendingConfirm_;
 
     std::optional<domain::BookDetail> shown_;

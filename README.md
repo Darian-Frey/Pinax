@@ -29,7 +29,7 @@ build/src/pinax
 ```
 
 The application creates `~/.local/share/pinax/pinax.db` on first run (or opens
-the file given as its argument), upgrades an older file in place, and lists
+the file given as its argument, or the catalogue you last had open), upgrades an older file in place, and lists
 every book, sortable by any column. `--import file.csv` loads a catalogue in
 the format of SPEC.md §1 first, and `--import-series series.csv` the volumes
 each series is known to contain (§1.6); both are safe to repeat. The rail on
@@ -62,8 +62,13 @@ gives yours the number instead of adding it twice, which is how the
 imported backlog gains its ISBNs. Google Books is asked as well if
 you have an API key: put it in `google-books.key` beside the catalogue, or in
 the folder Pinax is started from, or in `PINAX_GOOGLE_BOOKS_KEY` (D-021).
-Never commit it; `.gitignore` covers `*.key`. Back up (Ctrl+B) writes a checked copy of the
-catalogue wherever you choose, without closing it; from a script or a cron
+Never commit it; `.gitignore` covers `*.key`.
+
+The File menu opens, creates and closes catalogues — Open Recent lists the
+last few — restores one from a backup or an SQL dump, and imports books
+from a CSV, backing the catalogue up before anything replaces or merges into
+it. Back up (Ctrl+B) writes a checked copy of the catalogue wherever you
+choose, without closing it; from a script or a cron
 job, `build/src/pinax --backup ~/backups/pinax.db` does the same and exits.
 Export (Ctrl+E) writes an Excel workbook — books, series status, authors —
 a CSV of the books the list shows, in the format `--import` reads, or the

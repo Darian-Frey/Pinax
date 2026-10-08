@@ -249,6 +249,30 @@ by restoring it.
 
 ---
 
+## Catalogue files
+
+### AV-014 Opening a database that is not a catalogue rewrites it
+**Severity:** Critical
+**Description.** Opening a file runs the migrations, which create Pinax's
+schema in any database without a `schema_version` table. Pointed at some
+other SQLite file — a browser's history, another program's data — through
+Open, the command line or a recent list, Pinax would add a dozen tables to
+it and switch it to WAL mode: damage done to someone else's file. A
+catalogue from a newer Pinax opened by an older one fails its migrations
+halfway, or worse.
+**Detection.** Implemented, 2026-10-08. `db::inspect` reads a file
+read-only before anything opens it, and the window and `main` refuse
+anything that is not empty and not a catalogue, or is a newer version.
+`tests/test_catalogue_files.cpp`, `notACatalogueIsNeverOpened`, opens
+another program's database and a catalogue from schema version 99 and finds
+both refused and unchanged; `inspectTellsACatalogueFromAnythingElse` covers
+text files and empty ones. The command line exits 1 rather than open a
+window.
+**Related decisions.** D-002, D-027.
+**History.** Identified while building F-026, 2026-10-08.
+
+---
+
 ## Barcode capture
 
 ### AV-012 Wrong barcode read as an ISBN

@@ -171,6 +171,8 @@ add_library(pinax_ui STATIC
     ui/rail_view.h
     ui/rating_bar.cpp
     ui/rating_bar.h
+    ui/report_view.cpp
+    ui/report_view.h
     ui/series_entry_model.cpp
     ui/series_entry_model.h
     ui/series_page.cpp
@@ -195,7 +197,9 @@ add_library(pinax_app STATIC
     app/main_window.cpp
     app/main_window.h
     app/provider_key.cpp
-    app/provider_key.h)
+    app/provider_key.h
+    app/recent_catalogues.cpp
+    app/recent_catalogues.h)
 target_include_directories(pinax_app PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(pinax_app PUBLIC pinax_ui pinax_db pinax_io pinax_metadata Qt6::Widgets)
 

@@ -493,6 +493,38 @@ on success, 1 otherwise, without opening the window.
 
 ---
 
+## 5.5 Catalogue files — F-026 to F-028
+
+- **Inspect first.** Before a file is opened for writing, `db::inspect`
+  opens it read-only: a file that is not empty and has no `schema_version`
+  table is not a catalogue and is refused; one whose highest version is
+  above this Pinax's is refused (AV-014). Only an absent or empty file may
+  become a new catalogue.
+- **Open** closes the current catalogue (stopping a batch run) and opens the
+  chosen one, migrating it if older. **New** refuses a path where a file
+  is. **Close** leaves the window with no catalogue.
+- **Restore from backup** — `db::restoreFrom`: the open catalogue is backed
+  up to `Pinax backups/pinax-before-restore-<date>T<time>.db`, then closed;
+  the backup is `VACUUM INTO`-copied to `<catalogue>.partial`, checked
+  (`quick_check`, schema version, book count), the catalogue's `-wal` and
+  `-shm` removed, the copy renamed into place, and the catalogue reopened.
+  Covers stay where they are, keyed by book id. With no catalogue open, the
+  save dialogue asks where to restore, suggesting the catalogue last open; a
+  catalogue there is backed up first, a non-catalogue refused, and a new
+  path simply receives it (BUG-006).
+- **Import an SQL dump** — `db::restoreDump`: run into a new
+  `<target>.partial` (never an existing file), checked for integrity,
+  `foreign_key_check`, a `book` table and a known schema version, renamed,
+  and opened.
+- **Import books from CSV** — the open catalogue is backed up to
+  `pinax-before-import-…` first; then `CsvImporter` as for `--import`, its
+  report shown line by line.
+- **Remembered** (D-028): `catalogue/recent` in `~/.config/Pinax/Pinax.conf`,
+  up to eight paths. Launch opens the catalogue named on the command line,
+  else the last one open, else `~/.local/share/pinax/pinax.db`.
+
+---
+
 ## 6. Barcode capture — F-025
 
 Webcam frames are decoded for **EAN-13 only**; other symbologies are not

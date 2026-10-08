@@ -31,4 +31,11 @@ struct DumpReport {
 // file is removed, `path` is untouched, and DbError is thrown.
 DumpReport dumpTo(Connection& connection, const std::string& path);
 
+// A new catalogue at `target` built from the dump at `dumpPath` (F-027):
+// run into a partial file beside `target`, checked — integrity, a schema
+// version this Pinax knows, nothing broken by a foreign key — and then
+// renamed into place. Refuses a `target` that already exists. On any
+// failure nothing is left at `target`, and DbError is thrown.
+DumpReport restoreDump(const std::string& dumpPath, const std::string& target);
+
 } // namespace pinax::db

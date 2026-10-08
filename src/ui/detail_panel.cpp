@@ -4,6 +4,7 @@
 #include "ui/attach_view.h"
 #include "ui/backup_view.h"
 #include "ui/export_view.h"
+#include "ui/report_view.h"
 #include "ui/book_editor.h"
 #include "ui/candidate_view.h"
 #include "ui/entry_editor.h"
@@ -65,6 +66,7 @@ DetailPanel::DetailPanel(QWidget* parent)
     , addView_(new AddByIsbnView)
     , backupView_(new BackupView)
     , exportView_(new ExportView)
+    , reportView_(new ReportView)
 {
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -104,6 +106,7 @@ DetailPanel::DetailPanel(QWidget* parent)
     stack_->addWidget(scrolling(addView_, this));
     stack_->addWidget(backupView_);
     stack_->addWidget(exportView_);
+    stack_->addWidget(scrolling(reportView_, this));
 
     connect(confirmButton_, &QPushButton::clicked, this, [this] {
         auto action = std::move(pendingConfirm_);
@@ -298,6 +301,13 @@ void DetailPanel::beginBackup(const QString& suggestedPath)
     backupView_->start(suggestedPath);
     setState(State::BackingUp);
     backupView_->focusPath();
+}
+
+void DetailPanel::showReport(const QString& heading, const QString& body, bool problem)
+{
+    shown_.reset();
+    reportView_->present(heading, body, problem);
+    setState(State::Reporting);
 }
 
 void DetailPanel::beginExport(const QString& folder, const QString& stem)
