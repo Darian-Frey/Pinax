@@ -224,18 +224,42 @@ void Enricher::findByTitle(const BookDetail& detail, Asked asked, std::function<
     });
 }
 
-void Enricher::complete(const Candidate& candidate, std::function<void(Candidate)> done, Channel channel)
+void Enricher::complete(const Candidate& candidate, std::function<void(Candidate)> done, Channel channel,
+    bool ownersEdition)
 {
     done = guarded(channel, std::move(done));
+    // Second: the owner's edition, behind the cover they saw (D-029).
+    auto withEdition = [this, ownersEdition, done](Candidate filled) {
+        if (!ownersEdition || !filled.editionFactsTypical) {
+            done(std::move(filled));
+            return;
+        }
+        if (!filled.editionKey) {
+            done(std::move(filled)); // typical figures stay unwritten
+            return;
+        }
+        const std::string key = *filled.editionKey;
+        openLibrary_.edition(key, [filled, done](std::optional<metadata::openlibrary::EditionRecord> record,
+                                      std::optional<std::string>) mutable {
+            if (record) {
+                filled.publisher = record->publisher;
+                filled.pageCount = record->pageCount;
+                filled.publishedYear = record->publishedYear;
+                filled.editionFactsTypical = false;
+            }
+            done(std::move(filled));
+        });
+    };
+    // First: the work's synopsis, which a search result lacks.
     if (candidate.description || !candidate.workKey || candidate.source != domain::Source::OpenLibrary) {
-        done(candidate);
+        withEdition(candidate);
         return;
     }
     openLibrary_.description(*candidate.workKey,
-        [candidate, done](std::optional<std::string> description, std::optional<std::string>) {
+        [candidate, withEdition](std::optional<std::string> description, std::optional<std::string>) {
             Candidate filled = candidate;
             filled.description = description;
-            done(filled);
+            withEdition(std::move(filled));
         });
 }
 

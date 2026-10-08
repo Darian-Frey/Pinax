@@ -260,6 +260,19 @@ Phase 3 (metadata enrichment) in progress.
   volume closes the gap rather than creating a parallel record. No schema
   change needed.
 
+### Changed
+- "This is my edition" (D-029), after the owner found Cello's Gate's page
+  count shown and not saved: a candidate found by title and author can be
+  ticked as the owner's edition, and its publisher and page count are then
+  taken where empty. For an Open Library result they come from the edition
+  behind the cover shown, fetched for the purpose; the work's median page
+  count is shown as "about n pages" and never saved. ISBNs still come only
+  from the book itself.
+- IMP-007 applied: Google Books, whose precise queries have answered nothing
+  for days, is asked again in plain words when they find nothing — keeping
+  only volumes with the very ISBN asked, or whose title agrees and which
+  share an author. Title searches through Google work again.
+
 ### Fixed
 - BUG-005: a book's series are edited with the book. The edit form has a
   Series section — one row per series, chosen from yours or typed to start a

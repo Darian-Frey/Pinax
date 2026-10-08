@@ -188,7 +188,7 @@ private:
     // "Fetch metadata" (F-012): look the book up, offer the candidates, write
     // the one chosen, then fetch its cover.
     void fetchMetadata(qint64 bookId);
-    void useCandidate(qint64 bookId, int index);
+    void useCandidate(qint64 bookId, int index, bool myEdition);
     // Thumbnails beside the candidates on offer, as they arrive; any still
     // coming for an earlier offer are withdrawn first.
     void previewCovers(qint64 bookId, const std::vector<domain::Candidate>& candidates);

@@ -537,14 +537,14 @@ std::string nowIso()
 } // namespace
 
 Catalogue::EnrichResult Catalogue::enrich(std::int64_t bookId, const domain::Candidate& candidate,
-    bool fromIsbnLookup)
+    bool ownersEdition)
 {
     try {
         db::BookRepository books(connection_);
         const auto book = books.find(bookId);
         if (!book)
             return {std::nullopt, "This book is no longer in the catalogue."};
-        const auto plan = domain::planEnrichment(*book, candidate, fromIsbnLookup, nowIso());
+        const auto plan = domain::planEnrichment(*book, candidate, ownersEdition, nowIso());
 
         db::Transaction transaction(connection_);
         books.update(plan.book);

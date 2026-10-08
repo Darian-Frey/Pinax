@@ -16,6 +16,12 @@ struct Candidate {
     Source source = Source::OpenLibrary;
     std::string providerKey;            // Open Library edition or work key; Google volume id
     std::optional<std::string> workKey; // Open Library work, where the synopsis lives
+    // Open Library's search answers with a work: its page count is the
+    // median of its editions and its publishers are all of theirs. Such
+    // figures are typical, not one edition's, and are never written; the
+    // edition whose cover is shown can be fetched for its own (D-029).
+    bool editionFactsTypical = false;
+    std::optional<std::string> editionKey; // that edition, "/books/OL…M"
 
     std::string title;
     std::optional<std::string> subtitle;

@@ -26,8 +26,11 @@ struct EnrichmentPlan {
 // The rules:
 //   synopsis           written with its source, unless the owner wrote it
 //   first-published    filled if empty
-//   publisher, pages   filled if empty, and only from an ISBN lookup — a
-//                      title search may describe another edition
+//   publisher, pages   filled if empty, and only from the owner's edition:
+//                      an ISBN match, or a searched candidate the owner has
+//                      confirmed as theirs (D-029) — a title search alone
+//                      may describe another edition; never figures marked
+//                      typical (a work's median page count)
 //   ISBN               never written: a searched candidate's ISBN belongs to
 //                      some edition, not necessarily the owner's copy
 //   edition and condition notes, notes, title, read state, rating
@@ -35,7 +38,7 @@ struct EnrichmentPlan {
 //   cover              offered for fetching unless the cover is manual
 //   metadata status    matched, with the time given — unless the owner
 //                      marked the book's metadata manual, which stays
-EnrichmentPlan planEnrichment(const Book& book, const Candidate& candidate, bool fromIsbnLookup,
+EnrichmentPlan planEnrichment(const Book& book, const Candidate& candidate, bool ownersEdition,
     const std::string& fetchedAt);
 
 // Whether a provider's title plausibly names the owner's book, for accepting

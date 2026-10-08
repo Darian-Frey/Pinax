@@ -1,6 +1,8 @@
 #include "metadata/google_books.h"
 
+#include "domain/enrichment.h"
 #include "domain/isbn.h"
+#include "domain/name_match.h"
 #include "metadata/request_queue.h"
 
 #include <QJsonArray>
@@ -130,15 +132,58 @@ QUrl GoogleBooksClient::searchUrl(const std::string& title, const std::optional<
     return url;
 }
 
+QUrl GoogleBooksClient::freeTextUrl(const std::string& words) const
+{
+    QUrl url(base);
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("q"), QString::fromStdString(words));
+    query.addQueryItem(QStringLiteral("key"), apiKey_);
+    url.setQuery(query);
+    return url;
+}
+
 void GoogleBooksClient::lookupIsbn(const std::string& isbn13, std::function<void(LookupResult)> done)
 {
-    get(isbnUrl(isbn13), std::move(done));
+    get(isbnUrl(isbn13), [this, isbn13, done](LookupResult qualified) {
+        if (qualified.error || !qualified.candidates.empty()) {
+            done(std::move(qualified));
+            return;
+        }
+        // Free text finds pages that mention the number — a bibliography,
+        // say — so only a volume carrying this very ISBN is kept (IMP-007).
+        get(freeTextUrl(isbn13), [isbn13, done](LookupResult loose) {
+            std::erase_if(loose.candidates, [&](const Candidate& candidate) {
+                const bool by13 = candidate.isbn13 == isbn13;
+                const bool by10 = candidate.isbn10 && domain::isValidIsbn10(*candidate.isbn10)
+                    && domain::isbn10To13(*candidate.isbn10) == isbn13;
+                return !by13 && !by10;
+            });
+            done(std::move(loose));
+        });
+    });
 }
 
 void GoogleBooksClient::search(const std::string& title, const std::optional<std::string>& author,
     std::function<void(LookupResult)> done)
 {
-    get(searchUrl(title, author), std::move(done));
+    get(searchUrl(title, author), [this, title, author, done](LookupResult qualified) {
+        if (qualified.error || !qualified.candidates.empty()) {
+            done(std::move(qualified));
+            return;
+        }
+        // Free text also finds books about the book, and others of the
+        // name: the title must agree and an author be shared (IMP-007).
+        // The owner still chooses among what is left (AV-010).
+        const std::string words = author ? title + " " + *author : title;
+        get(freeTextUrl(words), [title, author, done](LookupResult loose) {
+            std::erase_if(loose.candidates, [&](const Candidate& candidate) {
+                if (!domain::titlesAgree(title, candidate.title))
+                    return true;
+                return author && !domain::shareAnAuthor({*author}, candidate.authors);
+            });
+            done(std::move(loose));
+        });
+    });
 }
 
 void GoogleBooksClient::get(const QUrl& url, std::function<void(LookupResult)> done)

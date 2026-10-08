@@ -203,7 +203,7 @@ not an error. A title-and-author search is one request and returns works:
 
 ```
 GET https://openlibrary.org/search.json?title={title}&author={author}&limit=5
-    &fields=key,title,author_name,first_publish_year,isbn,cover_i,number_of_pages_median,publisher,subject
+    &fields=key,title,author_name,first_publish_year,isbn,cover_i,cover_edition_key,number_of_pages_median,subject
 ```
 
 | Response field (Books API / search) | Target |
@@ -211,10 +211,11 @@ GET https://openlibrary.org/search.json?title={title}&author={author}&limit=5
 | `title` | the candidate card; never written over the book's own |
 | `subtitle` | the candidate card |
 | `authors[].name` / `author_name[]` | the candidate card; credits are the owner's |
-| `publishers[0].name` / `publisher[0]` | `book.publisher` |
+| `publishers[0].name` | `book.publisher`; a search's publishers are every edition's, so none is taken |
+| `cover_edition_key` (search) | the edition behind the cover, fetched as `/books/<key>.json` for its `publishers`, `number_of_pages` and `publish_date` when the owner says it is theirs (D-029) |
 | `publish_date` (first four-digit year) | `book.published_year` |
 | `first_publish_year` (search) | first-published year on the confirmation card (F-024) |
-| `number_of_pages` / `number_of_pages_median` | `book.page_count` |
+| `number_of_pages` / `number_of_pages_median` | `book.page_count` — the search's median is typical, shown as "about n pages" and never written (D-029) |
 | `identifiers.isbn_13`, `identifiers.isbn_10` | the candidate card; written only by add-by-ISBN (F-024), never by a fetch |
 | `subjects[].name` / `subject[]` | `genre` rows, verbatim, source `open_library` |
 | `cover.large` / `cover_i` | the cover cache (§4), source `open_library` |
@@ -238,7 +239,12 @@ Without a key nothing is sent: since at least 2026-10-06 a keyless request
 is refused with HTTP 429 and a daily quota of 0. With a key, on 2026-10-06,
 field-qualified queries (`isbn:`, `intitle:`, `inauthor:`) returned no
 results — or "Service temporarily unavailable" — even for books Google
-holds, while free-text queries answered normally (IMP-007). Fields consumed from
+holds, while free-text queries answered normally — still so on 2026-10-08.
+So each query that finds nothing, without error, is asked once more in free
+text (IMP-007): `q=<isbn>`, keeping only volumes whose ISBN-13, or ISBN-10
+converted, is the one asked; `q=<title> <author>`, keeping only volumes
+whose title agrees and which share an author. A qualified answer stands, and
+a failure is reported, never retried as text. Fields consumed from
 `items[].volumeInfo`: `title`, `subtitle`, `authors[]`, `publisher`,
 `publishedDate` (leading four digits), `description`, `pageCount`,
 `categories[]` (verbatim, so `Fiction / Science Fiction / Space Opera` is one
@@ -287,7 +293,7 @@ offered ready to accept, a search's never is.
 |---|---|
 | `synopsis`, `synopsis_source` | written with the provider as source, unless the source is `manual` |
 | `published_year` | filled if empty: the work's first-published year, else the edition's |
-| `publisher`, `page_count` | filled if empty, and **only from an ISBN lookup** — a search result may describe another edition |
+| `publisher`, `page_count` | filled if empty, **only from the owner's edition**: an ISBN lookup, or a searched candidate the owner ticks as theirs (D-029) — and never figures marked typical |
 | `isbn13`, `isbn10` | never |
 | `title`, `subtitle`, credits, series | never |
 | edition and condition notes, acquisition, notes | never |

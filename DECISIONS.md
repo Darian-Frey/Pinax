@@ -1064,3 +1064,50 @@ otherwise `~/.local/share/pinax/pinax.db`. The command-line tasks
 - The settings file holds paths only — no library data, no key.
 
 **Reversal conditions.** None foreseen.
+
+---
+
+### D-029 The owner may say a searched candidate is their edition
+**Decided:** 2026-10-08
+**Recorded:** 2026-10-08
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-08)
+**Related:** F-012, F-015, AV-001, AV-010, SPEC.md §3.5
+
+**Context.** A fetch took publisher and page count only from an ISBN match,
+since a title search finds a work whose editions differ. None of the
+owner's books had an ISBN, so the panel showed a page count — 576 for
+*Cello's Gate* — that was never saved, which the owner took for a bug.
+Building the remedy showed a second problem: Open Library's search answers
+with a work, whose page count is the median of its editions and whose
+publishers are all of theirs. For *Consider Phlebas* the first-listed
+publisher is the German Heyne.
+
+**Options.**
+- **A. A tick-box, "This is my edition", off by default, that takes the
+  edition's publisher and page count; for an Open Library work, from the
+  edition behind the cover shown.** Chosen.
+- **B. Always take them.** Rejected: another edition's facts, sometimes no
+  edition's at all.
+- **C. Never, but say so plainly.** Rejected by the owner.
+
+**Decision.** Option A. A searched candidate's publisher and page count are
+taken, where empty, only when the owner ticks the box. Open Library's work
+figures are marked typical (`Candidate::editionFactsTypical`): the card
+shows "about 576 pages" and no publisher, and `planEnrichment` never writes
+typical figures. With the box ticked, `Enricher::complete` fetches the
+edition named by the search's `cover_edition_key` — the one whose cover the
+owner saw — and its own publisher, pages and year replace the typical ones.
+Google's results are single editions already. An ISBN is never taken from a
+search, ticked or not; ISBNs come from the book itself (D-024).
+
+**Consequences.**
+- The edition behind a work's cover may not be the owner's — *Consider
+  Phlebas*'s is German, *Bedenke Phlebas*, 762 pages — so the cover, now
+  enlarged on hover, is what the owner judges by.
+- One more request, to Open Library, when the box is ticked on its result.
+- An Open Library work with no cover edition offers nothing to take; its
+  typical figures stay unwritten.
+
+**Reversal conditions.** Revisit if Open Library's search comes to name
+editions outright.

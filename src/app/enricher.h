@@ -76,8 +76,11 @@ public:
 
     // A candidate found by search carries no synopsis; its work may. Hands
     // the candidate back, filled where it could be.
+    // With `ownersEdition`, a searched candidate's typical figures are
+    // replaced by the edition behind its cover — its publisher, pages and
+    // year — or dropped if there is none to fetch (D-029).
     void complete(const domain::Candidate& candidate, std::function<void(domain::Candidate)> done,
-        Channel channel = Channel::Interactive);
+        Channel channel = Channel::Interactive, bool ownersEdition = false);
 
     // The cover, into `dataDirectory`/covers (SPEC.md §4).
     void fetchCover(std::int64_t bookId, const std::string& url, const std::string& dataDirectory,

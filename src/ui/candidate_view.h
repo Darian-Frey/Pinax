@@ -6,6 +6,7 @@
 
 #include <vector>
 
+class QCheckBox;
 class QLabel;
 class QListWidget;
 class QPushButton;
@@ -45,7 +46,9 @@ public:
     void focusList();
 
 signals:
-    void chosen(int index);
+    // `myEdition`: the owner ticked "This is my edition" (D-029); always
+    // true for an ISBN's answer, which is the owner's edition already.
+    void chosen(int index, bool myEdition);
     void cancelled();
     // Reviewing: none of the candidates is the book; or not decided now.
     void rejected();
@@ -70,6 +73,8 @@ private:
     int previewRow_ = -1;
     QPushButton* use_;
     QPushButton* cancel_;
+    QCheckBox* myEdition_;
+    bool byIsbn_ = false;
     QPushButton* reject_;
     QPushButton* skip_;
     bool reviewing_ = false;

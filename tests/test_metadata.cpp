@@ -76,6 +76,12 @@ private slots:
     // Google Books (D-019)
     void googleVolumesParse();
     void googleWithoutAKeySendsNothing();
+    // IMP-007
+    // D-029
+    void aSearchedWorkGivesOnlyTypicalFigures();
+    void googleSearchFallsBackToFreeText();
+    void googleIsbnFallsBackToFreeTextKeepingOnlyThatIsbn();
+    void googleAnswersAreNotAskedTwice();
 
     // Cover cache (F-013)
     void aCoverIsDownloadedOnceAndKept();
@@ -515,6 +521,89 @@ void TestMetadata::aThumbnailIsTheMediumCover()
         QUrl(QStringLiteral("https://covers.openlibrary.org/b/id/1174792-M.jpg")));
     const QUrl google(QStringLiteral("https://books.google.com/books/content?id=x&img=1&zoom=1"));
     QCOMPARE(CoverCache::thumbnailUrl(google), google);
+}
+
+void TestMetadata::googleSearchFallsBackToFreeText()
+{
+    FakeFetcher fetcher;
+    RequestQueue queue(fetcher, fast());
+    GoogleBooksClient client(queue, QStringLiteral("test-key"));
+    const std::string author = "Iain M. Banks";
+    fetcher.script(client.searchUrl("Consider Phlebas", author), {ok(fixture("google_books/isbn_no_match.json"))});
+    fetcher.script(client.freeTextUrl("Consider Phlebas Iain M. Banks"),
+        {ok(fixture("google_books/freetext_consider_phlebas.json"))});
+
+    std::optional<LookupResult> result;
+    client.search("Consider Phlebas", author, [&](LookupResult r) { result = std::move(r); });
+    QTRY_VERIFY(result);
+    QVERIFY(!result->error);
+    QCOMPARE(fetcher.requested.size(), std::size_t(2)); // qualified, then free text
+    // Both editions — "Iain Banks" is the same man — and not the study of
+    // the Culture novels that free text also turned up.
+    QCOMPARE(result->candidates.size(), std::size_t(2));
+    for (const auto& candidate : result->candidates)
+        QCOMPARE(candidate.title, std::string("Consider Phlebas"));
+}
+
+void TestMetadata::googleIsbnFallsBackToFreeTextKeepingOnlyThatIsbn()
+{
+    FakeFetcher fetcher;
+    RequestQueue queue(fetcher, fast());
+    GoogleBooksClient client(queue, QStringLiteral("test-key"));
+    for (const std::string isbn : {"9780312017521", "9780316005388"}) {
+        fetcher.script(client.isbnUrl(isbn), {ok(fixture("google_books/isbn_no_match.json"))});
+        // As recorded: free text answers with whatever mentions the words.
+        fetcher.script(client.freeTextUrl(isbn), {ok(fixture("google_books/freetext_consider_phlebas.json"))});
+    }
+
+    std::optional<LookupResult> found;
+    client.lookupIsbn("9780312017521", [&](LookupResult r) { found = std::move(r); });
+    QTRY_VERIFY(found);
+    QCOMPARE(found->candidates.size(), std::size_t(1)); // the one carrying it
+    QVERIFY(found->candidates.front().isbn13 == std::optional<std::string>("9780312017521"));
+
+    // No volume carries this one: nothing, rather than a near miss.
+    std::optional<LookupResult> none;
+    client.lookupIsbn("9780316005388", [&](LookupResult r) { none = std::move(r); });
+    QTRY_VERIFY(none);
+    QVERIFY(none->candidates.empty());
+    QVERIFY(!none->error);
+}
+
+void TestMetadata::googleAnswersAreNotAskedTwice()
+{
+    // A qualified answer stands; a failure is reported, not retried as text.
+    FakeFetcher fetcher;
+    RequestQueue queue(fetcher, fast());
+    GoogleBooksClient client(queue, QStringLiteral("test-key"));
+    fetcher.script(client.isbnUrl("9780312017521"), {ok(fixture("google_books/freetext_consider_phlebas.json"))});
+    std::optional<LookupResult> answered;
+    client.lookupIsbn("9780312017521", [&](LookupResult r) { answered = std::move(r); });
+    QTRY_VERIFY(answered);
+    QCOMPARE(fetcher.requested.size(), std::size_t(1));
+
+    std::optional<LookupResult> failed; // unscripted: 404
+    client.search("Dune", std::string("Frank Herbert"), [&](LookupResult r) { failed = std::move(r); });
+    QTRY_VERIFY(failed);
+    QVERIFY(failed->error);
+    QCOMPARE(fetcher.requested.size(), std::size_t(2));
+}
+
+void TestMetadata::aSearchedWorkGivesOnlyTypicalFigures()
+{
+    const auto candidates = openlibrary::parseSearch(fixture("open_library/search_consider_phlebas.json"));
+    QCOMPARE(candidates.size(), std::size_t(1));
+    const Candidate& work = candidates.front();
+    QVERIFY(work.editionFactsTypical);
+    QVERIFY(work.pageCount == 471);            // the median of its editions
+    QVERIFY(!work.publisher);                   // every edition's: none named
+    QVERIFY(work.editionKey == std::optional<std::string>("/books/OL9041460M"));
+
+    const auto edition = openlibrary::parseEdition(fixture("open_library/edition_OL9041460M.json"));
+    QVERIFY(edition);
+    QVERIFY(edition->publisher == std::optional<std::string>("Heyne"));
+    QVERIFY(edition->pageCount == 762);
+    QVERIFY(edition->publishedYear == 2002);
 }
 
 QTEST_MAIN(TestMetadata)

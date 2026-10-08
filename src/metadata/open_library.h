@@ -14,6 +14,10 @@ namespace pinax::metadata {
 
 class RequestQueue;
 
+namespace openlibrary {
+struct EditionRecord;
+}
+
 // Open Library, the primary provider (D-019, SPEC.md §3.1). No key needed.
 //
 // An ISBN lookup is up to three requests: the Books API for the edition's
@@ -28,6 +32,10 @@ public:
     void lookupIsbn(const std::string& isbn13, std::function<void(domain::LookupResult)> done);
     void search(const std::string& title, const std::optional<std::string>& author,
         std::function<void(domain::LookupResult)> done);
+    // One edition's record: its facts, for a searched candidate the owner
+    // says is theirs (D-029).
+    void edition(const std::string& editionKey,
+        std::function<void(std::optional<openlibrary::EditionRecord>, std::optional<std::string> error)> done);
     // A work's synopsis, for a candidate found by search.
     void description(const std::string& workKey,
         std::function<void(std::optional<std::string> description, std::optional<std::string> error)> done);
@@ -52,6 +60,10 @@ std::optional<domain::Candidate> parseBooksApi(const QByteArray& json, const std
 struct EditionRecord {
     std::optional<std::string> workKey;
     std::optional<std::string> description;
+    // The edition's own facts (D-029).
+    std::optional<std::string> publisher;
+    std::optional<int> pageCount;
+    std::optional<int> publishedYear;
 };
 std::optional<EditionRecord> parseEdition(const QByteArray& json);
 

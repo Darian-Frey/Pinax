@@ -9,7 +9,8 @@ owner's catalogue.
 | `open_library/isbn_9780316005388.json` | Recorded 2026-10-06: Books API, `jscmd=data`, for *Consider Phlebas*. |
 | `open_library/edition_9780316005388.json` | Recorded 2026-10-06: `/isbn/9780316005388.json` (edition OL9759601M); its description is the `{type, value}` shape. |
 | `open_library/work_OL8368432W.json` | Recorded 2026-10-06: the work; its description is the plain-string shape. |
-| `open_library/search_consider_phlebas.json` | Recorded 2026-10-06: `search.json` by title and author. |
+| `open_library/search_consider_phlebas.json` | Re-recorded 2026-10-08: `search.json` by title and author, with `cover_edition_key` among the fields (D-029). One work; its page count is the median of its editions, 471. |
+| `open_library/edition_OL9041460M.json` | Recorded 2026-10-08: the edition behind that search's cover — the German *Bedenke Phlebas* (Heyne, 762 pages), which is why a work's cover is no proof of the owner's edition. |
 | `open_library/isbn_unknown.json` | Recorded 2026-10-06: the Books API for an ISBN Open Library does not hold (`{}`). |
 | `british_library/isbn_9780356521633.xml` | Recorded 2026-10-06: SRU `alma.isbn=` for *Consider Phlebas*, Orbit 2023 — a reprint whose 008 gives the 1987 original. |
 | `british_library/isbn_9780708837078.xml` | Recorded 2026-10-06: the same query for the 1988 Futura paperback, whose record gives only its ISBN-10. |

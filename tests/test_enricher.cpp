@@ -19,6 +19,7 @@
 
 #include <QAction>
 #include <QBuffer>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QLineEdit>
 #include <QRadioButton>
@@ -136,6 +137,7 @@ private slots:
     // Through the window
     void fetchingFromThePanelWritesTheChoiceAndItsCover();
     void searchedCandidatesShowTheirCovers();
+    void myEditionTakesTheSearchedPageCount();
     void cancellingAFetchReturnsToTheBook();
     void nothingFoundMarksTheBookAndSaysSo();
 };
@@ -424,6 +426,33 @@ void TestEnricher::searchedCandidatesShowTheirCovers()
         [](const QString& url) { return url.contains(QStringLiteral("-L.jpg")); }));
     // Covers do not choose: nothing is written yet.
     QVERIFY(!f.catalogue.detail(f.book)->book.synopsis);
+}
+
+void TestEnricher::myEditionTakesTheSearchedPageCount()
+{
+    // D-029: as the owner found with Cello's Gate — no ISBN, a search, a
+    // page count shown and not saved — unless they say it is their edition.
+    for (const bool tick : {false, true}) {
+        Fixture f(std::nullopt);
+        f.fetcher.script(OpenLibraryClient::searchUrl("Consider Phlebas", std::string("Iain M. Banks")),
+            {ok(fixture("open_library/search_consider_phlebas.json"))});
+        // The edition behind the search's cover — as recorded, the German one.
+        f.fetcher.script(OpenLibraryClient::recordUrl("/books/OL9041460M"), {ok(fixture("open_library/edition_OL9041460M.json"))});
+        f.pressFetch();
+        auto* view = f.panel()->candidateView();
+        auto* list = view->findChild<QListWidget*>(QStringLiteral("candidates.list"));
+        QTRY_VERIFY(list->count() > 0);
+        view->findChild<QCheckBox*>(QStringLiteral("candidates.myEdition"))->setChecked(tick);
+        list->setCurrentRow(0);
+        QTest::mouseClick(view->findChild<QPushButton*>(QStringLiteral("candidates.use")), Qt::LeftButton);
+        QTRY_COMPARE(f.panel()->state(), DetailPanel::State::Viewing);
+        const auto book = f.catalogue.detail(f.book)->book;
+        // Unticked: nothing of an edition. Ticked: the cover's edition's own
+        // facts — never the work's median of 471 pages (D-029).
+        QVERIFY(book.pageCount == (tick ? std::optional(762) : std::nullopt));
+        QVERIFY(book.publisher == (tick ? std::optional<std::string>("Heyne") : std::nullopt));
+        QVERIFY(!book.isbn13); // never from a search (D-029)
+    }
 }
 
 void TestEnricher::cancellingAFetchReturnsToTheBook()

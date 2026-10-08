@@ -5,7 +5,7 @@
 
 namespace pinax::domain {
 
-EnrichmentPlan planEnrichment(const Book& book, const Candidate& candidate, bool fromIsbnLookup,
+EnrichmentPlan planEnrichment(const Book& book, const Candidate& candidate, bool ownersEdition,
     const std::string& fetchedAt)
 {
     EnrichmentPlan plan;
@@ -22,7 +22,8 @@ EnrichmentPlan planEnrichment(const Book& book, const Candidate& candidate, bool
     if (!updated.publishedYear && year)
         updated.publishedYear = year;
 
-    if (fromIsbnLookup) {
+    // Typical figures — a work's median page count — are no edition's.
+    if (ownersEdition && !candidate.editionFactsTypical) {
         if (!updated.publisher && candidate.publisher)
             updated.publisher = candidate.publisher;
         if (!updated.pageCount && candidate.pageCount)

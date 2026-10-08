@@ -156,9 +156,9 @@ DetailPanel::DetailPanel(QWidget* parent)
         if (shown_)
             emit fetchRequested(shown_->book.id);
     });
-    connect(candidateView_, &CandidateView::chosen, this, [this](int index) {
+    connect(candidateView_, &CandidateView::chosen, this, [this](int index, bool myEdition) {
         if (state_ == State::Fetching && shown_)
-            emit candidateChosen(shown_->book.id, index);
+            emit candidateChosen(shown_->book.id, index, myEdition);
     });
     connect(candidateView_, &CandidateView::rejected, this, [this] {
         if (state_ == State::Fetching && shown_)

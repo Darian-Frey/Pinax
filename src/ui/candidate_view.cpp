@@ -2,6 +2,7 @@
 
 #include "ui/style.h"
 
+#include <QCheckBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
@@ -58,8 +59,10 @@ QString describe(const Candidate& candidate)
         who << text(*candidate.publisher);
 
     QStringList more;
-    if (candidate.pageCount)
-        more << CandidateView::tr("%1 pages").arg(*candidate.pageCount);
+    if (candidate.pageCount) {
+        more << (candidate.editionFactsTypical ? CandidateView::tr("about %1 pages").arg(*candidate.pageCount)
+                                               : CandidateView::tr("%1 pages").arg(*candidate.pageCount));
+    }
     if (candidate.isbn13)
         more << CandidateView::tr("ISBN %1").arg(text(*candidate.isbn13));
     if (candidate.description)
@@ -141,6 +144,15 @@ CandidateView::CandidateView(QWidget* parent)
     list_->setSpacing(4);
     layout->addWidget(list_, 1);
 
+    // A searched candidate may be another edition; the owner can say it is
+    // theirs, and its publisher and page count are then taken (D-029).
+    myEdition_ = new QCheckBox(tr("This is my edition — take its publisher and page count too"), this);
+    myEdition_->setObjectName(QStringLiteral("candidates.myEdition"));
+    myEdition_->setToolTip(tr("Only where your book has none recorded. The cover beside each candidate, "
+                              "enlarged on hover, helps tell editions apart. Its ISBN is never taken."));
+    myEdition_->hide();
+    layout->addWidget(myEdition_);
+
     auto* buttons = new QHBoxLayout;
     use_->setObjectName(QStringLiteral("candidates.use"));
     use_->setDefault(true);
@@ -192,6 +204,7 @@ void CandidateView::begin(const QString& title, const QString& how)
     use_->hide();
     reject_->hide();
     skip_->hide();
+    myEdition_->hide();
     cancel_->setText(tr("Cancel"));
     cancel_->setFocus();
 }
@@ -217,12 +230,18 @@ void CandidateView::offer(const std::vector<Candidate>& candidates, bool byIsbn)
                 : tr("The ISBN is known as these. Choose the one that is your book.")));
     } else {
         status_->setText(place + (reviewing_ ? tr("Found by title and author, so any of these may be another edition: "
-                                         "only the synopsis, first-published year, genres and cover are "
-                                         "taken. Choose the one that is your book.")
+                                         "the synopsis, first-published year, genres and cover are taken, "
+                                         "and its publisher and page count only if you say it is your "
+                                         "edition. Choose the one that is your book.")
                                     : tr("Found by title and author, so any of these may be another edition: "
-                                         "only the synopsis, first-published year, genres and cover are "
-                                         "taken. Choose the one that is your book, or cancel.")));
+                                         "the synopsis, first-published year, genres and cover are taken, "
+                                         "and its publisher and page count only if you say it is your "
+                                         "edition. Choose the one that is your book, or cancel.")));
     }
+    byIsbn_ = byIsbn;
+    // Unticked for every new offer: never carried from one book to the next.
+    myEdition_->setChecked(false);
+    myEdition_->setVisible(!byIsbn);
     list_->clear();
     hidePreview();
     covers_.assign(candidates.size(), QPixmap());
@@ -340,6 +359,7 @@ void CandidateView::showProblem(const QString& message)
     use_->hide();
     reject_->hide();
     skip_->hide();
+    myEdition_->hide();
     cancel_->setText(tr("Back"));
     cancel_->setFocus();
 }
@@ -355,7 +375,7 @@ void CandidateView::choose()
     const auto selected = list_->selectedItems();
     if (selected.isEmpty() || list_->isHidden())
         return;
-    emit chosen(list_->row(selected.front()));
+    emit chosen(list_->row(selected.front()), byIsbn_ || myEdition_->isChecked());
 }
 
 } // namespace pinax::ui

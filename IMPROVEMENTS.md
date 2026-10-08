@@ -23,37 +23,6 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
-### IMP-007 Fall back to a free-text Google query when a qualified one finds nothing
-
-**Status:** suggested
-**Found:** 2026-10-06 (testing the owner's new Google Books API key)
-**Location:** `src/metadata/google_books.cpp`, `isbnUrl`, `searchUrl`
-**Effort:** small
-**Description.** With a working key, Google Books answered every
-field-qualified query with no results — `q=isbn:9780316005388`,
-`q=intitle:Dune`, even *Dune*'s own ISBN — and sometimes "Service temporarily
-unavailable", while `q=Consider Phlebas Banks` found 179. The client uses
-only qualified queries (SPEC.md §3.2), so as things stand Google adds
-nothing even with a key.
-**Proposal.** When a qualified query returns no items, ask once more in free
-text: the ISBN alone, or title and author words. Keep only results whose
-ISBN matches, for an ISBN lookup; a title-and-author result is queued for
-confirmation as always (AV-010).
-**Trade-offs.** Two requests where one should do, against the daily quota.
-Free text is looser: "Consider Phlebas Banks" also returns a book *about*
-the Culture novels, so the ISBN filter for lookups is essential and title
-results lean harder on the owner's confirmation. If the qualified search is
-a fault of a newly created key or a passing Google problem, the fallback is
-dead weight once it clears — worth retrying the qualified form in a few
-days before building anything.
-**Notes.** Google is the second opinion behind Open Library (D-019), so
-nothing is blocked meanwhile.
-Still so on 2026-10-06, later: eight ISBNs from the owner's shelf, asked as
-`isbn:`, found nothing on Google, while Open Library knew six. Asked in free
-text, `9780575078017` (*Sunstorm*) returned one item — *The British National
-Bibliography*, whose scanned pages contain the number — so the ISBN filter
-the proposal calls essential is borne out.
-
 ### IMP-008 Leave Open Library's library-service subjects out of genres
 
 **Status:** suggested
@@ -125,6 +94,53 @@ column only describes reading done with Pinax.
 settle both together.
 
 ## Applied
+
+### IMP-007 Fall back to a free-text Google query when a qualified one finds nothing
+
+**Status:** applied (2026-10-08)
+**Found:** 2026-10-06 (testing the owner's new Google Books API key)
+**Location:** `src/metadata/google_books.cpp`, `isbnUrl`, `searchUrl`
+**Effort:** small
+**Description.** With a working key, Google Books answered every
+field-qualified query with no results — `q=isbn:9780316005388`,
+`q=intitle:Dune`, even *Dune*'s own ISBN — and sometimes "Service temporarily
+unavailable", while `q=Consider Phlebas Banks` found 179. The client uses
+only qualified queries (SPEC.md §3.2), so as things stand Google adds
+nothing even with a key.
+**Proposal.** When a qualified query returns no items, ask once more in free
+text: the ISBN alone, or title and author words. Keep only results whose
+ISBN matches, for an ISBN lookup; a title-and-author result is queued for
+confirmation as always (AV-010).
+**Trade-offs.** Two requests where one should do, against the daily quota.
+Free text is looser: "Consider Phlebas Banks" also returns a book *about*
+the Culture novels, so the ISBN filter for lookups is essential and title
+results lean harder on the owner's confirmation. If the qualified search is
+a fault of a newly created key or a passing Google problem, the fallback is
+dead weight once it clears — worth retrying the qualified form in a few
+days before building anything.
+**Notes.** Google is the second opinion behind Open Library (D-019), so
+nothing is blocked meanwhile.
+Still so on 2026-10-06, later: eight ISBNs from the owner's shelf, asked as
+`isbn:`, found nothing on Google, while Open Library knew six. Asked in free
+text, `9780575078017` (*Sunstorm*) returned one item — *The British National
+Bibliography*, whose scanned pages contain the number — so the ISBN filter
+the proposal calls essential is borne out.
+**Applied.** As proposed, by the owner's decision, after a retry on
+2026-10-08 found the qualified queries still answering nothing, or 503.
+`GoogleBooksClient::lookupIsbn` and `search` ask the qualified way first
+and, only when that finds nothing without error, ask once more in free text
+(`freeTextUrl`): an ISBN's answers are kept only if a volume carries that
+ISBN, as ISBN-13 or ISBN-10; a search's only if the title agrees
+(`domain::titlesAgree`) and an author is shared (`domain::shareAnAuthor`),
+and the owner still chooses (AV-010). Live, the searches came back to life —
+*Titan* by Stephen Baxter, both editions of *Consider Phlebas*, the study of
+the Culture novels filtered out — while the ISBN fallback found nothing for
+a book Google holds: free text does not index ISBNs well, and that request,
+made only after a miss, is kept for the cases where it does.
+`tests/test_metadata.cpp`: `googleSearchFallsBackToFreeText`,
+`googleIsbnFallsBackToFreeTextKeepingOnlyThatIsbn`,
+`googleAnswersAreNotAskedTwice`.
+
 
 ### IMP-005 Summarise placeholder volumes in the detail panel
 

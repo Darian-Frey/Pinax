@@ -4,6 +4,7 @@
 #include "ui/detail_panel.h"
 #include "ui/rating_bar.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -88,6 +89,8 @@ private slots:
     void anIsbnAnswerIsOfferedReadyToUse();
     void candidatesShowTheirCoversAsTheyArrive();
     void aHoveredCoverShowsAtTwiceTheSize();
+    // D-029
+    void aSearchedCandidateCanBeSaidToBeMyEdition();
     void authorsAreEditedAsText();
     void aNewBookStartsEmptyAndCancelsToNothing();
     void deletionIsConfirmedInThePanel();
@@ -537,6 +540,46 @@ void TestDetailPanel::aHoveredCoverShowsAtTwiceTheSize()
     QVERIFY(!view->coverPreview());
     // A preview is not a choice (BUG-004).
     QVERIFY(list->selectedItems().isEmpty());
+}
+
+void TestDetailPanel::aSearchedCandidateCanBeSaidToBeMyEdition()
+{
+    DetailPanel panel;
+    panel.show();
+    panel.showBook(excession());
+    auto* view = panel.candidateView();
+    auto* mine = child<QCheckBox>(*view, QStringLiteral("candidates.myEdition"));
+    auto* list = child<QListWidget>(*view, QStringLiteral("candidates.list"));
+    auto* use = child<QPushButton>(*view, QStringLiteral("candidates.use"));
+    QSignalSpy chosen(&panel, &DetailPanel::candidateChosen);
+
+    // Found by search: offered, unticked.
+    panel.beginFetch(QStringLiteral("Searching…"));
+    panel.offerCandidates(twoEditions(), false);
+    QVERIFY(mine->isVisible());
+    QVERIFY(!mine->isChecked());
+    list->setCurrentRow(0);
+    QTest::mouseClick(use, Qt::LeftButton);
+    QCOMPARE(chosen.count(), 1);
+    QCOMPARE(chosen.at(0).at(2).toBool(), false);
+
+    // Ticked: the choice says so.
+    panel.showBook(excession());
+    panel.beginFetch(QStringLiteral("Searching…"));
+    panel.offerCandidates(twoEditions(), false);
+    mine->setChecked(true);
+    list->setCurrentRow(1);
+    QTest::mouseClick(use, Qt::LeftButton);
+    QCOMPARE(chosen.at(1).at(2).toBool(), true);
+
+    // A new offer starts unticked; an ISBN's answer needs no tick at all.
+    panel.showBook(excession());
+    panel.beginFetch(QStringLiteral("Looking up…"));
+    panel.offerCandidates({twoEditions().front()}, true);
+    QVERIFY(!mine->isVisible());
+    QVERIFY(!mine->isChecked());
+    QTest::mouseClick(use, Qt::LeftButton);
+    QCOMPARE(chosen.at(2).at(2).toBool(), true);
 }
 
 QTEST_MAIN(TestDetailPanel)

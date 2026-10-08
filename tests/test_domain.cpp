@@ -30,6 +30,7 @@ private slots:
     void enrichmentNeverTouchesWhatTheOwnerWrote();
     void aSearchedCandidateGivesNoEditionFacts();
     void aManualStatusStaysManual();
+    void typicalFiguresAreNeverWritten();
     void filledGapsKeepTheirProvider();
     void titlesAgreeAcrossProviderNoise();
     void isbn13ConvertsTo10WhereItCan();
@@ -243,6 +244,19 @@ void TestDomain::aSearchedCandidateGivesNoEditionFacts()
     QVERIFY(plan.book.publishedYear == 1987);
     QVERIFY(plan.book.synopsis);
     QVERIFY(plan.coverUrl);
+}
+
+void TestDomain::typicalFiguresAreNeverWritten()
+{
+    // D-029: a work's median page count is no edition's, even confirmed.
+    Book book;
+    book.title = "Consider Phlebas";
+    Candidate candidate = everything();
+    candidate.editionFactsTypical = true;
+    const auto plan = planEnrichment(book, candidate, true, "t");
+    QVERIFY(!plan.book.pageCount);
+    QVERIFY(!plan.book.publisher);
+    QVERIFY(plan.book.synopsis); // the rest as ever
 }
 
 void TestDomain::aManualStatusStaysManual()

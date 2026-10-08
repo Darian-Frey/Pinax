@@ -253,7 +253,10 @@ is explicitly out of scope at this version — see below.
 - Every fetched field records which provider supplied it and when.
 - A field entered by hand is never silently replaced by a fetched value.
 **Status:** In progress — synopsis, cover and each genre record their
-provider; the book records `metadata_status` and `metadata_fetched_at`.
+provider; the book records `metadata_status` and `metadata_fetched_at`. A
+searched candidate's publisher and page count are taken only when the owner
+ticks "This is my edition", and then from the edition behind its cover
+(D-029).
 Publisher, year and page count carry no source column, so a fetch fills
 them only when empty and never replaces one (SPEC.md §3.5). A per-field
 source for those would need a schema change, not proposed.

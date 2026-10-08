@@ -17,6 +17,13 @@ class RequestQueue;
 // Google Books, the second opinion (D-019, SPEC.md §3.2). Google gives no
 // keyless quota, so the client is usable only with an API key; without one,
 // available() is false and nothing is sent.
+//
+// Google's field-qualified queries (`isbn:`, `intitle:`, `inauthor:`) have
+// answered nothing since at least 2026-10-06 while free text works
+// (IMP-007). So each lookup asks the qualified way first and, only if that
+// finds nothing, asks again in free text — keeping, for an ISBN, only the
+// volumes that carry it, and for a title, only those whose title agrees and
+// that share an author.
 class GoogleBooksClient {
 public:
     GoogleBooksClient(RequestQueue& queue, QString apiKey);
@@ -29,6 +36,8 @@ public:
 
     QUrl isbnUrl(const std::string& isbn13) const;
     QUrl searchUrl(const std::string& title, const std::optional<std::string>& author) const;
+    // The fallback: the words alone, unqualified.
+    QUrl freeTextUrl(const std::string& words) const;
 
 private:
     void get(const QUrl& url, std::function<void(domain::LookupResult)> done);

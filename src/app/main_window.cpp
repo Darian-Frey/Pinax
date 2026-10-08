@@ -851,7 +851,7 @@ void MainWindow::previewCovers(qint64 bookId, const std::vector<domain::Candidat
     }
 }
 
-void MainWindow::useCandidate(qint64 bookId, int index)
+void MainWindow::useCandidate(qint64 bookId, int index, bool myEdition)
 {
     // Chosen: the other covers are not needed, and must not hold up this one's.
     if (enricher_)
@@ -860,14 +860,16 @@ void MainWindow::useCandidate(qint64 bookId, int index)
         || index >= static_cast<int>(offer_->candidates.size()))
         return;
     const auto candidate = offer_->candidates[static_cast<std::size_t>(index)];
-    const bool byIsbn = offer_->byIsbn;
+    // The owner's edition: an ISBN's answer, or one they say is theirs (D-029).
+    const bool ownersEdition = offer_->byIsbn || myEdition;
+    const bool confirmedSearch = myEdition && !offer_->byIsbn; // the cover's edition is fetched
     detail_->setFetchProgress(tr("Fetching the synopsis…"));
 
-    enricher_->complete(candidate, [this, bookId, byIsbn](domain::Candidate filled) {
+    enricher_->complete(candidate, [this, bookId, ownersEdition](domain::Candidate filled) {
         if (detail_->fetchingBookId() != bookId)
             return;
         offer_.reset();
-        const auto result = catalogue_->enrich(bookId, filled, byIsbn);
+        const auto result = catalogue_->enrich(bookId, filled, ownersEdition);
         if (result.problem) {
             detail_->showFetchProblem(QString::fromStdString(*result.problem));
             return;
@@ -884,7 +886,7 @@ void MainWindow::useCandidate(qint64 bookId, int index)
         refreshBooks({bookId});
         refreshRail();
         statusBar()->showMessage(tr("Details fetched for “%1”").arg(titleOf(bookId)), 4000);
-    });
+    }, Enricher::Channel::Interactive, confirmedSearch);
 }
 
 void MainWindow::fetchCover(qint64 bookId, const std::string& url, domain::Source source)

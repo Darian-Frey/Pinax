@@ -128,6 +128,10 @@ std::optional<EditionRecord> parseEdition(const QByteArray& json)
     if (!works.isEmpty())
         record.workKey = text(works.first().toObject().value(QStringLiteral("key")));
     record.description = textOrValue(root->value(QStringLiteral("description")));
+    record.publisher = firstString(root->value(QStringLiteral("publishers")));
+    if (const int pages = root->value(QStringLiteral("number_of_pages")).toInt(); pages > 0)
+        record.pageCount = pages;
+    record.publishedYear = yearIn(root->value(QStringLiteral("publish_date")).toString());
     return record;
 }
 
@@ -156,7 +160,12 @@ std::vector<Candidate> parseSearch(const QByteArray& json)
             if (auto name = text(author))
                 candidate.authors.push_back(*name);
         }
-        candidate.publisher = firstString(doc.value(QStringLiteral("publisher")));
+        // A work, not an edition: its publishers are every edition's, so
+        // none is named; its page count is their median, kept as typical
+        // (D-029). The edition behind its cover can be fetched for its own.
+        candidate.editionFactsTypical = true;
+        if (const auto edition = text(doc.value(QStringLiteral("cover_edition_key"))))
+            candidate.editionKey = "/books/" + *edition;
         if (const int year = doc.value(QStringLiteral("first_publish_year")).toInt(); year > 0)
             candidate.firstPublishedYear = year;
         if (const int pages = doc.value(QStringLiteral("number_of_pages_median")).toInt(); pages > 0)
@@ -205,7 +214,8 @@ QUrl OpenLibraryClient::searchUrl(const std::string& title, const std::optional<
         query.addQueryItem(QStringLiteral("author"), QString::fromStdString(*author));
     query.addQueryItem(QStringLiteral("limit"), QStringLiteral("5"));
     query.addQueryItem(QStringLiteral("fields"),
-        QStringLiteral("key,title,author_name,first_publish_year,isbn,cover_i,number_of_pages_median,publisher,subject"));
+        QStringLiteral("key,title,author_name,first_publish_year,isbn,cover_i,cover_edition_key,"
+                       "number_of_pages_median,subject"));
     url.setQuery(query);
     return url;
 }
@@ -251,6 +261,18 @@ void OpenLibraryClient::search(const std::string& title, const std::optional<std
             return;
         }
         done({openlibrary::parseSearch(reply.body), std::nullopt});
+    });
+}
+
+void OpenLibraryClient::edition(const std::string& editionKey,
+    std::function<void(std::optional<openlibrary::EditionRecord>, std::optional<std::string>)> done)
+{
+    queue_.enqueue(recordUrl(editionKey), [done](const HttpReply& reply) {
+        if (reply.status != 200) {
+            done(std::nullopt, httpProblem(reply).toStdString());
+            return;
+        }
+        done(openlibrary::parseEdition(reply.body), std::nullopt);
     });
 }
 

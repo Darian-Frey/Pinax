@@ -134,7 +134,9 @@ public:
         std::optional<std::string> coverUrl;
         std::optional<std::string> problem;
     };
-    EnrichResult enrich(std::int64_t bookId, const domain::Candidate& candidate, bool fromIsbnLookup);
+    // `ownersEdition`: an ISBN match, or a candidate the owner confirmed as
+    // their edition (D-029) — only then are publisher and pages taken.
+    EnrichResult enrich(std::int64_t bookId, const domain::Candidate& candidate, bool ownersEdition);
 
     // No provider knew the book: marked failed, its content untouched
     // (SPEC.md §3.4). A book whose metadata is marked manual stays so.

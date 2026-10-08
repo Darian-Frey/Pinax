@@ -151,8 +151,9 @@ signals:
     void ratingRequested(qint64 bookId, int rating);
     // "Fetch metadata" pressed for the book on show.
     void fetchRequested(qint64 bookId);
-    // The owner chose this of the candidates offered.
-    void candidateChosen(qint64 bookId, int index);
+    // The owner chose this of the candidates offered; `myEdition` as the
+    // candidate view says (D-029).
+    void candidateChosen(qint64 bookId, int index, bool myEdition);
     // The lookup was cancelled, or its problem acknowledged; the panel is
     // back on the book.
     void fetchCancelled();
