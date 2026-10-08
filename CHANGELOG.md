@@ -17,6 +17,9 @@ Phase 3 (metadata enrichment) and Phase 4 (browsing and export) closed
 owner's catalogue. Phase 5 (barcode scanning) waits on a webcam.
 
 ### Added
+- Screenshots in the README (`docs/screenshots/`): the library, a series
+  page, the shopping list, Fetch metadata's candidates and Group by series,
+  taken from a demo catalogue of well-known books, not the owner's.
 - A cover enlarged on hover: resting the pointer on a candidate's thumbnail,
   in Fetch metadata or Review matches, shows that cover at twice the size
   beside it, so editions are easier to tell apart. It uses the image

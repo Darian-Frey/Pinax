@@ -21,6 +21,38 @@ Named for the *Pinakes*, Callimachus's catalogue of the Library of Alexandria.
 
 ---
 
+## Screenshots
+
+Taken from a demo catalogue of 32 well-known books, with synopses, genres
+and covers fetched from Open Library.
+
+![The library: every book, sortable by any column, with the selected book in the panel](docs/screenshots/library.png)
+
+*The library.* The rail on the left narrows the list by read state or series.
+The panel on the right shows the selected book: its cover, rating, place in
+its series and synopsis.
+
+![A series page with the volumes not owned in place](docs/screenshots/series.png)
+
+*A series.* Volumes you don't own sit in their place, marked NOT OWNED.
+
+![The shopping list of missing volumes, fewest needed first](docs/screenshots/shopping-list.png)
+
+*Missing volumes*, under NEEDS ATTENTION: the shopping list, with the series
+closest to complete first.
+
+![Fetch metadata offering candidates, each with its cover](docs/screenshots/fetch-metadata.png)
+
+*Fetch metadata.* A search by title and author offers several editions, each
+with its cover, and nothing is written until you choose one.
+
+![The list grouped by series](docs/screenshots/grouped.png)
+
+*Group by series*, one of the filter bar's groupings (series, author or
+genre).
+
+---
+
 ## Quick start
 
 ```sh
@@ -130,6 +162,8 @@ pinax/
 │   └── ui/               rail, list, detail panel
 ├── tests/                Qt Test, run by ctest
 │   └── fixtures/         frozen schema_v1.sql for the migration test
+├── docs/
+│   └── screenshots/      the README's screenshots, from a demo catalogue
 ├── design/
 │   ├── Pinax UI.html     interactive mock-up, four screens
 │   └── screens/          the same four screens as PNG

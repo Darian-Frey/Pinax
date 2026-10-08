@@ -51,6 +51,10 @@ published.
 `src/` holds one directory per module (ARCHITECTURE.md §2); all have code. Each module becomes its own static library as it gains
 code.
 `design/` holds the UI mock-up with PNG captures of its four screens.
+`docs/screenshots/` holds the README's screenshots. They were taken offscreen
+(`MainWindow::grab`) from a demo catalogue of 32 well-known books. Never take
+them from the owner's catalogue: a screenshot publishes the library as surely
+as `seed/` would.
 
 ---
 
