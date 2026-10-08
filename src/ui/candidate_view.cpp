@@ -5,11 +5,15 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPixmap>
 #include <QPushButton>
+#include <QScreen>
 #include <QShortcut>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace pinax::ui {
 
@@ -74,6 +78,7 @@ QString describe(const Candidate& candidate)
 }
 
 constexpr QSize thumbnailSize(48, 72);
+constexpr QSize previewSize = thumbnailSize * 2;
 
 // A frame where a cover will go: "…" while one is on its way, a dash when
 // the provider has none.
@@ -122,6 +127,17 @@ CandidateView::CandidateView(QWidget* parent)
     list_->setObjectName(QStringLiteral("candidates.list"));
     list_->setWordWrap(true);
     list_->setIconSize(thumbnailSize);
+    list_->setMouseTracking(true);
+    list_->viewport()->installEventFilter(this);
+
+    // The enlarged cover: a borderless window that follows the pointer and
+    // never takes focus.
+    preview_ = new QLabel(this, Qt::ToolTip | Qt::FramelessWindowHint);
+    preview_->setObjectName(QStringLiteral("candidates.preview"));
+    preview_->setAttribute(Qt::WA_ShowWithoutActivating);
+    preview_->setFrameShape(QFrame::Box);
+    preview_->setAlignment(Qt::AlignCenter);
+    preview_->hide();
     list_->setSpacing(4);
     layout->addWidget(list_, 1);
 
@@ -166,6 +182,7 @@ CandidateView::CandidateView(QWidget* parent)
 
 void CandidateView::begin(const QString& title, const QString& how)
 {
+    hidePreview();
     reviewing_ = false;
     place_.clear();
     heading_->setText(title);
@@ -207,6 +224,8 @@ void CandidateView::offer(const std::vector<Candidate>& candidates, bool byIsbn)
                                          "taken. Choose the one that is your book, or cancel.")));
     }
     list_->clear();
+    hidePreview();
+    covers_.assign(candidates.size(), QPixmap());
     for (const Candidate& candidate : candidates) {
         // Each row as tall as its text or its thumbnail, whichever is more.
         new QListWidgetItem(QIcon(placeholder(this, candidate.coverUrl.has_value())), describe(candidate), list_);
@@ -244,10 +263,77 @@ void CandidateView::setCover(int index, const QPixmap& cover)
     painter.end();
     item->setIcon(QIcon(framed));
     item->setData(Qt::UserRole, true); // a cover is shown
+    if (index >= 0 && index < static_cast<int>(covers_.size()))
+        covers_[static_cast<std::size_t>(index)] = cover;
+}
+
+const QLabel* CandidateView::coverPreview() const
+{
+    return preview_->isVisible() ? preview_ : nullptr;
+}
+
+bool CandidateView::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == list_->viewport()) {
+        if (event->type() == QEvent::MouseMove) {
+            const auto* move = static_cast<QMouseEvent*>(event);
+            const QPoint at = move->position().toPoint();
+            const QModelIndex index = list_->indexAt(at);
+            // Over the thumbnail itself, not the text beside it.
+            const QRect row = index.isValid() ? list_->visualRect(index) : QRect();
+            const bool onThumbnail = index.isValid() && at.x() <= row.left() + thumbnailSize.width() + 8;
+            if (onThumbnail)
+                previewCover(index.row(), move->globalPosition().toPoint());
+            else
+                hidePreview();
+        } else if (event->type() == QEvent::Leave || event->type() == QEvent::Hide
+            || event->type() == QEvent::MouseButtonPress || event->type() == QEvent::Wheel) {
+            hidePreview();
+        }
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+void CandidateView::previewCover(int row, const QPoint& globalPosition)
+{
+    if (row < 0 || row >= static_cast<int>(covers_.size()) || covers_[static_cast<std::size_t>(row)].isNull()) {
+        hidePreview();
+        return;
+    }
+    if (row != previewRow_) {
+        previewRow_ = row;
+        preview_->setPixmap(covers_[static_cast<std::size_t>(row)].scaled(previewSize, Qt::KeepAspectRatio,
+            Qt::SmoothTransformation));
+        preview_->adjustSize();
+    }
+    // To the left of the pointer, which sits at the panel's right-hand edge;
+    // kept on the screen.
+    QPoint where(globalPosition.x() - preview_->width() - 16, globalPosition.y() - preview_->height() / 2);
+    if (const QScreen* screen = this->screen()) {
+        const QRect bounds = screen->availableGeometry();
+        where.setX(std::clamp(where.x(), bounds.left(), std::max(bounds.left(), bounds.right() - preview_->width())));
+        where.setY(std::clamp(where.y(), bounds.top(), std::max(bounds.top(), bounds.bottom() - preview_->height())));
+    }
+    preview_->move(where);
+    preview_->show();
+}
+
+void CandidateView::hideEvent(QHideEvent* event)
+{
+    // The preview is a window of its own: it goes when the panel moves on.
+    hidePreview();
+    QWidget::hideEvent(event);
+}
+
+void CandidateView::hidePreview()
+{
+    previewRow_ = -1;
+    preview_->hide();
 }
 
 void CandidateView::showProblem(const QString& message)
 {
+    hidePreview();
     status_->setText(message);
     list_->clear();
     list_->hide();
@@ -265,6 +351,7 @@ void CandidateView::focusList()
 
 void CandidateView::choose()
 {
+    hidePreview();
     const auto selected = list_->selectedItems();
     if (selected.isEmpty() || list_->isHidden())
         return;

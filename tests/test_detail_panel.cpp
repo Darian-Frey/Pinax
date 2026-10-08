@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMouseEvent>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSignalSpy>
@@ -86,6 +87,7 @@ private slots:
     void searchedCandidatesWaitToBeChosen();
     void anIsbnAnswerIsOfferedReadyToUse();
     void candidatesShowTheirCoversAsTheyArrive();
+    void aHoveredCoverShowsAtTwiceTheSize();
     void authorsAreEditedAsText();
     void aNewBookStartsEmptyAndCancelsToNothing();
     void deletionIsConfirmedInThePanel();
@@ -487,6 +489,53 @@ void TestDetailPanel::candidatesShowTheirCoversAsTheyArrive()
     QVERIFY(!list->item(1)->data(Qt::UserRole).toBool());
     panel.setCandidateCover(7, cover); // no such row: ignored
     // A cover is not a choice (BUG-004).
+    QVERIFY(list->selectedItems().isEmpty());
+}
+
+void TestDetailPanel::aHoveredCoverShowsAtTwiceTheSize()
+{
+    DetailPanel panel;
+    panel.resize(320, 600);
+    panel.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&panel));
+    panel.showBook(excession());
+    panel.beginFetch(QStringLiteral("Searching…"));
+    auto editions = twoEditions();
+    editions.front().coverUrl = "https://covers.openlibrary.org/b/id/1-L.jpg";
+    panel.offerCandidates(editions, false);
+    QPixmap cover(180, 270); // Open Library's medium size, near enough
+    cover.fill(Qt::darkCyan);
+    panel.setCandidateCover(0, cover);
+
+    auto* view = panel.candidateView();
+    auto* list = child<QListWidget>(*view, QStringLiteral("candidates.list"));
+    auto move = [&](const QPoint& at) {
+        QMouseEvent event(QEvent::MouseMove, at, list->viewport()->mapToGlobal(at), Qt::NoButton, Qt::NoButton,
+            Qt::NoModifier);
+        QApplication::sendEvent(list->viewport(), &event);
+    };
+    const QRect first = list->visualRect(list->model()->index(0, 0));
+    const QRect second = list->visualRect(list->model()->index(1, 0));
+
+    // On the thumbnail: the cover, twice the thumbnail's size.
+    move(QPoint(first.left() + 20, first.center().y()));
+    QVERIFY(view->coverPreview());
+    QCOMPARE(view->coverPreview()->pixmap().size(), QSize(96, 144));
+    // On the text beside it, or a row with no cover yet: nothing.
+    move(QPoint(first.left() + 200, first.center().y()));
+    QVERIFY(!view->coverPreview());
+    move(QPoint(second.left() + 20, second.center().y()));
+    QVERIFY(!view->coverPreview());
+    // Leaving the list, or the panel moving on, takes it away.
+    move(QPoint(first.left() + 20, first.center().y()));
+    QVERIFY(view->coverPreview());
+    QEvent leave(QEvent::Leave);
+    QApplication::sendEvent(list->viewport(), &leave);
+    QVERIFY(!view->coverPreview());
+    move(QPoint(first.left() + 20, first.center().y()));
+    QTest::mouseClick(child<QPushButton>(*view, QStringLiteral("candidates.cancel")), Qt::LeftButton);
+    QVERIFY(!view->coverPreview());
+    // A preview is not a choice (BUG-004).
     QVERIFY(list->selectedItems().isEmpty());
 }
 

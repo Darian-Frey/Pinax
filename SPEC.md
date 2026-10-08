@@ -386,7 +386,9 @@ Covers shown before a choice — a thumbnail beside each candidate in Fetch
 metadata and Review matches, the cover on the Add by ISBN card — are
 downloaded and checked like any other but kept only in memory. Thumbnails
 use Open Library's medium size (`-M.jpg` for `-L.jpg`); other providers'
-images are used as given. They queue behind nothing else's urgency: as soon
+images are used as given. A thumbnail is 48 × 72; with the pointer on it,
+the same image shows at 96 × 144 beside the pointer, its proportions kept,
+until the pointer moves off it or the panel moves on. They queue behind nothing else's urgency: as soon
 as the choice is made or abandoned, those not yet downloaded are withdrawn
 from the queue, so the chosen book's own cover is not kept waiting.
 

@@ -32,8 +32,12 @@ public:
     // edition; otherwise they were found by title and author.
     void offer(const std::vector<domain::Candidate>& candidates, bool byIsbn);
     // The cover of the candidate at `index`, when it has arrived: shown
-    // beside it, so editions can be told apart before one is chosen.
+    // beside it, so editions can be told apart before one is chosen; and
+    // at twice the size while the pointer rests on it.
     void setCover(int index, const QPixmap& cover);
+
+    // The enlarged cover on show, or nullptr when none is.
+    const QLabel* coverPreview() const;
 
     // Nothing to choose from, and why.
     void showProblem(const QString& message);
@@ -47,12 +51,23 @@ signals:
     void rejected();
     void skipped();
 
+protected:
+    // The list's pointer movements: over a thumbnail, its cover enlarged.
+    bool eventFilter(QObject* watched, QEvent* event) override;
+    void hideEvent(QHideEvent* event) override;
+
 private:
+    void previewCover(int row, const QPoint& globalPosition);
+    void hidePreview();
+
     void choose();
 
     QLabel* heading_;
     QLabel* status_;
     QListWidget* list_;
+    QLabel* preview_;
+    std::vector<QPixmap> covers_; // as downloaded, by row; null until it arrives
+    int previewRow_ = -1;
     QPushButton* use_;
     QPushButton* cancel_;
     QPushButton* reject_;

@@ -15,6 +15,10 @@ Phase 1 (catalogue core) closed 2026-10-05. Phase 2 (series) closed 2026-10-06.
 Phase 3 (metadata enrichment) in progress.
 
 ### Added
+- A cover enlarged on hover: resting the pointer on a candidate's thumbnail,
+  in Fetch metadata or Review matches, shows that cover at twice the size
+  beside it, so editions are easier to tell apart. It uses the image
+  already downloaded and goes when the pointer moves off.
 - Catalogue files (F-026 to F-028), asked for by the owner: a menu bar with
   File ▸ New Catalogue, Open Catalogue, Open Recent, Close Catalogue and
   Quit; Restore from Backup, which backs the open catalogue up first; Import
