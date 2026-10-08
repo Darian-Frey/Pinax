@@ -19,7 +19,8 @@ struct EnrichmentPlan {
         Source source;
         bool operator==(const Genre&) const = default;
     };
-    std::vector<Genre> genres;           // to add, verbatim (D-009), each with its provider
+    std::vector<Genre> genres;           // to add, verbatim (D-009), each with its provider;
+                                         // never a lending or list tag (IMP-008)
     std::optional<std::string> coverUrl; // to fetch, unless the cover is the owner's
 };
 

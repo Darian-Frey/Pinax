@@ -261,6 +261,12 @@ Phase 3 (metadata enrichment) in progress.
   change needed.
 
 ### Changed
+- IMP-008 applied: Open Library's lending and list tags — "Accessible book",
+  "Protected DAISY", "OverDrive", "Large type books", "New York Times
+  bestseller", machine tags such as `award:hugo_award=2006` — are no longer
+  stored as genres, and those already fetched are removed when a catalogue
+  opens; genres you added are never touched. A search keeps at most ten
+  subjects.
 - "This is my edition" (D-029), after the owner found Cello's Gate's page
   count shown and not saved: a candidate found by title and author can be
   ticked as the owner's edition, and its publisher and page count are then

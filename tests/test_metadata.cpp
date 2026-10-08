@@ -598,6 +598,8 @@ void TestMetadata::aSearchedWorkGivesOnlyTypicalFigures()
     QVERIFY(work.pageCount == 471);            // the median of its editions
     QVERIFY(!work.publisher);                   // every edition's: none named
     QVERIFY(work.editionKey == std::optional<std::string>("/books/OL9041460M"));
+    // Lending and list tags left out (IMP-008): seven subjects, three real.
+    QCOMPARE(work.categories, std::vector<std::string>({"Fiction", "Imaginary wars and battles", "Science Fiction"}));
 
     const auto edition = openlibrary::parseEdition(fixture("open_library/edition_OL9041460M.json"));
     QVERIFY(edition);

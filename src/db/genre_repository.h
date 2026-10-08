@@ -36,6 +36,11 @@ public:
     // Every genre some book carries, by name, with how many books (F-017).
     std::vector<domain::FilterOption> withCounts();
 
+    // Removes every link a provider made to a lending or list tag
+    // (domain::isServiceSubject, IMP-008) — never one the owner made — and
+    // then any genre nothing links to. Returns how many links went.
+    int removeServiceSubjects();
+
     // Every book's genres by name, for grouping the list (F-018).
     std::map<std::int64_t, std::vector<std::string>> byBook();
 

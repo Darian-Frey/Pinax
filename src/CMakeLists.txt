@@ -17,6 +17,8 @@ add_library(pinax_domain STATIC
     domain/enrichment.cpp
     domain/enrichment.h
     domain/enums.cpp
+    domain/genre_filter.cpp
+    domain/genre_filter.h
     domain/enums.h
     domain/isbn.cpp
     domain/isbn.h

@@ -145,6 +145,8 @@ private slots:
     void enrichingWritesTheCandidateAndItsGenres();
     void enrichingNeverOverwritesTheOwnersWork();
     void aLookupThatFindsNothingChangesNothing();
+    // IMP-008
+    void openingTidiesLendingTagsAwayButNotTheOwners();
 
     // F-024, D-012
     void addingFillsTheMissingVolumeItMatches();
@@ -2064,6 +2066,36 @@ void TestCatalogue::exportingTheListAsCsv()
     QCOMPARE(lines.size(), 3);
     QVERIFY(lines.at(1).startsWith("Surface Detail,,Iain M. Banks,The Culture,9,9,unread,0"));
     QVERIFY(lines.at(2).startsWith("Tau Zero,,Poul Anderson,,,,unread,0"));
+}
+
+void TestCatalogue::openingTidiesLendingTagsAwayButNotTheOwners()
+{
+    QTemporaryDir dir;
+    const std::string path = dir.filePath(QStringLiteral("pinax.db")).toStdString();
+    std::int64_t id = 0;
+    {
+        Catalogue catalogue(path);
+        pinax::domain::BookEdit edit;
+        edit.book.title = "Consider Phlebas";
+        id = catalogue.save(edit).id;
+        // As stored before IMP-008: fetched tags, and one the owner chose.
+        pinax::db::GenreRepository genres(catalogue.connection());
+        genres.addToBook(id, "Science fiction", pinax::domain::Source::OpenLibrary);
+        genres.addToBook(id, "Accessible book", pinax::domain::Source::OpenLibrary);
+        genres.addToBook(id, "nyt:trade-fiction-paperback=2013-03-31", pinax::domain::Source::OpenLibrary);
+        genres.addToBook(id, "OverDrive", pinax::domain::Source::Manual); // the owner's: kept
+    }
+    Catalogue reopened(path);
+    pinax::db::GenreRepository genres(reopened.connection());
+    QCOMPARE(genres.forBook(id),
+        (std::vector<pinax::db::GenreLink> {{"OverDrive", pinax::domain::Source::Manual},
+            {"Science fiction", pinax::domain::Source::OpenLibrary}}));
+    // Genres nothing links to any more are gone too.
+    pinax::db::Statement count(reopened.connection(), "SELECT COUNT(*) FROM genre");
+    count.step();
+    QCOMPARE(count.columnInt(0), std::int64_t(2));
+    // Opening again finds nothing more to do.
+    QCOMPARE(genres.removeServiceSubjects(), 0);
 }
 
 QTEST_MAIN(TestCatalogue)

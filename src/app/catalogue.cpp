@@ -38,6 +38,11 @@ Catalogue::Catalogue(const std::string& path)
     , connection_(path)
 {
     db::migrate(connection_);
+    // Lending and list tags fetched before IMP-008: gone on opening, as
+    // they would never have been stored now. The owner's own genres stay.
+    db::Transaction tidy(connection_);
+    db::GenreRepository(connection_).removeServiceSubjects();
+    tidy.commit();
 }
 
 std::int64_t Catalogue::count()

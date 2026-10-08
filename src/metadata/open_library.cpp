@@ -1,5 +1,6 @@
 #include "metadata/open_library.h"
 
+#include "domain/genre_filter.h"
 #include "domain/isbn.h"
 #include "metadata/request_queue.h"
 
@@ -170,8 +171,13 @@ std::vector<Candidate> parseSearch(const QByteArray& json)
             candidate.firstPublishedYear = year;
         if (const int pages = doc.value(QStringLiteral("number_of_pages_median")).toInt(); pages > 0)
             candidate.pageCount = pages;
+        // A work's subjects can run to dozens: the first ten real ones
+        // (IMP-008), lending and list tags not counted.
+        constexpr std::size_t searchSubjects = 10;
         for (const auto& subject : doc.value(QStringLiteral("subject")).toArray()) {
-            if (auto name = text(subject))
+            if (candidate.categories.size() == searchSubjects)
+                break;
+            if (auto name = text(subject); name && !domain::isServiceSubject(*name))
                 candidate.categories.push_back(*name);
         }
         if (const int cover = doc.value(QStringLiteral("cover_i")).toInt(); cover > 0)

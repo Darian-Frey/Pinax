@@ -22,7 +22,7 @@ database and exports to SQL, CSV and Excel.
 | Path | State |
 |---|---|
 | `db/schema.sql`, `db/migrations/` | Version 5. `schema.sql` is the latest full schema; `002_book_display_sort_keys.sql`, `003_book_display_editors.sql`, `004_missing_entries_entry_id.sql` and `005_genre_source_british_library.sql` (rebuilds `book_genre`, D-022) carry older files forward. Each step's `CREATE` statements must stay byte-identical to `schema.sql`'s — `migratingVersion1MatchesFreshSchema` fails otherwise. |
-| `src/domain/` | Value types (`Book`, `BookSummary`, `BookDetail`, `BookEdit`, `BookFilter`, `Author`, `Credit`, `SeriesEntry`, `SeriesMembership`, `SeriesStatus`), enums with schema strings, `makeSortTitle`, `makeSortName`, ISBN check digits, `isbn10To13` and `isbn13To10`, `knownAuthor`/`shareAnAuthor` (loose name matching, proposals only), `SeriesProposal`, `titlesAgree`, `parseCredits`/`formatCredits`, `isPlaceholderTitle`, `Candidate`, and `planEnrichment` — the one statement of what a fetch may write (SPEC.md §3.5, AV-001). No Qt, no SQL. |
+| `src/domain/` | Value types (`Book`, `BookSummary`, `BookDetail`, `BookEdit`, `BookFilter`, `Author`, `Credit`, `SeriesEntry`, `SeriesMembership`, `SeriesStatus`), enums with schema strings, `makeSortTitle`, `makeSortName`, ISBN check digits, `isbn10To13` and `isbn13To10`, `knownAuthor`/`shareAnAuthor` (loose name matching, proposals only), `SeriesProposal`, `titlesAgree`, `parseCredits`/`formatCredits`, `isPlaceholderTitle`, `Candidate`, `isServiceSubject` (lending and list tags are not genres, IMP-008), and `planEnrichment` — the one statement of what a fetch may write (SPEC.md §3.5, AV-001). No Qt, no SQL. |
 | `src/db/` | SQLite C API, no Qt (D-015). `Connection` (FK on + verified, WAL), `Statement` (named binds), `Transaction` (RAII), `Savepoint`, `migrate()` with schema and migrations compiled in, and `BookRepository`, `AuthorRepository`, `SeriesRepository`, `GenreRepository` (an existing link keeps its source). Errors throw `DbError` with the extended result code; `isConstraintViolation()` tells the data's fault from the database's. |
 | `src/metadata/` | Qt Network (D-020). `Fetcher`/`NetworkFetcher` (the one network seam), `RequestQueue` (spacing, pause on 429/503, retries), `CoverCache` (covers beside the database), `OpenLibraryClient`, `GoogleBooksClient` (key only, D-019; free-text fallback when qualified queries find nothing, IMP-007) and `BritishLibraryClient` (SRU by ISBN, MARC 21, D-022) with pure `openlibrary::`/`googlebooks::` parsers. Used by `app::Enricher`. |
 | `src/io/` | Qt-free. `parseCsv` (RFC 4180), `CsvImporter` (SPEC.md §1) and `SeriesImporter` (§1.6), sharing `import_support.h`: one transaction, savepoint per row, failures by line, `deriveSortPosition` (the only code that parses `position`). |
@@ -37,7 +37,7 @@ database and exports to SQL, CSV and Excel.
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, what a fetch writes (§3.5), cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-014. Detection implemented for AV-001, AV-002, AV-003, AV-004, AV-005, AV-008, AV-011, AV-014; partly for AV-006, AV-007, AV-010, AV-012, AV-013; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001 to BUG-006 fixed. |
-| `IMPROVEMENTS.md` | IMP-008 suggested (leave Open Library's library-service subjects such as "Accessible book" out of genres); IMP-009 suggested (genres differing only in case are one); IMP-010 suggested (a finish date for books read before Pinax). IMP-001 to IMP-005 and IMP-007 applied; IMP-006 deferred. |
+| `IMPROVEMENTS.md` | IMP-009 suggested (genres differing only in case are one); IMP-010 suggested (a finish date for books read before Pinax). IMP-001 to IMP-005, IMP-007 and IMP-008 applied; IMP-006 deferred. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
 | `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
@@ -109,7 +109,7 @@ Suggested order:
 
 Every Phase 3 deliverable is ticked; closing the phase is the owner's call.
 
-Open with the owner: IMP-008, IMP-009, IMP-010; whether to ask metadata@bl.uk
+Open with the owner: IMP-009, IMP-010; whether to ask metadata@bl.uk
 about the open SRU endpoint (D-022). IMP-006 is deferred.
 
 The seed: `seed/library.csv` and `seed/series.csv`, made by
@@ -308,6 +308,10 @@ Not vectors, but worth knowing:
   them (D-018). `domain::isPlaceholderTitle` is the only code that reads the
   convention — use it, never a string test of your own (IMP-005). Matching on
   re-import relies on those titles staying put until the owner renames them.
+- **Opening a catalogue tidies its genres** (IMP-008): `Catalogue`'s
+  constructor removes provider-made links to lending and list tags, and any
+  genre left unused. Never the owner's (`source = 'manual'`). Change the
+  rule only in `domain::isServiceSubject`.
 - **An edited synopsis becomes `manual`.** `BookEditor` sets
   `synopsis_source = 'manual'` when the text changes, so enrichment must skip
   it (AV-001). Keep that link when touching either side.

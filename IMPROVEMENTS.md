@@ -23,31 +23,6 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
-### IMP-008 Leave Open Library's library-service subjects out of genres
-
-**Status:** suggested
-**Found:** 2026-10-06 (Phase 3 step 4, the first real fetch into a catalogue copy)
-**Location:** `src/metadata/open_library.cpp`, `parseBooksApi` and `parseSearch`
-**Effort:** small
-**Description.** Open Library's subjects mix genres with tags about the
-library copy: *Consider Phlebas* by ISBN brings "Fiction", "Science Fiction"
-and "Imaginary wars and battles", but also "Accessible book", "Protected
-DAISY", "OverDrive" and "Long now manual for civilization". Stored verbatim
-(D-009, D-019), these become genres in the rail's future filter (F-017),
-where every book Open Library lends out would share "Accessible book". A
-search result's `subject` list can run to dozens.
-**Proposal.** Drop a short, fixed list of service tags — "Accessible book",
-"Protected DAISY", "In library", "Lending library", "OverDrive", "Large type
-books", "Long now manual for civilization" and the like — and keep at most
-the first ten subjects from a search. Everything kept is still verbatim.
-**Trade-offs.** A blocklist is a small taxonomy decision, which D-009 set
-out to avoid, and it will lag Open Library's own tags. Leaving it means
-cleaning genres by hand later, once a genre editor exists, and a filter
-cluttered meanwhile. Filtering at display time instead keeps the data
-verbatim but hides the problem rather than solving it.
-**Notes.** The owner's first fetch, *Surface Detail* by search, brought five
-clean subjects; the noise shows on ISBN lookups more than on searches.
-
 ### IMP-009 Treat genre names that differ only in case as one genre
 
 **Status:** suggested
@@ -94,6 +69,49 @@ column only describes reading done with Pinax.
 settle both together.
 
 ## Applied
+
+### IMP-008 Leave Open Library's library-service subjects out of genres
+
+**Status:** applied (2026-10-08)
+**Found:** 2026-10-06 (Phase 3 step 4, the first real fetch into a catalogue copy)
+**Location:** `src/metadata/open_library.cpp`, `parseBooksApi` and `parseSearch`
+**Effort:** small
+**Description.** Open Library's subjects mix genres with tags about the
+library copy: *Consider Phlebas* by ISBN brings "Fiction", "Science Fiction"
+and "Imaginary wars and battles", but also "Accessible book", "Protected
+DAISY", "OverDrive" and "Long now manual for civilization". Stored verbatim
+(D-009, D-019), these become genres in the rail's future filter (F-017),
+where every book Open Library lends out would share "Accessible book". A
+search result's `subject` list can run to dozens.
+**Proposal.** Drop a short, fixed list of service tags — "Accessible book",
+"Protected DAISY", "In library", "Lending library", "OverDrive", "Large type
+books", "Long now manual for civilization" and the like — and keep at most
+the first ten subjects from a search. Everything kept is still verbatim.
+**Trade-offs.** A blocklist is a small taxonomy decision, which D-009 set
+out to avoid, and it will lag Open Library's own tags. Leaving it means
+cleaning genres by hand later, once a genre editor exists, and a filter
+cluttered meanwhile. Filtering at display time instead keeps the data
+verbatim but hides the problem rather than solving it.
+**Notes.** The owner's first fetch, *Surface Detail* by search, brought five
+clean subjects; the noise shows on ISBN lookups more than on searches.
+**Applied.** As proposed, by the owner's decision, with one addition the
+owner's catalogue called for. `domain::isServiceSubject` is the one rule: a
+short fixed list (Accessible book, Protected DAISY, In library, Lending
+library, OverDrive, Large type and Large print books, Long Now Manual for
+Civilization, New York Times bestseller and reviewed, Internet Archive
+Wishlist, Open Library Staff Picks), compared case-blind, plus Open
+Library's machine tags — `nyt:…=…`, `award:…=…` — which the catalogue held
+and the entry had not foreseen. `planEnrichment` never writes such a genre,
+from any provider; Open Library's search keeps at most its first ten real
+subjects. The addition: links already stored are removed when a catalogue
+opens (`GenreRepository::removeServiceSubjects`), never the owner's own,
+with any genre left unused — on the owner's catalogue, 7 of 99 links and 7
+of 57 genres. Real subjects however odd ("Sheriffs", "Captain Frey
+(Fictitious character)") and headings in other languages ("Roman") stay, as
+D-009 intends. `tests/test_domain.cpp`, `lendingAndListTagsAreNotGenres`;
+`tests/test_metadata.cpp`, `aSearchedWorkGivesOnlyTypicalFigures`;
+`tests/test_catalogue.cpp`, `openingTidiesLendingTagsAwayButNotTheOwners`.
+
 
 ### IMP-007 Fall back to a free-text Google query when a qualified one finds nothing
 

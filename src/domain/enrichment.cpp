@@ -1,5 +1,7 @@
 #include "domain/enrichment.h"
 
+#include "domain/genre_filter.h"
+
 #include <algorithm>
 #include <cctype>
 
@@ -30,11 +32,16 @@ EnrichmentPlan planEnrichment(const Book& book, const Candidate& candidate, bool
             updated.pageCount = candidate.pageCount;
     }
 
-    for (const auto& name : candidate.categories)
-        plan.genres.push_back({name, candidate.source});
+    // Lending and list tags are not genres (IMP-008).
+    for (const auto& name : candidate.categories) {
+        if (!isServiceSubject(name))
+            plan.genres.push_back({name, candidate.source});
+    }
     if (candidate.filledFrom) {
-        for (const auto& name : candidate.filledCategories)
-            plan.genres.push_back({name, *candidate.filledFrom});
+        for (const auto& name : candidate.filledCategories) {
+            if (!isServiceSubject(name))
+                plan.genres.push_back({name, *candidate.filledFrom});
+        }
     }
     if (candidate.coverUrl && book.coverSource != Source::Manual)
         plan.coverUrl = candidate.coverUrl;

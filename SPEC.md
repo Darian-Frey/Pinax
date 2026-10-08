@@ -217,7 +217,7 @@ GET https://openlibrary.org/search.json?title={title}&author={author}&limit=5
 | `first_publish_year` (search) | first-published year on the confirmation card (F-024) |
 | `number_of_pages` / `number_of_pages_median` | `book.page_count` — the search's median is typical, shown as "about n pages" and never written (D-029) |
 | `identifiers.isbn_13`, `identifiers.isbn_10` | the candidate card; written only by add-by-ISBN (F-024), never by a fetch |
-| `subjects[].name` / `subject[]` | `genre` rows, verbatim, source `open_library` |
+| `subjects[].name` / `subject[]` | `genre` rows, verbatim, source `open_library` — not lending or list tags (`domain::isServiceSubject`, IMP-008), and from a search at most the first ten |
 | `cover.large` / `cover_i` | the cover cache (§4), source `open_library` |
 | `description` (edition or work) | `book.synopsis`, source `open_library` |
 
@@ -298,7 +298,7 @@ offered ready to accept, a search's never is.
 | `title`, `subtitle`, credits, series | never |
 | edition and condition notes, acquisition, notes | never |
 | read state, `times_read`, rating | never |
-| genres | each category added verbatim with the provider as source — those from a gap-filling provider under its own name; a genre already linked keeps its source, so the owner's stay `manual` |
+| genres | each category added verbatim with the provider as source — those from a gap-filling provider under its own name; a genre already linked keeps its source, so the owner's stay `manual`; never a lending or list tag (IMP-008), and any such link a provider made earlier is removed when the catalogue opens |
 | cover | fetched into the cache (§4) unless `cover_source` is `manual` |
 | `metadata_status`, `metadata_fetched_at` | `matched` and the time, UTC; a status of `manual` stays |
 

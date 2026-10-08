@@ -1,6 +1,7 @@
 #include "domain/credit_text.h"
 #include "domain/enrichment.h"
 #include "domain/enums.h"
+#include "domain/genre_filter.h"
 #include "domain/isbn.h"
 #include "domain/name_match.h"
 #include "domain/placeholder.h"
@@ -31,6 +32,8 @@ private slots:
     void aSearchedCandidateGivesNoEditionFacts();
     void aManualStatusStaysManual();
     void typicalFiguresAreNeverWritten();
+    // IMP-008
+    void lendingAndListTagsAreNotGenres();
     void filledGapsKeepTheirProvider();
     void titlesAgreeAcrossProviderNoise();
     void isbn13ConvertsTo10WhereItCan();
@@ -257,6 +260,30 @@ void TestDomain::typicalFiguresAreNeverWritten()
     QVERIFY(!plan.book.pageCount);
     QVERIFY(!plan.book.publisher);
     QVERIFY(plan.book.synopsis); // the rest as ever
+}
+
+void TestDomain::lendingAndListTagsAreNotGenres()
+{
+    for (const char* tag : {"Accessible book", "Protected DAISY", "OverDrive", "In library", "Large type books",
+             "Long Now Manual for Civilization", "long now manual for civilization", "New York Times bestseller",
+             "nyt:trade-fiction-paperback=2013-03-31", "award:hugo_award=2006", "award:hugo_award=novel",
+             "Large type books."})
+        QVERIFY2(isServiceSubject(tag), tag);
+    // Real subjects, however odd, stay verbatim (D-009).
+    for (const char* subject : {"Fiction", "Science fiction.", "Fiction, science fiction, general", "Time travel",
+             "Hugo Award Winner", "Captain Frey (Fictitious character)", "Star Wars: The Clone Wars", "Roman",
+             "Library science"})
+        QVERIFY2(!isServiceSubject(subject), subject);
+
+    Book book;
+    book.title = "Consider Phlebas";
+    Candidate candidate = everything();
+    candidate.categories = {"Fiction", "Accessible book", "nyt:combined-print-and-e-book-fiction=2012-10-14"};
+    candidate.filledFrom = Source::BritishLibrary;
+    candidate.filledCategories = {"Science fiction", "Protected DAISY"};
+    QVERIFY(planEnrichment(book, candidate, true, "t").genres
+        == (std::vector<EnrichmentPlan::Genre> {{"Fiction", Source::OpenLibrary},
+            {"Science fiction", Source::BritishLibrary}}));
 }
 
 void TestDomain::aManualStatusStaysManual()

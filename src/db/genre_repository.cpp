@@ -2,6 +2,7 @@
 
 #include "db/connection.h"
 #include "db/statement.h"
+#include "domain/genre_filter.h"
 
 #include <sqlite3.h>
 
@@ -64,6 +65,32 @@ std::map<std::int64_t, std::vector<std::string>> GenreRepository::byBook()
     while (select.step())
         result[select.columnInt(0)].push_back(select.columnText(1));
     return result;
+}
+
+int GenreRepository::removeServiceSubjects()
+{
+    std::vector<std::int64_t> service;
+    {
+        Statement select(connection_, R"(
+            SELECT DISTINCT g.id, g.name
+              FROM genre g
+              JOIN book_genre bg ON bg.genre_id = g.id
+             WHERE bg.source <> 'manual')");
+        while (select.step()) {
+            if (domain::isServiceSubject(select.columnText(1)))
+                service.push_back(select.columnInt(0));
+        }
+    }
+    int removed = 0;
+    for (const auto id : service) {
+        Statement remove(connection_, "DELETE FROM book_genre WHERE genre_id = :id AND source <> 'manual'");
+        remove.bind(":id", id);
+        remove.step();
+        removed += sqlite3_changes(connection_.handle());
+    }
+    Statement orphans(connection_, "DELETE FROM genre WHERE id NOT IN (SELECT genre_id FROM book_genre)");
+    orphans.step();
+    return removed;
 }
 
 std::vector<domain::FilterOption> GenreRepository::withCounts()
