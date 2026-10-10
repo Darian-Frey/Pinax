@@ -16,6 +16,12 @@ Phase 3 (metadata enrichment) and Phase 4 (browsing and export) closed
 2026-10-08, on a full Fetch all and on exports checked against a copy of the
 owner's catalogue. Phase 5 (barcode scanning) waits on a webcam.
 
+### Changed
+- Fetch all no longer stands still while Google Books waits out a refusal
+  (IMP-011): a book that needs Google then is set aside and the run carries
+  on, coming back to it, and waiting, once the others are done. The status
+  bar counts the books left for Google.
+
 ### Added
 - Find titles (F-030, D-031), asked for by the owner: a series' page looks
   the series up on Wikidata, then Open Library, and the panel offers names

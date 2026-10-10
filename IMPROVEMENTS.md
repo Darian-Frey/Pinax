@@ -23,9 +23,11 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
+## Applied
+
 ### IMP-011 Let Fetch all move on while Google Books is backing off
 
-**Status:** suggested
+**Status:** applied (2026-10-10)
 **Found:** 2026-10-08 (closing Phase 3, a full Fetch all over a copy of the owner's catalogue)
 **Location:** `src/app/enricher.cpp`, `findByTitle`; `src/app/batch_enricher.cpp`; `src/metadata/request_queue.cpp`
 **Effort:** small to medium
@@ -45,8 +47,18 @@ keeps waiting, since the owner is watching it.
 reached it, and progress figures need a "deferred" count. Leaving it as it
 is keeps one book in flight at a time and the run simple to resume, at the
 cost of long silent waits.
+**Applied.** As proposed, by the owner's decision. A batch lookup may now
+defer. If it needs Google Books while Google's queue is paused, it is
+answered "deferred" without asking. If its request is waiting in the queue
+when the queue pauses, the request is withdrawn (a `RequestQueue` tag) and
+the lookup answered the same way. The batch sets the book aside, carries
+on, and when the rest are done asks the set-aside books again without
+deferring, so each is still asked in full and the outcome does not depend
+on luck. The status bar counts the books left for Google. The panel's
+fetch never defers. `tests/test_enricher.cpp`,
+`aDeferrableLookupDoesNotWaitForGoogle` and
+`aBatchSetsAsideWhatWaitsOnGoogle`.
 
-## Applied
 
 ### IMP-010 Let a finish date be entered for books read before Pinax
 

@@ -261,7 +261,9 @@ that provider's queue — for `Retry-After` seconds if given, otherwise 30
 seconds doubling to at most 10 minutes — and the same request is retried.
 Other 5xx answers and network failures are retried on the same backoff. A
 request is given up after five attempts and its failure reported; a 404 is
-reported at once. Requests identify themselves as
+reported at once. Fetch all does not wait out a pause of Google's queue: a
+book that needs Google then is set aside, and asked again, waiting, once
+the others are done (IMP-011). Requests identify themselves as
 `Pinax/<version> (personal library catalogue)` and carry nothing about the
 owner.
 

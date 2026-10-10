@@ -1320,12 +1320,15 @@ void MainWindow::showBatchProgress()
         batchBar_->setRange(0, std::max(progress.total, 1));
         batchBar_->setValue(progress.done);
         if (!busy) {
-            statusBar()->showMessage(tr("Fetching metadata: %1 of %2 · %3 taken · %4 to review · %5 not found")
-                                         .arg(progress.done)
-                                         .arg(progress.total)
-                                         .arg(progress.matched)
-                                         .arg(waiting)
-                                         .arg(progress.notFound));
+            QString text = tr("Fetching metadata: %1 of %2 · %3 taken · %4 to review · %5 not found")
+                               .arg(progress.done)
+                               .arg(progress.total)
+                               .arg(progress.matched)
+                               .arg(waiting)
+                               .arg(progress.notFound);
+            if (progress.deferred > 0) // IMP-011
+                text += tr(" · %n left for Google Books", nullptr, progress.deferred);
+            statusBar()->showMessage(text);
         }
     }
 }

@@ -27,6 +27,7 @@
 #include <QComboBox>
 #include <QLineEdit>
 #include <QRadioButton>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QImage>
 #include <QLabel>
@@ -93,6 +94,17 @@ QUrl googleIsbnUrl(FakeFetcher& fetcher, const std::string& isbn)
     return GoogleBooksClient(queue, QStringLiteral("test-key")).isbnUrl(isbn);
 }
 
+// A title search asks the qualified way, then in free text (IMP-007).
+std::vector<QUrl> googleSearchUrls(FakeFetcher& fetcher, const std::string& title, const std::string& author)
+{
+    RequestQueue queue(fetcher);
+    const GoogleBooksClient google(queue, QStringLiteral("test-key"));
+    return {google.searchUrl(title, author), google.freeTextUrl(title + " " + author)};
+}
+
+const HttpReply googleBusy {503, {}, {}, std::nullopt};
+const QByteArray googleNothing = R"({"kind":"books#volumes","totalItems":0})";
+
 bool askedGoogle(const FakeFetcher& fetcher)
 {
     return std::any_of(fetcher.requested.begin(), fetcher.requested.end(),
@@ -132,6 +144,8 @@ private slots:
 
     // The batch run (Phase 3 step 5, D-023)
     void aBatchTakesOnlyWhatItMayAndQueuesTheRest();
+    void aDeferrableLookupDoesNotWaitForGoogle();
+    void aBatchSetsAsideWhatWaitsOnGoogle();
     void anInterruptedBatchResumesWhereItLeftOff();
     void reviewingThroughTheWindow();
 
@@ -505,11 +519,12 @@ struct Batch {
     QTemporaryDir dir;
     Catalogue catalogue {dir.filePath(QStringLiteral("pinax.db")).toStdString()};
     FakeFetcher fetcher;
-    Enricher enricher {fetcher, {}, fast()};
+    Enricher enricher;
     pinax::app::BatchEnricher batch {catalogue, enricher};
     std::map<std::string, std::int64_t> ids;
 
-    Batch()
+    explicit Batch(const QString& googleKey = {})
+        : enricher(fetcher, googleKey, fast())
     {
         add("Consider Phlebas", phlebasIsbn, "Iain M. Banks");
         add("Excession", "9780356521633", "Iain M. Banks");
@@ -967,6 +982,85 @@ void TestEnricher::findingTitlesThroughTheWindow()
     press("titles.cancel");
     QVERIFY(panel->state() != DetailPanel::State::FindingTitles);
     QVERIFY(catalogue.seriesRows(seriesId) == after);
+}
+
+void TestEnricher::aDeferrableLookupDoesNotWaitForGoogle()
+{
+    // IMP-011: Google waiting out a refusal holds up only those who wait.
+    FakeFetcher fetcher;
+    QueuePolicy patient = fast();
+    patient.firstBackoff = std::chrono::milliseconds(300);
+    patient.maxBackoff = std::chrono::milliseconds(300);
+    patient.maxAttempts = 3;
+    Enricher enricher(fetcher, QStringLiteral("test-key"), patient);
+    fetcher.script(OpenLibraryClient::searchUrl("Tau Zero", std::string("Poul Anderson")),
+        {ok(R"({"numFound":0,"docs":[]})")});
+    const auto google = googleSearchUrls(fetcher, "Tau Zero", "Poul Anderson");
+    fetcher.script(google[0], {googleBusy, ok(googleNothing)});
+    fetcher.script(google[1], {ok(googleNothing)});
+    BookDetail tauZero = book("Tau Zero");
+    tauZero.credits = {{"Poul Anderson", pinax::domain::CreditRole::Author}};
+    auto askedGoogle = [&] {
+        return static_cast<int>(std::count(fetcher.requested.begin(), fetcher.requested.end(), google[0].toString()));
+    };
+
+    // Refused while waiting in the queue: withdrawn, and answered deferred
+    // at once rather than after the backoff.
+    QElapsedTimer clock;
+    clock.start();
+    std::optional<FindResult> result;
+    enricher.find(tauZero, [&](FindResult r) { result = std::move(r); }, Enricher::Channel::Batch, true);
+    QTRY_VERIFY(result);
+    QVERIFY(result->deferred);
+    QVERIFY(!result->problem);
+    QVERIFY(result->candidates.empty());
+    QVERIFY(clock.elapsed() < 250);
+    QCOMPARE(askedGoogle(), 1);
+
+    // Google still waiting: deferred without asking it at all.
+    result.reset();
+    enricher.find(tauZero, [&](FindResult r) { result = std::move(r); }, Enricher::Channel::Batch, true);
+    QTRY_VERIFY(result);
+    QVERIFY(result->deferred);
+    QCOMPARE(askedGoogle(), 1);
+
+    // A lookup that may not defer — the panel's, or the batch's second
+    // pass — waits, and is answered in full.
+    result.reset();
+    enricher.find(tauZero, [&](FindResult r) { result = std::move(r); });
+    QTRY_VERIFY_WITH_TIMEOUT(result, 5000);
+    QVERIFY(!result->deferred);
+    QVERIFY(!result->problem);
+    QVERIFY(result->candidates.empty());
+    QCOMPARE(askedGoogle(), 2);
+}
+
+void TestEnricher::aBatchSetsAsideWhatWaitsOnGoogle()
+{
+    using pinax::domain::MetadataStatus;
+    Batch b(QStringLiteral("test-key"));
+    const auto google = googleSearchUrls(b.fetcher, "Tau Zero", "Poul Anderson");
+    // Google refuses Tau Zero's first asking, then answers: nothing.
+    b.fetcher.script(google[0], {googleBusy, ok(googleNothing)});
+    b.fetcher.script(google[1], {ok(googleNothing)});
+
+    int mostSetAside = 0;
+    connect(&b.batch, &pinax::app::BatchEnricher::progressed, this,
+        [&] { mostSetAside = std::max(mostSetAside, b.batch.progress().deferred); });
+    QSignalSpy finished(&b.batch, &pinax::app::BatchEnricher::finished);
+    b.batch.start();
+    QTRY_COMPARE(finished.count(), 1);
+    QVERIFY(finished.front().front().toString().isEmpty());
+
+    // Set aside once, asked again at the end, and answered in full.
+    QCOMPARE(mostSetAside, 1);
+    QCOMPARE(b.batch.progress().deferred, 0);
+    QCOMPARE(b.batch.progress().done, 4);
+    QCOMPARE(b.batch.progress().notFound, 1);
+    QVERIFY(b.status("Tau Zero") == MetadataStatus::Failed);
+    QCOMPARE(b.asked(google[0]), 2);
+    // Nothing else was asked twice for it.
+    QCOMPARE(b.asked(OpenLibraryClient::searchUrl("Surface Detail", std::string("Iain M. Banks"))), 1);
 }
 
 QTEST_MAIN(TestEnricher)

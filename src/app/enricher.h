@@ -28,6 +28,9 @@ struct FindResult {
     bool byIsbn = false;
     // Every provider asked failed; nothing is known either way.
     std::optional<std::string> problem;
+    // Not fully asked: the lookup needed Google Books while its queue was
+    // waiting out a refusal, and was allowed to leave it for later (IMP-011).
+    bool deferred = false;
 };
 
 // Asks the providers about a book for "Fetch metadata" (F-012, SPEC.md
@@ -56,8 +59,12 @@ public:
 
     bool googleAvailable() const { return google_.available(); }
 
+    // With `mayDefer`, a lookup that reaches Google Books while its queue is
+    // paused — or is waiting there when it pauses — is answered at once as
+    // deferred instead of waiting: the batch's way of moving on (IMP-011).
+    // One deferrable lookup at a time. The panel's fetch never defers.
     void find(const domain::BookDetail& detail, std::function<void(FindResult)> done,
-        Channel channel = Channel::Interactive);
+        Channel channel = Channel::Interactive, bool mayDefer = false);
 
     // The ISBN alone, for adding a book by it (F-024): the same providers as
     // find's first step, but no title search after — the owner chooses that.
@@ -123,11 +130,20 @@ private:
         std::optional<std::string> problem() const { return answered ? std::nullopt : firstProblem; }
     };
 
-    void findByIsbn(const std::string& isbn13, const domain::BookDetail& detail, bool thenByTitle,
+    void findByIsbn(const std::string& isbn13, const domain::BookDetail& detail, bool thenByTitle, bool mayDefer,
         std::function<void(FindResult)> done);
     void askGoogleByIsbn(const std::string& isbn13, const domain::BookDetail& detail, bool thenByTitle,
-        Asked asked, std::function<void(FindResult)> done);
-    void findByTitle(const domain::BookDetail& detail, Asked asked, std::function<void(FindResult)> done);
+        bool mayDefer, Asked asked, std::function<void(FindResult)> done);
+    void findByTitle(const domain::BookDetail& detail, bool mayDefer, Asked asked,
+        std::function<void(FindResult)> done);
+    // Asks Google through `ask`, which tags its requests with the tag it is
+    // given. A deferrable lookup finding the queue paused is answered with
+    // `deferred` instead; one already queued is withdrawn and answered so
+    // if the queue pauses while it waits.
+    void viaGoogle(bool mayDefer, std::function<void()> deferred, const std::function<void(int tag)>& ask);
+    // Google has answered a lookup; if it was the deferrable one (`tag`),
+    // there is nothing left to withdraw.
+    void googleAnswered(int tag);
 
 public:
     // Fills each primary candidate's empty publisher, pages, years and
@@ -150,6 +166,7 @@ public:
     metadata::BritishLibraryClient britishLibrary_;
     metadata::WikidataClient wikidata_;
     unsigned generations_[4] = {0, 0, 0, 0}; // by Channel
+    std::function<void()> deferGoogle_; // the deferrable lookup waiting on Google, if any
 };
 
 } // namespace pinax::app

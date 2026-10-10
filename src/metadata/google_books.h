@@ -30,9 +30,11 @@ public:
 
     bool available() const { return !apiKey_.isEmpty(); }
 
-    void lookupIsbn(const std::string& isbn13, std::function<void(domain::LookupResult)> done);
+    // `tag` marks every request a lookup makes, so that a caller may
+    // withdraw them from the queue (RequestQueue::cancelTagged; IMP-011).
+    void lookupIsbn(const std::string& isbn13, std::function<void(domain::LookupResult)> done, int tag = 0);
     void search(const std::string& title, const std::optional<std::string>& author,
-        std::function<void(domain::LookupResult)> done);
+        std::function<void(domain::LookupResult)> done, int tag = 0);
 
     QUrl isbnUrl(const std::string& isbn13) const;
     QUrl searchUrl(const std::string& title, const std::optional<std::string>& author) const;
@@ -40,7 +42,7 @@ public:
     QUrl freeTextUrl(const std::string& words) const;
 
 private:
-    void get(const QUrl& url, std::function<void(domain::LookupResult)> done);
+    void get(const QUrl& url, std::function<void(domain::LookupResult)> done, int tag);
 
     RequestQueue& queue_;
     QString apiKey_;

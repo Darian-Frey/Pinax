@@ -28,6 +28,7 @@ struct BatchProgress {
     int matched = 0;  // accepted without asking
     int toReview = 0; // found, waiting for the owner (all runs)
     int notFound = 0; // no provider knew them
+    int deferred = 0; // set aside while Google Books waited, to be asked again at the end (IMP-011)
 };
 
 // Fetch metadata across the catalogue (Phase 3 step 5, F-012, D-023): every
@@ -36,6 +37,12 @@ struct BatchProgress {
 // title agrees with the book's is written at once (SPEC.md §3.4); any other
 // answer waits in the review queue, never written unasked (AV-010); a book
 // no provider knows is marked failed.
+//
+// A book that needs Google Books while Google is waiting out a refusal is
+// set aside rather than waited for, and the run carries on with the next
+// (IMP-011). When the rest are done, the books set aside are asked again,
+// this time waiting for Google as long as it asks: every book is still
+// asked in full.
 //
 // Resumable by construction: a run takes the books still unmatched, so
 // those matched, failed or manual are skipped, and an interrupted run loses
@@ -78,6 +85,8 @@ private:
     Catalogue& catalogue_;
     Enricher& enricher_;
     std::deque<std::int64_t> todo_;
+    std::deque<std::int64_t> setAside_; // deferred while Google waited (IMP-011)
+    bool patient_ = false;              // asking the set-aside books again: no more deferring
     std::deque<PendingMatch> pending_;
     BatchProgress progress_;
     bool running_ = false;

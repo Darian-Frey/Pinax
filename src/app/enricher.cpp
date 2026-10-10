@@ -2,6 +2,8 @@
 
 #include "domain/isbn.h"
 
+#include <utility>
+
 namespace pinax::app {
 
 using domain::BookDetail;
@@ -30,6 +32,10 @@ std::optional<std::string> firstAuthor(const BookDetail& detail)
 
 } // namespace
 
+namespace {
+constexpr int deferrableTag = 2; // Google-queue requests of a lookup that may be left for later
+}
+
 Enricher::Enricher(metadata::Fetcher& fetcher, const QString& googleKey, metadata::QueuePolicy policy,
     QObject* parent)
     : QObject(parent)
@@ -49,8 +55,17 @@ Enricher::Enricher(metadata::Fetcher& fetcher, const QString& googleKey, metadat
         [this](int seconds) { emit waiting(QStringLiteral("The British Library"), seconds); });
     connect(&openLibraryQueue_, &metadata::RequestQueue::paused, this,
         [this](int seconds) { emit waiting(QStringLiteral("Open Library"), seconds); });
-    connect(&googleQueue_, &metadata::RequestQueue::paused, this,
-        [this](int seconds) { emit waiting(QStringLiteral("Google Books"), seconds); });
+    connect(&googleQueue_, &metadata::RequestQueue::paused, this, [this](int seconds) {
+        // A deferrable lookup does not wait it out: withdrawn, and left for
+        // later (IMP-011). The refused request was put back at the front of
+        // the queue before the pause was announced, so it goes too.
+        if (deferGoogle_) {
+            googleQueue_.cancelTagged(deferrableTag);
+            auto deferred = std::exchange(deferGoogle_, nullptr);
+            deferred();
+        }
+        emit waiting(QStringLiteral("Google Books"), seconds);
+    });
     connect(&coverQueue_, &metadata::RequestQueue::paused, this,
         [this](int seconds) { emit waiting(QStringLiteral("the cover server"), seconds); });
 }
@@ -72,13 +87,13 @@ void Enricher::cancel(Channel channel)
     ++generations_[static_cast<std::size_t>(channel)];
 }
 
-void Enricher::find(const BookDetail& detail, std::function<void(FindResult)> done, Channel channel)
+void Enricher::find(const BookDetail& detail, std::function<void(FindResult)> done, Channel channel, bool mayDefer)
 {
     done = guarded(channel, std::move(done));
     if (const auto isbn = isbn13Of(detail.book))
-        findByIsbn(*isbn, detail, true, std::move(done));
+        findByIsbn(*isbn, detail, true, mayDefer, std::move(done));
     else
-        findByTitle(detail, {}, std::move(done));
+        findByTitle(detail, mayDefer, {}, std::move(done));
 }
 
 void Enricher::findSeries(const std::string& name, const std::vector<std::string>& credits,
@@ -103,7 +118,7 @@ void Enricher::findSeries(const std::string& name, const std::vector<std::string
 
 void Enricher::lookupIsbn(const std::string& isbn13, std::function<void(FindResult)> done, Channel channel)
 {
-    findByIsbn(isbn13, {}, false, guarded(channel, std::move(done)));
+    findByIsbn(isbn13, {}, false, false, guarded(channel, std::move(done)));
 }
 
 namespace {
@@ -135,7 +150,7 @@ void Enricher::fetchImage(const std::string& url,
         previewTag);
 }
 
-void Enricher::findByIsbn(const std::string& isbn13, const BookDetail& detail, bool thenByTitle,
+void Enricher::findByIsbn(const std::string& isbn13, const BookDetail& detail, bool thenByTitle, bool mayDefer,
     std::function<void(FindResult)> done)
 {
     // Both at once, each on its own queue; combined when both have answered.
@@ -144,7 +159,7 @@ void Enricher::findByIsbn(const std::string& isbn13, const BookDetail& detail, b
         std::optional<LookupResult> britishLibrary;
     };
     auto answers = std::make_shared<Answers>();
-    auto combine = [this, isbn13, detail, thenByTitle, done, answers] {
+    auto combine = [this, isbn13, detail, thenByTitle, mayDefer, done, answers] {
         if (!answers->openLibrary || !answers->britishLibrary)
             return;
         auto candidates = fillGaps(std::move(answers->openLibrary->candidates), answers->britishLibrary->candidates);
@@ -155,7 +170,7 @@ void Enricher::findByIsbn(const std::string& isbn13, const BookDetail& detail, b
         Asked asked;
         asked.note(*answers->openLibrary);
         asked.note(*answers->britishLibrary);
-        askGoogleByIsbn(isbn13, detail, thenByTitle, std::move(asked), done);
+        askGoogleByIsbn(isbn13, detail, thenByTitle, mayDefer, std::move(asked), done);
     };
     openLibrary_.lookupIsbn(isbn13, [answers, combine](LookupResult result) {
         answers->openLibrary = std::move(result);
@@ -201,11 +216,11 @@ std::vector<Candidate> Enricher::fillGaps(std::vector<Candidate> primary, const 
 }
 
 void Enricher::askGoogleByIsbn(const std::string& isbn13, const BookDetail& detail, bool thenByTitle,
-    Asked asked, std::function<void(FindResult)> done)
+    bool mayDefer, Asked asked, std::function<void(FindResult)> done)
 {
-    auto nothing = [this, detail, thenByTitle, done](Asked asked) {
+    auto nothing = [this, detail, thenByTitle, mayDefer, done](Asked asked) {
         if (thenByTitle)
-            findByTitle(detail, std::move(asked), done);
+            findByTitle(detail, mayDefer, std::move(asked), done);
         else
             done({{}, true, asked.problem()});
     };
@@ -213,21 +228,44 @@ void Enricher::askGoogleByIsbn(const std::string& isbn13, const BookDetail& deta
         nothing(std::move(asked));
         return;
     }
-    google_.lookupIsbn(isbn13, [done, asked, nothing](LookupResult google) mutable {
-        if (!google.candidates.empty()) {
-            done({std::move(google.candidates), true, std::nullopt});
-            return;
-        }
-        asked.note(google);
-        nothing(std::move(asked));
+    viaGoogle(mayDefer, [done] { done({{}, true, std::nullopt, true}); }, [&](int tag) {
+        google_.lookupIsbn(isbn13, [this, tag, done, asked, nothing](LookupResult google) mutable {
+            googleAnswered(tag);
+            if (!google.candidates.empty()) {
+                done({std::move(google.candidates), true, std::nullopt});
+                return;
+            }
+            asked.note(google);
+            nothing(std::move(asked));
+        }, tag);
     });
 }
 
-void Enricher::findByTitle(const BookDetail& detail, Asked asked, std::function<void(FindResult)> done)
+void Enricher::viaGoogle(bool mayDefer, std::function<void()> deferred, const std::function<void(int tag)>& ask)
+{
+    if (!mayDefer) {
+        ask(0);
+        return;
+    }
+    if (googleQueue_.isPaused()) {
+        deferred();
+        return;
+    }
+    deferGoogle_ = std::move(deferred);
+    ask(deferrableTag);
+}
+
+void Enricher::googleAnswered(int tag)
+{
+    if (tag == deferrableTag)
+        deferGoogle_ = nullptr;
+}
+
+void Enricher::findByTitle(const BookDetail& detail, bool mayDefer, Asked asked, std::function<void(FindResult)> done)
 {
     const std::string title = detail.book.title;
     const auto author = firstAuthor(detail);
-    openLibrary_.search(title, author, [this, title, author, asked, done](LookupResult openLibrary) mutable {
+    openLibrary_.search(title, author, [this, title, author, mayDefer, asked, done](LookupResult openLibrary) mutable {
         if (!openLibrary.candidates.empty()) {
             done({std::move(openLibrary.candidates), false, std::nullopt});
             return;
@@ -237,13 +275,16 @@ void Enricher::findByTitle(const BookDetail& detail, Asked asked, std::function<
             done({{}, false, asked.problem()});
             return;
         }
-        google_.search(title, author, [asked, done](LookupResult google) mutable {
-            if (!google.candidates.empty()) {
-                done({std::move(google.candidates), false, std::nullopt});
-                return;
-            }
-            asked.note(google);
-            done({{}, false, asked.problem()});
+        viaGoogle(mayDefer, [done] { done({{}, false, std::nullopt, true}); }, [&](int tag) {
+            google_.search(title, author, [this, tag, asked, done](LookupResult google) mutable {
+                googleAnswered(tag);
+                if (!google.candidates.empty()) {
+                    done({std::move(google.candidates), false, std::nullopt});
+                    return;
+                }
+                asked.note(google);
+                done({{}, false, asked.problem()});
+            }, tag);
         });
     });
 }

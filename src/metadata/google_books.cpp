@@ -142,9 +142,9 @@ QUrl GoogleBooksClient::freeTextUrl(const std::string& words) const
     return url;
 }
 
-void GoogleBooksClient::lookupIsbn(const std::string& isbn13, std::function<void(LookupResult)> done)
+void GoogleBooksClient::lookupIsbn(const std::string& isbn13, std::function<void(LookupResult)> done, int tag)
 {
-    get(isbnUrl(isbn13), [this, isbn13, done](LookupResult qualified) {
+    get(isbnUrl(isbn13), [this, isbn13, done, tag](LookupResult qualified) {
         if (qualified.error || !qualified.candidates.empty()) {
             done(std::move(qualified));
             return;
@@ -159,14 +159,14 @@ void GoogleBooksClient::lookupIsbn(const std::string& isbn13, std::function<void
                 return !by13 && !by10;
             });
             done(std::move(loose));
-        });
-    });
+        }, tag);
+    }, tag);
 }
 
 void GoogleBooksClient::search(const std::string& title, const std::optional<std::string>& author,
-    std::function<void(LookupResult)> done)
+    std::function<void(LookupResult)> done, int tag)
 {
-    get(searchUrl(title, author), [this, title, author, done](LookupResult qualified) {
+    get(searchUrl(title, author), [this, title, author, done, tag](LookupResult qualified) {
         if (qualified.error || !qualified.candidates.empty()) {
             done(std::move(qualified));
             return;
@@ -182,11 +182,11 @@ void GoogleBooksClient::search(const std::string& title, const std::optional<std
                 return author && !domain::shareAnAuthor({*author}, candidate.authors);
             });
             done(std::move(loose));
-        });
-    });
+        }, tag);
+    }, tag);
 }
 
-void GoogleBooksClient::get(const QUrl& url, std::function<void(LookupResult)> done)
+void GoogleBooksClient::get(const QUrl& url, std::function<void(LookupResult)> done, int tag)
 {
     if (!available()) {
         done({{}, "Google Books needs an API key, and none is set."});
@@ -200,7 +200,7 @@ void GoogleBooksClient::get(const QUrl& url, std::function<void(LookupResult)> d
             return;
         }
         done({googlebooks::parseVolumes(reply.body), std::nullopt});
-    });
+    }, tag);
 }
 
 } // namespace pinax::metadata

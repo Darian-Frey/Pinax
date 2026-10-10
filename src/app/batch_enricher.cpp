@@ -8,6 +8,7 @@
 #include <QTimer>
 
 #include <algorithm>
+#include <utility>
 
 namespace pinax::app {
 
@@ -38,6 +39,8 @@ void BatchEnricher::start()
         if (detail && detail->book.metadataStatus == domain::MetadataStatus::Unmatched)
             ++progress_.total;
     }
+    setAside_.clear();
+    patient_ = false;
     running_ = true;
     emit progressed();
     QTimer::singleShot(0, this, &BatchEnricher::next);
@@ -49,6 +52,7 @@ void BatchEnricher::stop()
         return;
     enricher_.cancel(Enricher::Channel::Batch);
     todo_.clear();
+    setAside_.clear();
     finish(tr("Stopped. Fetch all again to carry on where it left off."));
 }
 
@@ -63,6 +67,11 @@ void BatchEnricher::next()
 {
     if (!running_)
         return;
+    // The first pass done: the books set aside, asked again in full.
+    if (todo_.empty() && !setAside_.empty()) {
+        todo_ = std::exchange(setAside_, {});
+        patient_ = true;
+    }
     // Skip what is no longer unmatched: matched since, failed, manual, gone.
     std::optional<domain::BookDetail> detail;
     while (!todo_.empty() && !detail) {
@@ -73,13 +82,24 @@ void BatchEnricher::next()
             detail = std::move(found);
     }
     if (!detail) {
+        progress_.deferred = 0;
         finish({});
         return;
     }
 
     const std::int64_t bookId = detail->book.id;
     const std::string title = detail->book.title;
+    if (patient_) // being asked again: this one and those after it
+        progress_.deferred = static_cast<int>(todo_.size()) + 1;
     enricher_.find(*detail, [this, bookId, title](FindResult result) {
+        if (result.deferred) {
+            // Google is waiting out a refusal: on to the next (IMP-011).
+            setAside_.push_back(bookId);
+            ++progress_.deferred;
+            emit progressed();
+            QTimer::singleShot(0, this, &BatchEnricher::next);
+            return;
+        }
         if (result.problem) {
             // Not the book's fault: it stays unmatched for the next run.
             finish(QString::fromStdString(*result.problem));
@@ -100,7 +120,7 @@ void BatchEnricher::next()
         }
         emit progressed();
         QTimer::singleShot(0, this, &BatchEnricher::next);
-    }, Enricher::Channel::Batch);
+    }, Enricher::Channel::Batch, !patient_);
 }
 
 void BatchEnricher::accept(std::int64_t bookId, const domain::Candidate& candidate)
