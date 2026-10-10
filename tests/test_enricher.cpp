@@ -10,12 +10,16 @@
 #include "metadata/cover_cache.h"
 #include "metadata/google_books.h"
 #include "metadata/open_library.h"
+#include "metadata/wikidata.h"
 #include "ui/book_editor.h"
 #include "ui/book_list_view.h"
 #include "ui/book_view.h"
 #include "ui/add_by_isbn_view.h"
 #include "ui/candidate_view.h"
 #include "ui/detail_panel.h"
+#include "ui/rail_view.h"
+#include "ui/series_page.h"
+#include "ui/series_titles_view.h"
 
 #include <QAction>
 #include <QBuffer>
@@ -28,8 +32,11 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
+#include <QTreeWidget>
 #include <QRandomGenerator>
+#include <QSettings>
 #include <QTemporaryDir>
+#include <QToolButton>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -140,6 +147,10 @@ private slots:
     void myEditionTakesTheSearchedPageCount();
     void cancellingAFetchReturnsToTheBook();
     void nothingFoundMarksTheBookAndSaysSo();
+
+    // Find titles (F-030, D-031)
+    void aSeriesIsAskedOfWikidataThenOpenLibrary();
+    void findingTitlesThroughTheWindow();
 };
 
 void TestEnricher::anIsbnKnownIsOfferedAsTheEdition()
@@ -827,6 +838,135 @@ void TestEnricher::aHeldCopyIsGivenItsIsbnNotAddedAgain()
     QVERIFY(detail->book.isbn13 == std::optional<std::string>(phlebasIsbn));
     QVERIFY(detail->book.synopsis);
     QCOMPARE(a.window.bookList()->selectedBooks(), QList<qint64>({id}));
+}
+
+void TestEnricher::aSeriesIsAskedOfWikidataThenOpenLibrary()
+{
+    FakeFetcher fetcher;
+    Enricher enricher(fetcher, {}, fast());
+    fetcher.script(WikidataClient::seriesUrl("Dune"), {ok(fixture("wikidata/series_dune.json"))});
+    fetcher.script(WikidataClient::seriesUrl("Classics: Dune"), {ok(fixture("wikidata/series_none.json"))});
+    fetcher.script(WikidataClient::seriesUrl("Foundation"), {ok(fixture("wikidata/series_none.json"))});
+    fetcher.script(OpenLibraryClient::seriesSearchUrl("Foundation", std::string("Isaac Asimov")),
+        {ok(fixture("open_library/series_search_foundation.json"))});
+
+    std::optional<pinax::domain::SeriesFind> found;
+    enricher.findSeries("Dune", {"Frank Herbert"}, [&](pinax::domain::SeriesFind f) { found = std::move(f); });
+    QTRY_VERIFY(found);
+    QCOMPARE(found->provider, std::string("Wikidata"));
+    QCOMPARE(found->volumes.size(), std::size_t(6));
+
+    // A prefix of the owner's own is asked again without it.
+    found.reset();
+    enricher.findSeries("Classics: Dune", {"Frank Herbert"}, [&](pinax::domain::SeriesFind f) { found = std::move(f); });
+    QTRY_VERIFY(found);
+    QCOMPARE(found->provider, std::string("Wikidata"));
+    QCOMPARE(found->volumes.front().title, std::string("Dune"));
+
+    // Not a series Wikidata knows: Open Library's titles that carry the name.
+    found.reset();
+    enricher.findSeries("Foundation", {"Isaac Asimov"}, [&](pinax::domain::SeriesFind f) { found = std::move(f); });
+    QTRY_VERIFY(found);
+    QCOMPARE(found->provider, std::string("Open Library"));
+    QVERIFY(!found->volumes.empty());
+    QVERIFY(!found->error);
+
+    // Neither reachable: a problem, not "nothing known".
+    found.reset();
+    enricher.findSeries("Unreachable", {}, [&](pinax::domain::SeriesFind f) { found = std::move(f); });
+    QTRY_VERIFY(found);
+    QVERIFY(found->volumes.empty());
+    QVERIFY(found->error);
+}
+
+void TestEnricher::findingTitlesThroughTheWindow()
+{
+    QTemporaryDir dir;
+    QSettings settings(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+    Catalogue catalogue(dir.filePath(QStringLiteral("pinax.db")).toStdString());
+    pinax::io::CsvImporter(catalogue.connection()).importText(
+        "title,authors,series,position,shelf\n"
+        "Dune,Frank Herbert,Dune,1,read\n");
+    pinax::io::SeriesImporter(catalogue.connection()).importText(
+        "series,position,title\n"
+        "Dune,2,\n"
+        "Dune,3,Unidentified volume 3\n"
+        "Dune,4,God Emperor of Dune\n");
+    FakeFetcher fetcher;
+    Enricher enricher(fetcher, {}, fast());
+    fetcher.script(WikidataClient::seriesUrl("Dune"), {ok(fixture("wikidata/series_dune.json"))});
+
+    pinax::app::MainWindow window;
+    window.setSettings(&settings);
+    window.setCatalogue(&catalogue);
+    window.setEnricher(&enricher);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    const auto statuses = catalogue.seriesStatuses();
+    QCOMPARE(statuses.size(), std::size_t(1));
+    const std::int64_t seriesId = statuses.front().id;
+    window.rail()->chooseFilter({pinax::domain::BookFilter::Kind::Series, pinax::domain::ReadStatus::Unread, seriesId});
+    QVERIFY(window.showingSeries());
+    const auto before = catalogue.seriesRows(seriesId);
+
+    auto* panel = window.detailPanel();
+    auto* view = panel->titlesView();
+    auto* list = view->findChild<QTreeWidget*>(QStringLiteral("titles.list"));
+    auto press = [&](const char* name) {
+        QTest::mouseClick(view->findChild<QPushButton*>(QString::fromLatin1(name)), Qt::LeftButton);
+    };
+
+    QTest::mouseClick(window.seriesPage()->findChild<QToolButton*>(QStringLiteral("series.findTitles")), Qt::LeftButton);
+    QCOMPARE(panel->state(), DetailPanel::State::FindingTitles);
+    QVERIFY(!window.seriesPage()->isEnabled()); // busy: nothing moves underneath
+    QTRY_COMPARE(list->topLevelItemCount(), 4);
+
+    // Dune and God Emperor are there already; the two unnamed are named,
+    // ticked; the two the series does not list are offered, unticked.
+    QCOMPARE(list->topLevelItem(0)->text(0), QStringLiteral("Dune Messiah"));
+    QCOMPARE(list->topLevelItem(0)->checkState(0), Qt::Checked);
+    QCOMPARE(list->topLevelItem(1)->text(0), QStringLiteral("Children of Dune"));
+    QCOMPARE(list->topLevelItem(1)->checkState(0), Qt::Checked);
+    QCOMPARE(list->topLevelItem(2)->text(0), QStringLiteral("Heretics of Dune"));
+    QCOMPARE(list->topLevelItem(2)->checkState(0), Qt::Unchecked);
+    QCOMPARE(list->topLevelItem(3)->text(0), QStringLiteral("Chapterhouse: Dune"));
+    QVERIFY(catalogue.seriesRows(seriesId) == before); // nothing written until used (AV-010)
+
+    // Two titles sent to one volume: refused, with the reason.
+    auto* heretics = view->findChild<QComboBox*>(QStringLiteral("titles.goesTo.2"));
+    QCOMPARE(heretics->currentText(), QStringLiteral("New"));
+    heretics->setCurrentIndex(1); // No. 2, which Dune Messiah names
+    list->topLevelItem(2)->setCheckState(0, Qt::Checked);
+    press("titles.use");
+    QCOMPARE(panel->state(), DetailPanel::State::FindingTitles);
+    QVERIFY(view->findChild<QLabel*>(QStringLiteral("titles.status"))->text().contains(QStringLiteral("Two ticked")));
+    QVERIFY(catalogue.seriesRows(seriesId) == before);
+
+    heretics->setCurrentIndex(0); // a new volume after all
+    press("titles.use");
+    QVERIFY(panel->state() != DetailPanel::State::FindingTitles);
+    const auto after = catalogue.seriesRows(seriesId);
+    QCOMPARE(after.size(), before.size() + 1);
+    auto titleAt = [&](const std::string& position) -> std::optional<std::string> {
+        for (const auto& row : after)
+            if (row.position == position)
+                return row.title();
+        return std::nullopt;
+    };
+    QVERIFY(titleAt("2") == std::string("Dune Messiah"));
+    QVERIFY(titleAt("3") == std::string("Children of Dune"));
+    QVERIFY(titleAt("4") == std::string("God Emperor of Dune")); // the owner's stands
+    QVERIFY(titleAt("5") == std::string("Heretics of Dune"));    // added, at its number
+    QVERIFY(!titleAt("6"));                                       // not ticked: not added
+    QVERIFY(window.seriesPage()->isEnabled());
+
+    // Again: only what is still unknown is offered; Cancel leaves it all.
+    QTest::mouseClick(window.seriesPage()->findChild<QToolButton*>(QStringLiteral("series.findTitles")), Qt::LeftButton);
+    QTRY_COMPARE(list->topLevelItemCount(), 1);
+    QCOMPARE(list->topLevelItem(0)->text(0), QStringLiteral("Chapterhouse: Dune"));
+    press("titles.cancel");
+    QVERIFY(panel->state() != DetailPanel::State::FindingTitles);
+    QVERIFY(catalogue.seriesRows(seriesId) == after);
 }
 
 QTEST_MAIN(TestEnricher)

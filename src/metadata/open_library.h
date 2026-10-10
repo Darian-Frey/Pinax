@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/candidate.h"
+#include "domain/series_titles.h"
 
 #include <QByteArray>
 #include <QString>
@@ -40,9 +41,15 @@ public:
     void description(const std::string& workKey,
         std::function<void(std::optional<std::string> description, std::optional<std::string> error)> done);
 
+    // Books whose titles carry a series' name, for a series Wikidata does not
+    // know (F-030, D-031): unnumbered, in order of first publication.
+    void searchSeries(const std::string& name, const std::optional<std::string>& author,
+        std::function<void(domain::SeriesFind)> done);
+
     static QUrl booksApiUrl(const std::string& isbn13);
     static QUrl recordUrl(const std::string& key); // "/books/OL..M" or "/works/OL..W"
     static QUrl searchUrl(const std::string& title, const std::optional<std::string>& author);
+    static QUrl seriesSearchUrl(const std::string& name, const std::optional<std::string>& author);
 
 private:
     RequestQueue& queue_;
@@ -71,6 +78,12 @@ std::optional<EditionRecord> parseEdition(const QByteArray& json);
 std::optional<std::string> parseWorkDescription(const QByteArray& json);
 
 std::vector<domain::Candidate> parseSearch(const QByteArray& json);
+
+// A search for a series' name: the works whose titles contain it, one per
+// title, earliest first, leaving out omnibuses that list several. Open
+// Library has no series field, so nothing is numbered and a volume whose
+// title does not name its series is not found.
+std::vector<domain::FoundVolume> parseSeriesSearch(const QByteArray& json, const std::string& name);
 
 } // namespace openlibrary
 

@@ -7,6 +7,7 @@
 #include "metadata/google_books.h"
 #include "metadata/open_library.h"
 #include "metadata/request_queue.h"
+#include "metadata/wikidata.h"
 
 #include <QObject>
 
@@ -82,6 +83,12 @@ public:
     void complete(const domain::Candidate& candidate, std::function<void(domain::Candidate)> done,
         Channel channel = Channel::Interactive, bool ownersEdition = false);
 
+    // The volumes of a series, for naming the ones the owner has not
+    // (F-030, D-031): Wikidata, and Open Library when Wikidata knows no such
+    // series. `credits` are the series' authors. Writes nothing.
+    void findSeries(const std::string& name, const std::vector<std::string>& credits,
+        std::function<void(domain::SeriesFind)> done, Channel channel = Channel::Interactive);
+
     // The cover, into `dataDirectory`/covers (SPEC.md §4).
     void fetchCover(std::int64_t bookId, const std::string& url, const std::string& dataDirectory,
         std::function<void(metadata::CoverResult)> done);
@@ -137,9 +144,11 @@ public:
     metadata::RequestQueue googleQueue_;
     metadata::RequestQueue britishLibraryQueue_;
     metadata::RequestQueue coverQueue_;
+    metadata::RequestQueue wikidataQueue_;
     metadata::OpenLibraryClient openLibrary_;
     metadata::GoogleBooksClient google_;
     metadata::BritishLibraryClient britishLibrary_;
+    metadata::WikidataClient wikidata_;
     unsigned generations_[4] = {0, 0, 0, 0}; // by Channel
 };
 

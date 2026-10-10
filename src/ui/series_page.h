@@ -69,12 +69,15 @@ signals:
     void selectionChangedTo(const QList<qint64>& bookIds, int missing);
     void addEntryRequested();
     void editEntryRequested(qint64 entryId);
+    // Find titles pressed (F-030).
+    void findTitlesRequested();
 
 private:
     QLabel* heading_;
     QToolButton* showMissing_;
     QToolButton* addEntry_;
     QToolButton* editEntry_;
+    QToolButton* findTitles_;
     SeriesEntryModel* model_;
     SeriesTable* table_;
     std::int64_t seriesId_ = 0;

@@ -78,6 +78,7 @@ class TestCatalogue : public QObject {
     Q_OBJECT
 
 private slots:
+    void namingVolumesWritesOnlyWhatIsStillUnnamed();
     void detailCarriesSeriesCompleteness();
     void saveWritesAndReportsInTheOwnersTerms();
     void movingIntoReadCountsARead();
@@ -2154,6 +2155,66 @@ void TestCatalogue::aFinishDateTypedIsKeptButAReReadIsStamped()
     edit([&] { finished->setText(QStringLiteral("last spring")); });
     QCOMPARE(window.detailPanel()->state(), DetailPanel::State::Editing);
     QVERIFY(editor->findChild<QLabel*>(QStringLiteral("edit.error"))->text().contains(QStringLiteral("Finished")));
+}
+
+void TestCatalogue::namingVolumesWritesOnlyWhatIsStillUnnamed()
+{
+    Catalogue catalogue(":memory:");
+    pinax::io::CsvImporter(catalogue.connection()).importText(
+        "title,authors,series,position,shelf\n"
+        "Dune,Frank Herbert,Dune,1,read\n");
+    pinax::io::SeriesImporter(catalogue.connection()).importText(
+        "series,position,title\n"
+        "Dune,2,\n"
+        "Dune,3,\n");
+    const std::int64_t seriesId = catalogue.seriesStatuses().front().id;
+    auto entryAt = [&](const std::string& position) {
+        for (const auto& row : catalogue.seriesRows(seriesId))
+            if (row.position == position)
+                return row;
+        return pinax::domain::SeriesRow {};
+    };
+    const std::int64_t second = entryAt("2").entryId;
+    const std::int64_t third = entryAt("3").entryId;
+
+    // The owner named volume 3 while the titles were on show.
+    auto named = *catalogue.entry(third);
+    named.title = "The owner's title";
+    QVERIFY(!catalogue.saveEntry(named));
+
+    using pinax::domain::TitleProposal;
+    const auto result = catalogue.nameVolumes(seriesId,
+        {TitleProposal {{"Dune Messiah", std::string("2"), 1969, {}}, second, true},
+            TitleProposal {{"Children of Dune", std::string("3"), 1976, {}}, third, true},
+            TitleProposal {{"Heretics of Dune", std::string("5"), 1984, {}}, std::nullopt, true},
+            TitleProposal {{"The Dune Encyclopedia", std::nullopt, 1984, {}}, std::nullopt, true}});
+    QVERIFY(!result.problem);
+    QCOMPARE(result.named, 1);
+    QCOMPARE(result.added, 2);
+    QVERIFY(entryAt("2").entryTitle == std::string("Dune Messiah"));
+    QVERIFY(entryAt("3").entryTitle == std::string("The owner's title")); // the owner's stands
+    QVERIFY(entryAt("5").sortPosition == 5.0);                             // at its number
+    const auto rows = catalogue.seriesRows(seriesId);
+    QVERIFY(rows.back().entryTitle == std::string("The Dune Encyclopedia")); // unnumbered: after the last
+    QVERIFY(!rows.back().position);
+    QVERIFY(rows.back().sortPosition == 6.0);
+
+    // A slot with no number takes the volume's when it is named.
+    pinax::io::SeriesImporter(catalogue.connection()).importText(
+        "series,position,title\n"
+        "Dune,,Unidentified volume 1\n");
+    std::int64_t slot = 0;
+    for (const auto& row : catalogue.seriesRows(seriesId))
+        if (row.entryTitle == std::string("Unidentified volume 1"))
+            slot = row.entryId;
+    QVERIFY(slot != 0);
+    const auto filled = catalogue.nameVolumes(seriesId,
+        {TitleProposal {{"Chapterhouse: Dune", std::string("6"), 1985, {}}, slot, true}});
+    QCOMPARE(filled.named, 1);
+    const auto entry = catalogue.entry(slot);
+    QVERIFY(entry->title == std::string("Chapterhouse: Dune"));
+    QVERIFY(entry->position == std::string("6"));
+    QVERIFY(entry->sortPosition == 6.0);
 }
 
 QTEST_MAIN(TestCatalogue)

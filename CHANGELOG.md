@@ -17,6 +17,12 @@ Phase 3 (metadata enrichment) and Phase 4 (browsing and export) closed
 owner's catalogue. Phase 5 (barcode scanning) waits on a webcam.
 
 ### Added
+- Find titles (F-030, D-031), asked for by the owner: a series' page looks
+  the series up on Wikidata, then Open Library, and the panel offers names
+  for its unidentified volumes and the volumes it does not list yet, each
+  against where it would go. Nothing is written until the owner ticks and
+  uses them; an "Unidentified volume n" slot takes the number of the volume
+  that names it.
 - Light and dark themes (F-029, D-030): View ▸ Theme ▸ System, Light or
   Dark, applied at once and remembered. Dark is the mock-up's palette, Light a
   warm paper, both over Fusion; System leaves the desktop's look alone. Muted

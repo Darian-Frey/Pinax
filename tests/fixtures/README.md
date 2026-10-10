@@ -15,6 +15,10 @@ owner's catalogue.
 | `british_library/isbn_9780356521633.xml` | Recorded 2026-10-06: SRU `alma.isbn=` for *Consider Phlebas*, Orbit 2023 — a reprint whose 008 gives the 1987 original. |
 | `british_library/isbn_9780708837078.xml` | Recorded 2026-10-06: the same query for the 1988 Futura paperback, whose record gives only its ISBN-10. |
 | `british_library/isbn_9780316005388.xml` | Recorded 2026-10-06: the US Orbit ISBN, which the British Library does not hold — no records. |
+| `wikidata/series_dune.json` | Recorded 2026-10-09: the series query (SPEC.md §3.8) for "Dune". Two items share the name: Herbert's six novels, numbered, and one holding only *The Dune Encyclopedia*. |
+| `wikidata/series_the_culture.json` | Recorded 2026-10-09: the same for "The Culture", which Wikidata calls "Culture series", by "Iain Banks"; ten numbered novels. |
+| `wikidata/series_none.json` | Recorded 2026-10-09: the same for "No such series by Pinax": no results. |
+| `open_library/series_search_foundation.json` | Recorded 2026-10-09: `search.json?q=Foundation&author=Isaac Asimov`, the series fallback: novels, omnibuses and box sets together. |
 | `google_books/quota_exceeded_keyless.json` | Recorded 2026-10-06: Google's answer to any request made without an API key (HTTP 429, daily quota 0). The finding behind D-019. |
 | `google_books/freetext_consider_phlebas.json` | Recorded 2026-10-06 with the owner's API key (the key is not in the file): a free-text search, `q=Consider Phlebas Banks`, three results — two editions of the book, one about it. |
 | `google_books/isbn_no_match.json` | Recorded 2026-10-06 with the key: `q=isbn:9780316005388`, which found nothing although Google holds the book (see SPEC.md §3.2, IMP-007). |

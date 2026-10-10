@@ -30,6 +30,7 @@ class BookEditor;
 class CandidateView;
 class BookView;
 class EntryEditor;
+class SeriesTitlesView;
 class SeriesView;
 
 // The right-hand panel: it describes whatever is selected (D-010). Nothing,
@@ -40,7 +41,7 @@ class DetailPanel : public QWidget {
     Q_OBJECT
 
 public:
-    enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete, ViewingSeries, EditingEntry, Attaching, Fetching, Adding, BackingUp, Exporting, Reporting };
+    enum class State { Empty, Viewing, Editing, Several, ConfirmingDelete, ViewingSeries, EditingEntry, Attaching, Fetching, Adding, BackingUp, Exporting, Reporting, FindingTitles };
     Q_ENUM(State)
 
     // True while the panel holds something the owner must finish — a form, a
@@ -50,7 +51,8 @@ public:
     {
         return state_ == State::Editing || state_ == State::ConfirmingDelete
             || state_ == State::EditingEntry || state_ == State::Attaching || state_ == State::Fetching
-            || state_ == State::Adding || state_ == State::BackingUp || state_ == State::Exporting;
+            || state_ == State::Adding || state_ == State::BackingUp || state_ == State::Exporting
+            || state_ == State::FindingTitles;
     }
     // True while a form is open, or a lookup the owner is waiting on, which
     // nothing may redraw over.
@@ -58,7 +60,7 @@ public:
     {
         return state_ == State::Editing || state_ == State::EditingEntry || state_ == State::Attaching
             || state_ == State::Fetching || state_ == State::Adding || state_ == State::BackingUp
-            || state_ == State::Exporting;
+            || state_ == State::Exporting || state_ == State::FindingTitles;
     }
 
     explicit DetailPanel(QWidget* parent = nullptr);
@@ -106,6 +108,10 @@ public:
     // Export (F-021 to F-023): a format and where to, then the outcome.
     void beginExport(const QString& folder, const QString& stem);
 
+    // Find titles for a series' unidentified volumes (F-030): the lookup,
+    // then what was found. Driven through titlesView()'s signals.
+    void beginFindTitles(const QString& seriesName);
+
     // "Fetch metadata" for the book on show (F-012): the lookup under way,
     // then its candidates to choose from. Cancel returns to the book.
     void beginFetch(const QString& how);
@@ -131,6 +137,7 @@ public:
     BackupView* backupView() const { return backupView_; }
     ExportView* exportView() const { return exportView_; }
     ReportView* reportView() const { return reportView_; }
+    SeriesTitlesView* titlesView() const { return titlesView_; }
 
 signals:
     void saveRequested(const domain::BookEdit& edit);
@@ -181,6 +188,7 @@ private:
     BackupView* backupView_;
     ExportView* exportView_;
     ReportView* reportView_;
+    SeriesTitlesView* titlesView_;
     std::function<void()> pendingConfirm_;
 
     std::optional<domain::BookDetail> shown_;

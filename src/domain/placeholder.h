@@ -19,4 +19,11 @@ inline bool isPlaceholderTitle(const std::optional<std::string>& title)
     return title && isPlaceholderTitle(std::string_view(*title));
 }
 
+// "Later volumes — unidentified" stands for an unknown number of volumes,
+// not one; "Unidentified volume 3" stands for one (F-030).
+inline bool isOpenEndedPlaceholder(const std::optional<std::string>& title)
+{
+    return title && title->starts_with("Later volumes — unidentified");
+}
+
 } // namespace pinax::domain

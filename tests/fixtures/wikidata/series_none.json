@@ -1,0 +1,8 @@
+{
+  "head" : {
+    "vars" : [ "series", "seriesLabel", "book", "bookLabel", "ordinal", "authorLabel", "published" ]
+  },
+  "results" : {
+    "bindings" : [ ]
+  }
+}

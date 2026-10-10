@@ -10,6 +10,8 @@
 #include <QRegularExpression>
 #include <QUrlQuery>
 
+#include <algorithm>
+
 namespace pinax::metadata {
 
 using domain::Candidate;
@@ -188,6 +190,39 @@ std::vector<Candidate> parseSearch(const QByteArray& json)
     return candidates;
 }
 
+std::vector<domain::FoundVolume> parseSeriesSearch(const QByteArray& json, const std::string& name)
+{
+    std::vector<domain::FoundVolume> volumes;
+    const auto root = objectOf(json);
+    if (!root)
+        return volumes;
+    const QString series = QString::fromStdString(name).simplified();
+    QStringList seen;
+    for (const auto& value : root->value(QStringLiteral("docs")).toArray()) {
+        const QJsonObject doc = value.toObject();
+        const QString title = doc.value(QStringLiteral("title")).toString().simplified();
+        if (title.isEmpty() || !title.contains(series, Qt::CaseInsensitive)
+            || seen.contains(title, Qt::CaseInsensitive))
+            continue;
+        // Omnibuses and box sets name several works, or many: "Novels
+        // (Foundation / Foundation and Empire / …)".
+        if (title.contains(QStringLiteral(" / ")) || title.size() > 80)
+            continue;
+        seen << title;
+        domain::FoundVolume volume;
+        volume.title = title.toStdString();
+        if (const int year = doc.value(QStringLiteral("first_publish_year")).toInt(); year > 0)
+            volume.year = year;
+        for (const auto& author : doc.value(QStringLiteral("author_name")).toArray())
+            volume.authors.push_back(author.toString().toStdString());
+        volumes.push_back(std::move(volume));
+    }
+    std::stable_sort(volumes.begin(), volumes.end(), [](const auto& a, const auto& b) {
+        return a.year.value_or(9999) < b.year.value_or(9999);
+    });
+    return volumes;
+}
+
 } // namespace openlibrary
 
 OpenLibraryClient::OpenLibraryClient(RequestQueue& queue)
@@ -222,6 +257,19 @@ QUrl OpenLibraryClient::searchUrl(const std::string& title, const std::optional<
     query.addQueryItem(QStringLiteral("fields"),
         QStringLiteral("key,title,author_name,first_publish_year,isbn,cover_i,cover_edition_key,"
                        "number_of_pages_median,subject"));
+    url.setQuery(query);
+    return url;
+}
+
+QUrl OpenLibraryClient::seriesSearchUrl(const std::string& name, const std::optional<std::string>& author)
+{
+    QUrl url(base + QStringLiteral("/search.json"));
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("q"), QString::fromStdString(name));
+    if (author)
+        query.addQueryItem(QStringLiteral("author"), QString::fromStdString(*author));
+    query.addQueryItem(QStringLiteral("limit"), QStringLiteral("100"));
+    query.addQueryItem(QStringLiteral("fields"), QStringLiteral("title,author_name,first_publish_year"));
     url.setQuery(query);
     return url;
 }
@@ -267,6 +315,22 @@ void OpenLibraryClient::search(const std::string& title, const std::optional<std
             return;
         }
         done({openlibrary::parseSearch(reply.body), std::nullopt});
+    });
+}
+
+void OpenLibraryClient::searchSeries(const std::string& name, const std::optional<std::string>& author,
+    std::function<void(domain::SeriesFind)> done)
+{
+    queue_.enqueue(seriesSearchUrl(name, author), [name, done](const HttpReply& reply) {
+        domain::SeriesFind result;
+        result.provider = "Open Library";
+        if (reply.status != 200) {
+            result.error = httpProblem(reply).toStdString();
+        } else {
+            result.seriesName = name;
+            result.volumes = openlibrary::parseSeriesSearch(reply.body, name);
+        }
+        done(std::move(result));
     });
 }
 

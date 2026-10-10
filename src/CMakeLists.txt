@@ -35,6 +35,8 @@ add_library(pinax_domain STATIC
     domain/series_membership.h
     domain/series_row.h
     domain/series_status.h
+    domain/series_titles.cpp
+    domain/series_titles.h
     domain/sort_name.cpp
     domain/sort_name.h
     domain/sort_title.cpp
@@ -131,7 +133,9 @@ add_library(pinax_metadata STATIC
     metadata/open_library.cpp
     metadata/open_library.h
     metadata/request_queue.cpp
-    metadata/request_queue.h)
+    metadata/request_queue.h
+    metadata/wikidata.cpp
+    metadata/wikidata.h)
 target_include_directories(pinax_metadata PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(pinax_metadata PUBLIC pinax_domain Qt6::Network)
 target_compile_definitions(pinax_metadata PRIVATE PINAX_VERSION="${PROJECT_VERSION}")
@@ -183,6 +187,8 @@ add_library(pinax_ui STATIC
     ui/series_page.h
     ui/search_text.cpp
     ui/search_text.h
+    ui/series_titles_view.cpp
+    ui/series_titles_view.h
     ui/series_view.cpp
     ui/series_view.h
     ui/style.cpp

@@ -13,6 +13,7 @@
 #include "domain/series_detail.h"
 #include "domain/series_entry.h"
 #include "domain/series_row.h"
+#include "domain/series_titles.h"
 #include "domain/series_status.h"
 
 #include <cstdint>
@@ -112,6 +113,19 @@ public:
     // Adds the entry when its id is 0, else updates it. Needs a position or
     // a title. Returns nothing on success, or a message.
     std::optional<std::string> saveEntry(const domain::SeriesEntry& entry);
+
+    // Writes the titles the owner accepted for a series (F-030): a proposal
+    // with an entry names that unidentified entry, and gives it the volume's
+    // number if it had none; one without adds a new
+    // missing volume, at its number where the provider gave one, else after
+    // the last. One transaction; an entry no longer unidentified is left as
+    // it is. Returns how many were named and added, or a message.
+    struct NamedVolumes {
+        int named = 0;
+        int added = 0;
+        std::optional<std::string> problem;
+    };
+    NamedVolumes nameVolumes(std::int64_t seriesId, const std::vector<domain::TitleProposal>& accepted);
 
     // Removes the entry. An owned volume's book stays in the catalogue, out
     // of this series.

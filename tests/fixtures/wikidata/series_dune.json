@@ -1,0 +1,235 @@
+{
+  "head" : {
+    "vars" : [ "series", "seriesLabel", "book", "bookLabel", "ordinal", "authorLabel", "published" ]
+  },
+  "results" : {
+    "bindings" : [ {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q6095696"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q437365"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "3"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1976-04-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Dune"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Children of Dune"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Frank Herbert"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q6095696"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q190192"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "1"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1965-01-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Dune"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Dune"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Frank Herbert"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q18011049"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q4532140"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1984-06-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Dune"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "The Dune Encyclopedia"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Willis E. McNelly"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q6095696"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q282814"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "6"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1985-03-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Dune"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Chapterhouse: Dune"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Frank Herbert"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q6095696"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q401619"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "4"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1981-05-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Dune"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "God Emperor of Dune"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Frank Herbert"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q6095696"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q437383"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "2"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1969-01-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Dune"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Dune Messiah"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Frank Herbert"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q6095696"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q437353"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "5"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1984-03-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Dune"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Heretics of Dune"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Frank Herbert"
+      }
+    } ]
+  }
+}

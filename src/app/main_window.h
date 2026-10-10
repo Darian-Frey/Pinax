@@ -162,6 +162,10 @@ private:
 
     // Series entries (Phase 2 step 4).
     void addEntry();
+    // Find titles for the series on show (F-030), and the owner's answer.
+    void findTitles();
+    void useFoundTitles();
+    void stopFindingTitles();
     void editEntry(qint64 entryId);
     void saveEntry(const domain::SeriesEntry& entry);
     void askToRemoveEntry(qint64 entryId);
@@ -287,6 +291,7 @@ private:
     QAction* addBook_ = nullptr;
     // A new book being added for this missing volume (Mark as owned).
     std::optional<qint64> pendingAttach_;
+    std::int64_t findingTitlesFor_ = 0; // the series whose titles are being found
     QSplitter* splitter_;
     ui::RailView* rail_;
     QStackedWidget* centre_;

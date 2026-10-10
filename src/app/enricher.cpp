@@ -37,10 +37,14 @@ Enricher::Enricher(metadata::Fetcher& fetcher, const QString& googleKey, metadat
     , googleQueue_(fetcher, policy)
     , britishLibraryQueue_(fetcher, policy)
     , coverQueue_(fetcher, policy)
+    , wikidataQueue_(fetcher, policy)
     , openLibrary_(openLibraryQueue_)
     , google_(googleQueue_, googleKey)
     , britishLibrary_(britishLibraryQueue_)
+    , wikidata_(wikidataQueue_)
 {
+    connect(&wikidataQueue_, &metadata::RequestQueue::paused, this,
+        [this](int seconds) { emit waiting(QStringLiteral("Wikidata"), seconds); });
     connect(&britishLibraryQueue_, &metadata::RequestQueue::paused, this,
         [this](int seconds) { emit waiting(QStringLiteral("The British Library"), seconds); });
     connect(&openLibraryQueue_, &metadata::RequestQueue::paused, this,
@@ -75,6 +79,26 @@ void Enricher::find(const BookDetail& detail, std::function<void(FindResult)> do
         findByIsbn(*isbn, detail, true, std::move(done));
     else
         findByTitle(detail, {}, std::move(done));
+}
+
+void Enricher::findSeries(const std::string& name, const std::vector<std::string>& credits,
+    std::function<void(domain::SeriesFind)> done, Channel channel)
+{
+    done = guarded(channel, std::move(done));
+    wikidata_.findSeries(name, credits, [this, name, credits, done](domain::SeriesFind wikidata) {
+        if (!wikidata.volumes.empty()) {
+            done(std::move(wikidata));
+            return;
+        }
+        // Not a series Wikidata knows: titles that carry its name.
+        const auto author = credits.empty() ? std::nullopt : std::optional(credits.front());
+        openLibrary_.searchSeries(name, author, [wikidata, done](domain::SeriesFind openLibrary) {
+            // Nothing found: say which provider could not be asked, if any.
+            if (openLibrary.volumes.empty() && wikidata.error)
+                openLibrary.error = openLibrary.error ? *wikidata.error + "; " + *openLibrary.error : wikidata.error;
+            done(std::move(openLibrary));
+        });
+    });
 }
 
 void Enricher::lookupIsbn(const std::string& isbn13, std::function<void(FindResult)> done, Channel channel)

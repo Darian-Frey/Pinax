@@ -88,7 +88,9 @@ results are returned to the caller, which persists them through `db`.
 - **Provider clients** — `OpenLibraryClient` primary, `GoogleBooksClient`
   only with a key (D-019), `BritishLibraryClient` by ISBN over SRU, reading
   MARC 21 with `QXmlStreamReader` (D-022). Each maps provider responses onto
-  `domain::Candidate` through pure parsing functions.
+  `domain::Candidate` through pure parsing functions. `WikidataClient` asks
+  for a series' volumes by SPARQL, with Open Library's title search behind
+  it, and maps them onto `domain::SeriesFind` (F-030, D-031).
 - **Request queue** — one per provider: serialises requests, spaces them, and
   pauses and retries on 429 or 503 rather than failing (AV-009). A request
   may carry a tag, and `cancelTagged` withdraws those not yet started — how
@@ -207,7 +209,10 @@ module permitted to know about all the others.
   candidate's synopsis from its work, and fetches covers. It writes nothing:
   the owner's choice goes to `Catalogue::enrich`, which applies
   `domain::planEnrichment` (SPEC.md §3.5, AV-001) in one transaction, and the
-  cover to `Catalogue::setCover`. `cancel` drops every answer still to come.
+  cover to `Catalogue::setCover`. `findSeries` asks for a series' volumes
+  the same way; where each would go is `domain::planSeriesTitles`, and the
+  owner's ticks go to `Catalogue::nameVolumes`. `cancel` drops every answer
+  still to come.
 - **Adding by ISBN** — `Catalogue::bookWithIsbn`, `creditsFor` (the
   catalogue's spellings), `booksLike` (held copies without an ISBN),
   `seriesProposals`, `addBook` and `giveIsbn`; `app` links `io` for

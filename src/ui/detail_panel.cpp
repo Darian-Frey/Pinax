@@ -9,6 +9,7 @@
 #include "ui/candidate_view.h"
 #include "ui/entry_editor.h"
 #include "ui/book_view.h"
+#include "ui/series_titles_view.h"
 #include "ui/series_view.h"
 #include "ui/style.h"
 
@@ -65,6 +66,7 @@ DetailPanel::DetailPanel(QWidget* parent)
     , backupView_(new BackupView)
     , exportView_(new ExportView)
     , reportView_(new ReportView)
+    , titlesView_(new SeriesTitlesView)
 {
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -105,6 +107,7 @@ DetailPanel::DetailPanel(QWidget* parent)
     stack_->addWidget(backupView_);
     stack_->addWidget(exportView_);
     stack_->addWidget(scrolling(reportView_, this));
+    stack_->addWidget(titlesView_);
 
     connect(confirmButton_, &QPushButton::clicked, this, [this] {
         auto action = std::move(pendingConfirm_);
@@ -314,6 +317,13 @@ void DetailPanel::beginExport(const QString& folder, const QString& stem)
     exportView_->start(folder, stem);
     setState(State::Exporting);
     exportView_->focusPath();
+}
+
+void DetailPanel::beginFindTitles(const QString& seriesName)
+{
+    shown_.reset();
+    titlesView_->showLooking(seriesName);
+    setState(State::FindingTitles);
 }
 
 void DetailPanel::beginFetch(const QString& how)

@@ -24,6 +24,7 @@
 #include "ui/rail_view.h"
 #include "ui/missing_page.h"
 #include "ui/series_page.h"
+#include "ui/series_titles_view.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -107,6 +108,9 @@ MainWindow::MainWindow(QWidget* parent)
     connect(seriesPage_->table(), &ui::SeriesTable::deleteRequested, this, &MainWindow::askToDelete);
     connect(seriesPage_, &ui::SeriesPage::addEntryRequested, this, &MainWindow::addEntry);
     connect(seriesPage_, &ui::SeriesPage::editEntryRequested, this, &MainWindow::editEntry);
+    connect(seriesPage_, &ui::SeriesPage::findTitlesRequested, this, &MainWindow::findTitles);
+    connect(detail_->titlesView(), &ui::SeriesTitlesView::useRequested, this, &MainWindow::useFoundTitles);
+    connect(detail_->titlesView(), &ui::SeriesTitlesView::cancelled, this, &MainWindow::stopFindingTitles);
     detail_->setObjectName(QStringLiteral("detail"));
 
     connect(list_, &ui::BookListView::selectionChangedTo, this, &MainWindow::showSelection);
@@ -313,6 +317,8 @@ void MainWindow::lockWhileBusy()
         statusBar()->showMessage(tr("Backing up — Esc closes"));
     else if (detail_->state() == ui::DetailPanel::State::Exporting)
         statusBar()->showMessage(tr("Exporting — Esc closes"));
+    else if (detail_->state() == ui::DetailPanel::State::FindingTitles)
+        statusBar()->showMessage(tr("Finding titles — Esc cancels"));
     else if (detail_->state() == ui::DetailPanel::State::Fetching && reviewLeft_ > 0)
         statusBar()->showMessage(tr("Reviewing matches — Esc stops"));
     else if (detail_->state() == ui::DetailPanel::State::Fetching)
@@ -1560,6 +1566,70 @@ void MainWindow::addEntry()
     entry.sortPosition = catalogue_->nextSortPosition(entry.seriesId);
     detail_->beginEntryEdit(entry,
         QString::fromStdString(catalogue_->seriesName(entry.seriesId).value_or("")), QString());
+}
+
+// ---------------------------------------------------------------------------
+// Find titles (F-030, D-031)
+
+void MainWindow::findTitles()
+{
+    if (!catalogue_ || !enricher_ || !showingSeries() || detail_->isBusy())
+        return;
+    const std::int64_t seriesId = seriesPage_->seriesId();
+    const QString name = QString::fromStdString(catalogue_->seriesName(seriesId).value_or(""));
+    std::vector<std::string> credits;
+    for (const auto& credit : catalogue_->seriesCredits(seriesId)) {
+        if (credit.role == domain::CreditRole::Author)
+            credits.push_back(credit.name);
+    }
+    findingTitlesFor_ = seriesId;
+    detail_->beginFindTitles(name);
+    enricher_->findSeries(name.toStdString(), credits, [this, seriesId, name](domain::SeriesFind find) {
+        if (!catalogue_ || detail_->state() != ui::DetailPanel::State::FindingTitles
+            || findingTitlesFor_ != seriesId)
+            return;
+        if (find.volumes.empty() && find.error) {
+            detail_->titlesView()->showProblem(
+                tr("The volumes could not be looked up: %1").arg(QString::fromStdString(*find.error)));
+            return;
+        }
+        const auto rows = catalogue_->seriesRows(seriesId);
+        detail_->titlesView()->showProposals(name, find, domain::planSeriesTitles(rows, find.volumes), rows);
+    });
+}
+
+void MainWindow::useFoundTitles()
+{
+    if (!catalogue_ || detail_->state() != ui::DetailPanel::State::FindingTitles)
+        return;
+    const auto accepted = detail_->titlesView()->accepted();
+    if (accepted.empty())
+        return; // the view says why
+    const auto result = catalogue_->nameVolumes(findingTitlesFor_, accepted);
+    if (result.problem) {
+        detail_->titlesView()->showProblem(QString::fromStdString(*result.problem));
+        return;
+    }
+    findingTitlesFor_ = 0;
+    detail_->showNothing();
+    afterSeriesChange();
+    QStringList done;
+    if (result.named > 0)
+        done << tr("%n volume(s) named", nullptr, result.named);
+    if (result.added > 0)
+        done << tr("%n volume(s) added", nullptr, result.added);
+    statusBar()->showMessage(done.isEmpty() ? tr("Nothing changed: those volumes were named meanwhile")
+                                            : done.join(QStringLiteral(", ")),
+        6000);
+}
+
+void MainWindow::stopFindingTitles()
+{
+    if (enricher_)
+        enricher_->cancel();
+    findingTitlesFor_ = 0;
+    detail_->showNothing();
+    refreshPanel();
 }
 
 void MainWindow::editEntry(qint64 entryId)

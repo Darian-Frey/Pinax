@@ -106,6 +106,7 @@ SeriesPage::SeriesPage(QWidget* parent)
     , showMissing_(new QToolButton(this))
     , addEntry_(new QToolButton(this))
     , editEntry_(new QToolButton(this))
+    , findTitles_(new QToolButton(this))
     , model_(new SeriesEntryModel(this))
     , table_(new SeriesTable(model_, this))
 {
@@ -129,11 +130,17 @@ SeriesPage::SeriesPage(QWidget* parent)
     editEntry_->setText(tr("Edit entry"));
     editEntry_->setToolTip(tr("Edit the selected volume's position and title"));
     editEntry_->setEnabled(false);
+    findTitles_->setObjectName(QStringLiteral("series.findTitles"));
+    findTitles_->setText(tr("Find titles"));
+    findTitles_->setToolTip(tr("Look the series up online, to name the volumes without titles "
+                               "and find the ones not yet listed"));
     bar->addWidget(heading_, 1);
+    bar->addWidget(findTitles_);
     bar->addWidget(addEntry_);
     bar->addWidget(editEntry_);
     bar->addWidget(showMissing_);
     connect(addEntry_, &QToolButton::clicked, this, &SeriesPage::addEntryRequested);
+    connect(findTitles_, &QToolButton::clicked, this, &SeriesPage::findTitlesRequested);
     connect(editEntry_, &QToolButton::clicked, this, [this] {
         const auto entries = selectedEntries();
         if (entries.size() == 1)

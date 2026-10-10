@@ -484,6 +484,47 @@ std::optional<std::string> Catalogue::saveEntry(const domain::SeriesEntry& entry
     return std::nullopt;
 }
 
+Catalogue::NamedVolumes Catalogue::nameVolumes(std::int64_t seriesId,
+    const std::vector<domain::TitleProposal>& accepted)
+{
+    NamedVolumes result;
+    try {
+        db::SeriesRepository series(connection_);
+        db::Transaction transaction(connection_);
+        for (const auto& proposal : accepted) {
+            if (proposal.entryId) {
+                auto entry = series.findEntry(*proposal.entryId);
+                if (!entry || entry->seriesId != seriesId || !domain::isUnidentified(*entry))
+                    continue; // named or filled meanwhile: the owner's stands
+                entry->title = proposal.volume.title;
+                // A slot with no number takes the volume's (F-030).
+                if ((!entry->position || entry->position->empty()) && proposal.volume.ordinal) {
+                    entry->position = proposal.volume.ordinal;
+                    entry->sortPosition = io::deriveSortPosition(*entry->position);
+                }
+                series.updateEntry(*entry);
+                ++result.named;
+            } else {
+                domain::SeriesEntry entry;
+                entry.seriesId = seriesId;
+                entry.position = proposal.volume.ordinal;
+                entry.title = proposal.volume.title;
+                entry.sortPosition = entry.position ? io::deriveSortPosition(*entry.position) : std::nullopt;
+                if (!entry.sortPosition) {
+                    const auto last = series.lastSortPosition(seriesId);
+                    entry.sortPosition = last ? std::floor(*last) + 1 : 1;
+                }
+                series.addEntry(entry);
+                ++result.added;
+            }
+        }
+        transaction.commit();
+    } catch (const db::DbError& error) {
+        return {0, 0, std::string("The titles were not saved: ") + error.what()};
+    }
+    return result;
+}
+
 std::optional<std::string> Catalogue::removeEntry(std::int64_t entryId)
 {
     try {

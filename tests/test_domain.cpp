@@ -6,6 +6,7 @@
 #include "domain/isbn.h"
 #include "domain/name_match.h"
 #include "domain/placeholder.h"
+#include "domain/series_titles.h"
 #include "domain/sort_name.h"
 #include "domain/sort_title.h"
 
@@ -17,6 +18,9 @@ class TestDomain : public QObject {
     Q_OBJECT
 
 private slots:
+    void unidentifiedVolumesAreUnownedAndUnnamed();
+    void titlesFoundNameTheRightVolumes();
+    void numberedTitlesFillUnnumberedSlotsInOrder();
     void sortTitleMovesLeadingArticle_data();
     void sortTitleMovesLeadingArticle();
     void enumsRoundTripThroughSchemaStrings();
@@ -350,6 +354,124 @@ void TestDomain::providerNamesMeetTheCataloguesOwn()
     QVERIFY(!knownAuthor("Sarah Baxter", known)); // a surname is not enough
     QVERIFY(shareAnAuthor({"Iain Banks"}, {"Iain M. Banks"}));
     QVERIFY(!shareAnAuthor({"Poul Anderson"}, {"Iain M. Banks", "Stephen Baxter"}));
+}
+
+namespace {
+
+SeriesRow entryRow(std::int64_t id, std::optional<std::string> position, std::optional<std::string> title,
+    bool owned = false)
+{
+    SeriesRow row;
+    row.entryId = id;
+    row.position = std::move(position);
+    row.entryTitle = title;
+    if (owned) {
+        row.bookId = id * 100;
+        row.bookTitle = title;
+    }
+    return row;
+}
+
+FoundVolume found(const std::string& title, std::optional<std::string> ordinal = std::nullopt)
+{
+    return {title, std::move(ordinal), std::nullopt, {}};
+}
+
+} // namespace
+
+void TestDomain::unidentifiedVolumesAreUnownedAndUnnamed()
+{
+    QVERIFY(isUnidentified(entryRow(1, "2", std::nullopt)));
+    QVERIFY(isUnidentified(entryRow(1, "2", std::string("  "))));
+    QVERIFY(isUnidentified(entryRow(1, "3", std::string("Unidentified volume 3"))));
+    QVERIFY(isUnidentified(entryRow(1, std::nullopt, std::string("Later volumes — unidentified"))));
+    QVERIFY(!isUnidentified(entryRow(1, "4", std::string("God Emperor of Dune"))));
+    QVERIFY(!isUnidentified(entryRow(1, "1", std::nullopt, true))); // owned: it has its book
+
+    SeriesEntry entry;
+    QVERIFY(isUnidentified(entry));
+    entry.title = "Unidentified volume 2";
+    QVERIFY(isUnidentified(entry));
+    entry.bookId = 7;
+    QVERIFY(!isUnidentified(entry));
+}
+
+void TestDomain::titlesFoundNameTheRightVolumes()
+{
+    const std::vector<SeriesRow> rows {
+        entryRow(1, "1", std::string("Dune"), true),
+        entryRow(2, "2", std::nullopt),
+        entryRow(3, "3", std::string("Unidentified volume 3")),
+        entryRow(4, "4", std::string("God Emperor of Dune")),
+        entryRow(5, std::nullopt, std::string("Later volumes — unidentified")),
+        entryRow(6, "Broadcast 10", std::nullopt),
+    };
+    const std::vector<FoundVolume> volumes {
+        found("Dune", "1"),                       // held already
+        found("Dune Messiah", "2"),               // names entry 2
+        found("Children of Dune", "3"),           // names the placeholder at 3
+        found("God Emperor of Dune", "4"),        // listed already
+        found("Heretics of Dune", "5"),           // not listed: a new volume
+        found("A Different Fourth", "4"),         // 4 has the owner's title: left out
+        found("The Dune Encyclopedia"),           // unnumbered: a new volume
+        found("Spinward Fringe Broadcast 10"),    // ends with entry 6's position
+        found("Spinward Fringe Broadcast 1"),     // not "Broadcast 10": a new volume
+        found("Dune Messiah", "2"),               // the same title twice: once
+    };
+    const auto proposals = planSeriesTitles(rows, volumes);
+    QCOMPARE(proposals.size(), std::size_t(6));
+
+    QCOMPARE(proposals[0].volume.title, std::string("Dune Messiah"));
+    QVERIFY(proposals[0].entryId == 2);
+    QVERIFY(proposals[0].chosen);
+    QCOMPARE(proposals[1].volume.title, std::string("Children of Dune"));
+    QVERIFY(proposals[1].entryId == 3);
+    QVERIFY(proposals[1].chosen);
+    QCOMPARE(proposals[2].volume.title, std::string("Heretics of Dune"));
+    QVERIFY(!proposals[2].entryId);
+    QVERIFY(!proposals[2].chosen); // a new volume is offered, never assumed
+    QCOMPARE(proposals[3].volume.title, std::string("The Dune Encyclopedia"));
+    QVERIFY(!proposals[3].entryId);
+    QCOMPARE(proposals[4].volume.title, std::string("Spinward Fringe Broadcast 10"));
+    QVERIFY(proposals[4].entryId == 6);
+    QVERIFY(proposals[4].chosen);
+    QCOMPARE(proposals[5].volume.title, std::string("Spinward Fringe Broadcast 1"));
+    QVERIFY(!proposals[5].entryId);
+
+    // Nothing found, nothing proposed; a series already complete likewise.
+    QVERIFY(planSeriesTitles(rows, {}).empty());
+    QVERIFY(planSeriesTitles({entryRow(1, "1", std::string("Dune"), true)}, {found("Dune", "1")}).empty());
+}
+
+void TestDomain::numberedTitlesFillUnnumberedSlotsInOrder()
+{
+    // The owner knew two volumes were missing, not which: two slots.
+    const std::vector<SeriesRow> rows {
+        entryRow(1, std::nullopt, std::string("Unidentified volume 1")),
+        entryRow(2, std::nullopt, std::string("Unidentified volume 2")),
+        entryRow(3, "1", std::string("The Colour of Magic"), true),
+        entryRow(4, "Broadcast 5", std::string("Frontline"), true),
+        entryRow(5, std::nullopt, std::string("Later volumes — unidentified")),
+    };
+    const auto proposals = planSeriesTitles(rows, {
+        found("The Colour of Magic", "1"),        // held
+        found("The Light Fantastic", "2"),        // the first slot
+        found("Equal Rites", "3"),                // the second
+        found("Mort", "4"),                       // no slot left: a new volume
+        found("Spinward Fringe Broadcast 5"),     // held at "Broadcast 5" under its own title
+        found("The Art of Discworld"),            // unnumbered: never put in a slot
+    });
+    QCOMPARE(proposals.size(), std::size_t(4));
+    QCOMPARE(proposals[0].volume.title, std::string("The Light Fantastic"));
+    QVERIFY(proposals[0].entryId == 1);
+    QVERIFY(proposals[0].chosen);
+    QCOMPARE(proposals[1].volume.title, std::string("Equal Rites"));
+    QVERIFY(proposals[1].entryId == 2);
+    QCOMPARE(proposals[2].volume.title, std::string("Mort"));
+    QVERIFY(!proposals[2].entryId); // "Later volumes" stands for any number: not a slot
+    QVERIFY(!proposals[2].chosen);
+    QCOMPARE(proposals[3].volume.title, std::string("The Art of Discworld"));
+    QVERIFY(!proposals[3].entryId);
 }
 
 QTEST_APPLESS_MAIN(TestDomain)

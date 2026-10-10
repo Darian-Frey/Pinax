@@ -1,0 +1,338 @@
+{
+  "head" : {
+    "vars" : [ "series", "seriesLabel", "book", "bookLabel", "ordinal", "authorLabel", "published" ]
+  },
+  "results" : {
+    "bindings" : [ {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q5193682"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q7741197"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "10"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "2012-10-04T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Culture series"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "The Hydrogen Sonata"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Iain Banks"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q5193682"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q884010"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "7"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "2000-08-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Culture series"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Look to Windward"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Iain Banks"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q5193682"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q302026"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "9"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "2010-10-07T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Culture series"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Surface Detail"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Iain Banks"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q5193682"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q151337"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "4"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1989-01-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Culture series"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "The State of the Art"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Iain Banks"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q5193682"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q339923"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "3"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1990-01-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Culture series"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Use of Weapons"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Iain Banks"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q5193682"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q261728"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "1"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1987-01-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Culture series"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Consider Phlebas"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Iain Banks"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q5193682"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q74362"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "5"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1996-01-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Culture series"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Excession"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Iain Banks"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q5193682"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q666405"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "6"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1998-06-04T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Culture series"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Inversions"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Iain Banks"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q5193682"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q684818"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "8"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "2008-01-31T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Culture series"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Matter"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Iain Banks"
+      }
+    }, {
+      "series" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q5193682"
+      },
+      "book" : {
+        "type" : "uri",
+        "value" : "http://www.wikidata.org/entity/Q467139"
+      },
+      "ordinal" : {
+        "type" : "literal",
+        "value" : "2"
+      },
+      "published" : {
+        "datatype" : "http://www.w3.org/2001/XMLSchema#dateTime",
+        "type" : "literal",
+        "value" : "1988-08-01T00:00:00Z"
+      },
+      "seriesLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Culture series"
+      },
+      "bookLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "The Player of Games"
+      },
+      "authorLabel" : {
+        "xml:lang" : "en",
+        "type" : "literal",
+        "value" : "Iain Banks"
+      }
+    } ]
+  }
+}

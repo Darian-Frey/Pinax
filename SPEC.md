@@ -188,6 +188,7 @@ Hyphens and spaces are stripped before validation. Storage is digits only.
 
 Provider order is D-019: Open Library first, Google Books only with an API
 key; the British Library fills the gaps in an ISBN answer (D-022, §3.6).
+A series' volumes come from Wikidata, then Open Library (D-031, §3.8).
 Every request goes through one `RequestQueue` per provider (D-020).
 
 ### 3.1 Open Library — primary
@@ -364,6 +365,65 @@ and subtitle; the British Library's genres are added beside Open Library's
    candidates start unchosen, and one taken writes only what a search may
    (§3.5) beside the typed ISBN. Nothing found → the ordinary form,
    prefilled with the ISBN, title and authors known so far.
+
+### 3.8 Series volumes — F-030
+
+No key. One request to Wikidata's query service, with the series' name
+(`"` and `\` escaped) as `{name}`:
+
+```
+GET https://query.wikidata.org/sparql?format=json&query=
+SELECT DISTINCT ?series ?seriesLabel ?book ?bookLabel ?ordinal ?authorLabel ?published WHERE {
+  SERVICE wikibase:mwapi { … mwapi:search "{name}"; mwapi:language "en"; mwapi:limit "20" .
+                           ?series wikibase:apiOutputItem mwapi:item . }
+  ?book p:P179 ?membership . ?membership ps:P179 ?series .
+  ?book wdt:P31 ?kind . VALUES ?kind { wd:Q7725634 wd:Q8261 wd:Q47461344 wd:Q571 wd:Q149537 wd:Q1279564 wd:Q49084 }
+  OPTIONAL { ?membership pq:P1545 ?ordinal }
+  OPTIONAL { ?book wdt:P50 ?author }
+  OPTIONAL { ?book wdt:P577 ?published }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en" . }
+}
+```
+
+| Binding | Target |
+|---|---|
+| `series`, `seriesLabel` | groups the books. When the owner's series has credited authors, only a series sharing one counts (loose names, D-007). Then a name equal to the owner's, ignoring a leading "The" and a trailing "series", wins, then the most books |
+| `bookLabel` | the volume's title; an item labelled only by its id is dropped |
+| `ordinal` (P1545, series ordinal) | the volume's number, as given; volumes in its numeric order, unnumbered ones after by year |
+| `authorLabel` | the volume's authors, for the choice above |
+| `published` | the earliest year given |
+
+Nothing found, and the name has a colon: asked once more with what follows
+it. Still nothing: Open Library is searched instead:
+
+```
+GET https://openlibrary.org/search.json?q={name}&author={first author}&limit=100
+    &fields=title,author_name,first_publish_year
+```
+
+A work is kept when its title contains the series' name. A title listing
+several works (" / ") or longer than 80 characters is an omnibus or a box
+set and is dropped, and each title is kept once. They come unnumbered, in
+order of first publication.
+
+Proposals (`domain::planSeriesTitles`), for each volume found in order:
+
+1. Its title is already the series' (`titlesAgree`): left out.
+2. Its number is an unidentified entry's position, or its title ends with an
+   entry's worded position ("…Broadcast 10" for "Broadcast 10"): it names
+   that entry, ticked. If the entry is already identified, it is left out.
+3. Its number is a position the series fills under another title: left out.
+   The owner's title stands.
+4. Numbered, with an unidentified entry that has no position still free: it
+   names the next such entry in series order, ticked. On use, the entry
+   takes the number as position and sort key (§1.2). "Later volumes —
+   unidentified" is never one of these.
+5. Otherwise a new missing volume, unticked: at its number, or after the
+   last.
+
+Using the ticked titles writes, in one transaction, the titles, those
+positions, and the new entries. An entry named or filled meanwhile is left
+as it is. Nothing else changes: no book, credit or genre.
 
 ---
 

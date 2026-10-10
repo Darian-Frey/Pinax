@@ -1161,3 +1161,65 @@ before that.
 **Reversal conditions.** Revisit if Qt's own colour-scheme support (Qt 6.5
 and later) reaches the target distribution, which would let System follow a
 desktop that changes between light and dark.
+
+---
+
+### D-031 Series volumes come from Wikidata, then Open Library, and are confirmed
+**Decided:** 2026-10-09
+**Recorded:** 2026-10-09
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-09)
+**Related:** F-030, D-018, D-019, AV-009, AV-010, SPEC.md §3.8
+
+**Context.** The owner's series carry 167 volumes known to be missing but
+not named: an entry with no title, or a placeholder such as "Unidentified
+volume 3" (D-018). The owner asked for their titles to be fetched, to know
+what to buy. Open Library and Google Books, the book providers, have no
+series lists: Open Library has no series field at all, and Google numbers
+only some ebook series.
+
+**Options.**
+- **A. Wikidata's query service, which records a book "part of the series"
+  (P179) with its number (P1545); Open Library's search for titles carrying
+  the series' name when Wikidata does not know the series. The owner ticks
+  what is right before anything is written.** Chosen.
+- **B. Wikidata only.** Rejected: on 2026-10-09 it knew 8 of the owner's 21
+  series with unnamed volumes by exact name. Indie series whose titles carry
+  the series' name, such as *Spinward Fringe Broadcast 10*, are found only
+  by Open Library.
+- **C. Write numbered matches without asking.** Rejected by the owner, and
+  against AV-010: Wikidata's numbering may not be the owner's (it numbers
+  *New Spring* 0 in The Wheel of Time).
+- **D. Scrape a fan wiki or a bookseller's series page.** Rejected: no
+  stable interface, and terms that forbid it.
+
+**Decision.** Option A. One SPARQL request: Wikidata's own entity search
+finds items named like the series (up to 20), and their books of a listed
+kind come back with number, authors and year. The kinds are literary work,
+novel, written work, book, novella, short story collection and short story,
+listed outright because the subclass path times out beside the search. Of
+the series found, the one sharing an author with the owner's series is
+taken. Several Wikidata items share a name: "Dune" is both Herbert's six
+novels and an item holding only *The Dune Encyclopedia*. A name with the
+owner's own prefix ("SW: The New Jedi Order") is asked again as what
+follows the colon. When Wikidata finds nothing, Open Library is searched for
+the name and first author. Its titles that contain the name are kept,
+omnibuses aside, unnumbered. `domain::planSeriesTitles` decides where each
+title would go, and the owner confirms in the panel. No new dependency:
+Qt Network, as D-020; Wikidata gets its own polite queue (AV-009).
+
+**Consequences.**
+- An unnumbered slot ("Unidentified volume 3") named from a numbered volume
+  takes that number as its position and sort key. That is the slot's meaning
+  made exact, and the owner sees it before using it.
+- "Later volumes — unidentified" stands for any number of volumes and is
+  never filled this way; `isOpenEndedPlaceholder`, in `placeholder.h`, is
+  the one test for it (IMP-005).
+- Wikidata is community-edited: a volume may be missing (*Vatta's War* 2)
+  or numbered differently. The review is where that is caught.
+- A series neither provider lists finds nothing. The owner names its
+  volumes by hand, as before.
+
+**Reversal conditions.** Revisit if Open Library adds series data, or if
+Wikidata's query service starts to require a key or forbids this use.
+

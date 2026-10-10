@@ -173,6 +173,29 @@ placeholder-only gaps.
 **Notes:** D-004. Views `v_series_status`, `v_missing_entries`. Do not add a
 stored status column — that is the staleness the views exist to prevent.
 
+### F-030 Find the titles of a series' missing volumes
+**Priority:** Should
+**Acceptance:**
+- From a series' page, the series can be looked up online, and the volumes
+  it has without a title are offered names, so the owner knows what to look
+  for.
+- Volumes the series does not list yet are offered too, as new missing
+  volumes.
+- Nothing is written until the owner has ticked what is right; a title the
+  owner gave is never replaced.
+**Status:** Complete (2026-10-09), at the owner's request. **Find titles** on
+a series' page asks Wikidata, then Open Library when Wikidata does not know
+the series (D-031). The panel lists each title against the volume it would
+name: by number, by a position such as "Broadcast 10" ending the title, or
+in the next "Unidentified volume n" slot, which then takes the volume's
+number. The rest are offered unticked as new volumes. Each title's
+destination can be changed before use. Live on a copy of the owner's
+catalogue, Discworld named 13 of its 14 slots, The New Jedi Order 15 of 15,
+The Wheel of Time 13 of 13 and Vatta's War 3 of 4. Indie series that
+neither provider lists, such as Final Dawn, find nothing.
+**Notes:** SPEC.md §3.8. Not a fetch in the sense of §3.5: it writes only
+series entries' titles, positions and new entries.
+
 ---
 
 ## Metadata enrichment

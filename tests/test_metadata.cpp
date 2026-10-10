@@ -4,6 +4,7 @@
 #include "metadata/http.h"
 #include "metadata/open_library.h"
 #include "metadata/request_queue.h"
+#include "metadata/wikidata.h"
 #include "domain/isbn.h"
 #include "fake_fetcher.h"
 
@@ -53,6 +54,10 @@ class TestMetadata : public QObject {
     Q_OBJECT
 
 private slots:
+    void wikidataFindsTheSeriesByItsAuthor();
+    void wikidataTellsSeriesApartByAuthor();
+    void wikidataAsksForTheSeriesByName();
+    void openLibrarySeriesSearchKeepsTitlesNamingTheSeries();
     void initTestCase() { qRegisterMetaType<LookupResult>(); }
 
     // Open Library parsing, against recorded responses
@@ -606,6 +611,86 @@ void TestMetadata::aSearchedWorkGivesOnlyTypicalFigures()
     QVERIFY(edition->publisher == std::optional<std::string>("Heyne"));
     QVERIFY(edition->pageCount == 762);
     QVERIFY(edition->publishedYear == 2002);
+}
+
+void TestMetadata::wikidataFindsTheSeriesByItsAuthor()
+{
+    const auto dune = wikidata::parseSeries(fixture("wikidata/series_dune.json"), "Dune", {"Frank Herbert"});
+    QCOMPARE(dune.provider, std::string("Wikidata"));
+    QCOMPARE(dune.seriesName, std::string("Dune"));
+    QVERIFY(!dune.error);
+    // Two items are called "Dune": Herbert's six novels, and another holding
+    // only The Dune Encyclopedia. The author tells them apart.
+    QCOMPARE(dune.volumes.size(), std::size_t(6));
+    // In order of their number.
+    const std::vector<std::string> numbered {"Dune", "Dune Messiah", "Children of Dune", "God Emperor of Dune",
+        "Heretics of Dune", "Chapterhouse: Dune"};
+    for (std::size_t i = 0; i < numbered.size(); ++i) {
+        QCOMPARE(dune.volumes[i].title, numbered[i]);
+        QVERIFY(dune.volumes[i].ordinal == std::to_string(i + 1));
+    }
+    QCOMPARE(dune.volumes[0].year, std::optional<int>(1965));
+    QCOMPARE(dune.volumes[0].authors, std::vector<std::string>({"Frank Herbert"}));
+    QVERIFY(wikidata::parseSeries(fixture("wikidata/series_dune.json"), "Dune", {"Willis E. McNelly"}).volumes
+            == std::vector<pinax::domain::FoundVolume>(
+                {{"The Dune Encyclopedia", std::nullopt, 1984, {"Willis E. McNelly"}}}));
+
+    // Wikidata's "Culture series", for the owner's "The Culture", by Iain M.
+    // Banks — whom Wikidata calls Iain Banks.
+    const auto culture = wikidata::parseSeries(fixture("wikidata/series_the_culture.json"), "The Culture",
+        {"Iain M. Banks"});
+    QCOMPARE(culture.seriesName, std::string("Culture series"));
+    QCOMPARE(culture.volumes.size(), std::size_t(10));
+    QCOMPARE(culture.volumes.front().title, std::string("Consider Phlebas"));
+    QCOMPARE(culture.volumes.back().title, std::string("The Hydrogen Sonata"));
+    QVERIFY(culture.volumes.back().ordinal == std::string("10"));
+}
+
+void TestMetadata::wikidataTellsSeriesApartByAuthor()
+{
+    // A series of the same name by someone else is not the owner's.
+    QVERIFY(wikidata::parseSeries(fixture("wikidata/series_dune.json"), "Dune", {"Brian Aldiss"}).volumes.empty());
+    // With no author known, the name decides.
+    QVERIFY(!wikidata::parseSeries(fixture("wikidata/series_dune.json"), "Dune", {}).volumes.empty());
+    // Nothing found, and nonsense, are both nothing.
+    QVERIFY(wikidata::parseSeries(fixture("wikidata/series_none.json"), "No such series by Pinax", {}).volumes.empty());
+    QVERIFY(wikidata::parseSeries("not json", "Dune", {}).volumes.empty());
+}
+
+void TestMetadata::wikidataAsksForTheSeriesByName()
+{
+    const QUrl url = WikidataClient::seriesUrl("Vatta's \"War\"");
+    QCOMPARE(url.host(), QStringLiteral("query.wikidata.org"));
+    const QUrlQuery query(url);
+    QCOMPARE(query.queryItemValue(QStringLiteral("format")), QStringLiteral("json"));
+    const QString sparql = query.queryItemValue(QStringLiteral("query"), QUrl::FullyDecoded);
+    QVERIFY(sparql.contains(QStringLiteral("mwapi:search \"Vatta's \\\"War\\\"\"")));
+    QVERIFY(sparql.contains(QStringLiteral("P179")));
+    QVERIFY(sparql.contains(QStringLiteral("P1545")));
+}
+
+void TestMetadata::openLibrarySeriesSearchKeepsTitlesNamingTheSeries()
+{
+    const auto volumes = openlibrary::parseSeriesSearch(fixture("open_library/series_search_foundation.json"),
+        "Foundation");
+    QVERIFY(!volumes.empty());
+    QStringList titles;
+    for (const auto& volume : volumes) {
+        const QString title = QString::fromStdString(volume.title);
+        QVERIFY2(title.contains(QStringLiteral("Foundation"), Qt::CaseInsensitive), qPrintable(title));
+        QVERIFY2(!title.contains(QStringLiteral(" / ")), qPrintable(title)); // omnibuses left out
+        QVERIFY(!volume.ordinal);                                           // nothing is numbered
+        QVERIFY(!titles.contains(title, Qt::CaseInsensitive));               // one per title
+        titles << title;
+    }
+    QVERIFY(titles.contains(QStringLiteral("Second Foundation")));
+    QVERIFY(titles.contains(QStringLiteral("Prelude to Foundation")));
+    for (std::size_t i = 1; i < volumes.size(); ++i)
+        QVERIFY(volumes[i - 1].year.value_or(9999) <= volumes[i].year.value_or(9999));
+
+    const QUrlQuery query(OpenLibraryClient::seriesSearchUrl("Foundation", std::string("Isaac Asimov")));
+    QCOMPARE(query.queryItemValue(QStringLiteral("q")), QStringLiteral("Foundation"));
+    QCOMPARE(query.queryItemValue(QStringLiteral("author")), QStringLiteral("Isaac Asimov"));
 }
 
 QTEST_MAIN(TestMetadata)

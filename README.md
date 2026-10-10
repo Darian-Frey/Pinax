@@ -76,9 +76,12 @@ the left narrows the list to a read state or a series, with counts and each
 series' held/known. Choosing a series lists its entries in order with the
 volumes you don't own in place, and the panel describes the series. Volumes
 can be added, edited and removed there, and a missing one marked as owned —
-as a new book, or one already in the catalogue. NEEDS ATTENTION in the rail
-is the shopping list: every volume your series lack, those one volume short
-first. Selecting a book shows
+as a new book, or one already in the catalogue. Find titles, on a series'
+page, looks the series up on Wikidata (or Open Library) and offers names
+for the volumes you know are missing but haven't named, and the volumes the
+series doesn't list yet. You tick the right ones before anything changes
+(F-030). NEEDS ATTENTION in the rail is the shopping list: every volume
+your series lack, those one volume short first. Selecting a book shows
 it in the detail panel; F2 or Edit opens its fields for editing in place. In
 the list, R toggles read, 1–9 or 0 rate and Delete deletes (after asking in
 the panel) the selected books; the panel's rating squares are clickable.
@@ -166,7 +169,7 @@ pinax/
 │   ├── app/              composition root, settings, main window shell
 │   ├── domain/           plain value types, no Qt or SQL
 │   ├── db/               connection, migrations, repositories
-│   ├── metadata/         Google Books, Open Library, cover cache
+│   ├── metadata/         Open Library, Google Books, British Library, Wikidata, cover cache
 │   ├── io/               CSV import, export, backup
 │   └── ui/               rail, list, detail panel
 ├── tests/                Qt Test, run by ctest
@@ -179,10 +182,10 @@ pinax/
 ├── seed/                 the real catalogue; git-ignored, never committed
 ├── README.md
 ├── BUILD.md              requirements, build, test, troubleshooting
-├── FEATURES.md           F-001 … F-029, MoSCoW priorities, acceptance criteria
+├── FEATURES.md           F-001 … F-030, MoSCoW priorities, acceptance criteria
 ├── ROADMAP.md            Phases 0–4 complete; Phase 5 planned
 ├── ARCHITECTURE.md       modules, data flow, invariants
-├── DECISIONS.md          D-001 … D-030, append-only
+├── DECISIONS.md          D-001 … D-031, append-only
 ├── SPEC.md               CSV format, ISBN validation, provider contracts, exports
 ├── ATTACK_VECTORS.md     AV-001 … AV-014, failure modes with detection
 ├── BUGS.md               BUG-001 … BUG-006, all fixed
