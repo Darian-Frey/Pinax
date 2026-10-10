@@ -106,7 +106,5 @@ What's done and what's next is in the [roadmap](ROADMAP.md), and the
 
 ## Licence
 
-**None, deliberately.** The repository is private, and the omission is recorded
-as D-013 with the condition that it is revisited before any public commit or
-before anyone else is given access. Published without a licence, this code
-would grant no rights to anyone.
+Pinax is free and open source under the [MIT licence](LICENSE): use it,
+change it and share it, keeping the copyright notice.

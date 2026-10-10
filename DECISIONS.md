@@ -388,7 +388,7 @@ that entry rather than creating a second record.
 ### D-013 No LICENSE while the repository is private
 **Decided:** 2026-10-04
 **Recorded:** 2026-10-04
-**Status:** Accepted
+**Status:** Superseded by D-032
 **Authors:** Shane Hartley (with Claude, 2026-10-04)
 **Related:** README.md
 
@@ -1222,4 +1222,45 @@ Qt Network, as D-020; Wikidata gets its own polite queue (AV-009).
 
 **Reversal conditions.** Revisit if Open Library adds series data, or if
 Wikidata's query service starts to require a key or forbids this use.
+
+---
+
+### D-032 Pinax is released under the MIT licence
+**Decided:** 2026-10-10
+**Recorded:** 2026-10-10
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-10-10)
+**Related:** D-013, D-001, D-015, D-025, README.md
+
+**Context.** D-013 left out a licence while the repository was private, and
+set its reversal at the first public commit. The owner has made the
+repository public, so the code needs a licence. Without one it grants no
+rights to anyone.
+
+**Options.**
+- **A. MIT.** Short and permissive: use, change and redistribution for any
+  purpose, keeping the copyright notice. Chosen by the owner.
+- **B. GPL-3.0.** Copyleft: modified versions that are distributed stay
+  open. Rejected by the owner.
+- **C. Apache-2.0.** Permissive, with an explicit patent grant and a duty to
+  mark changes. Rejected by the owner: more than a personal project needs.
+
+**Decision.** Option A. `LICENSE` at the root holds the MIT text, copyright
+2026 Shane Hartley. The dependencies allow it: Qt 6 under the LGPL v3,
+linked dynamically as the distribution ships it (D-001); SQLite, in the
+public domain (D-015); libxlsxwriter, under the BSD 2-clause licence
+(D-025). Pinax ships none of their code.
+
+**Consequences.**
+- Anyone may use, change and redistribute Pinax, keeping the notice.
+- The owner's library stays out of the repository as before: `seed/`, `*.db`
+  and `*.key` remain git-ignored, and screenshots come from the demo
+  catalogue. Making the code public does not make the library public.
+- A distributor who bundles Qt with Pinax, rather than relying on the
+  system's, takes on the LGPL's conditions for Qt; Pinax's own licence does
+  not change that.
+
+**Reversal conditions.** A licence already granted cannot be withdrawn from
+copies already taken. A different licence for later versions would need a
+new entry.
 

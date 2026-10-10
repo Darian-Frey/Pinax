@@ -33,19 +33,19 @@ database and exports to SQL, CSV and Excel.
 | `FEATURES.md` | Complete. F-001 to F-030. F-001 to F-024 and F-026 to F-030 Complete (F-015 with its exception: publisher, year and pages have no source column); F-025 and the rest Not started. |
 | `ROADMAP.md` | Complete. Phases 0–4 done, Phases 3 and 4 closed 2026-10-08 with their evidence in the phase status; Phase 5 (webcam scanning) not started, waiting on hardware. |
 | `ARCHITECTURE.md` | Complete. Six modules, eight invariants. |
-| `DECISIONS.md` | Complete. D-001 to D-031; D-008 superseded by D-019, the rest Accepted. |
+| `DECISIONS.md` | Complete. D-001 to D-032; D-008 superseded by D-019 and D-013 by D-032, the rest Accepted. |
 | `SPEC.md` | Complete. CSV format, ISBN validation, provider contracts, what a fetch writes (§3.5), a series' volumes (§3.8), cover cache, export layouts. |
 | `ATTACK_VECTORS.md` | Complete. AV-001 to AV-014. Detection implemented for AV-001, AV-002, AV-003, AV-004, AV-005, AV-008, AV-011, AV-014; partly for AV-006, AV-007, AV-010, AV-012, AV-013; the rest `not implemented`. |
 | `BUGS.md` | No open bugs. BUG-001 to BUG-006 fixed. |
 | `IMPROVEMENTS.md` | No improvement awaiting a decision. IMP-001 to IMP-005 and IMP-007 to IMP-011 applied; IMP-006 deferred. |
 | `CHANGELOG.md` | Complete. Unreleased section only. |
 | `BUILD.md` | Complete. Written 2026-10-05 on the first successful build. |
-| `LICENSE` | **Absent, deliberately.** Exempted by D-013 while the repository is private. |
+| `LICENSE` | MIT, copyright 2026 Shane Hartley (D-032, superseding D-013). The repository is public. |
 
 The owner's catalogue began as a 443-row spreadsheet in `seed/` (176 read,
 267 unread, 144 series), with a Markdown rendering alongside; it has been
 converted and imported (see §3). `seed/` is git-ignored and must stay so: the
-repository has a GitHub remote and the owner's library is not to be
+repository is public on GitHub, and the owner's library is not to be
 published.
 
 `src/` holds one directory per module (ARCHITECTURE.md §2); all have code. Each module becomes its own static library as it gains

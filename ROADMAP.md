@@ -20,7 +20,8 @@ standard before any code exists.
 - [x] `BUGS.md`, `IMPROVEMENTS.md` — empty, present so Maintenance Rule 8
       applies from the first commit
 - [x] `LICENSE` — resolved as a recorded exemption (D-013), not an omission;
-      the repository stays private until it is revisited
+      the repository stays private until it is revisited. Revisited
+      2026-10-10: MIT, the repository public (D-032)
 - [ ] `BUILD.md` — deliberately deferred to Phase 1, per the standard's
       creation order: written when the first build succeeds
 **Acceptance:** Schema applies to an empty database and the derived views
