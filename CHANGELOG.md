@@ -17,6 +17,11 @@ Phase 3 (metadata enrichment) and Phase 4 (browsing and export) closed
 owner's catalogue. Phase 5 (barcode scanning) waits on a webcam.
 
 ### Changed
+- The README is now a friendly landing page: what Pinax does, a gallery of
+  screenshots, getting started and where to read more. Its detail moved to
+  `docs/USER_GUIDE.md` (using Pinax, shortcuts, backups, the command line)
+  and `docs/DEVELOPER.md` (build, layout, data model, the database on its
+  own, the documentation map).
 - Fetch all no longer stands still while Google Books waits out a refusal
   (IMP-011): a book that needs Google then is set aside and the run carries
   on, coming back to it, and waiting, once the others are done. The status

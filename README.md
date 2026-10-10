@@ -1,233 +1,108 @@
 # Pinax
 
-> **Status:** Active
-> **Provenance:** Shane Hartley (author); Claude (primary auditor)
-> **Last reviewed:** 2026-10-08
-> **Why this status:** Phases 1 to 4 complete — the catalogue is imported,
-> listed, sorted, filtered, searched, viewed and edited, with reading state,
-> ratings, and series that know what they lack; metadata is fetched one book
-> at a time or for the whole catalogue; it backs up and exports to SQL,
-> Excel and CSV, in light or dark. Phase 5, barcode scanning, waits on a
-> webcam. Toolchain
-> fixed by D-001. `LICENSE` is deliberately absent — see Licence.
+**A home for your bookshelf, on your own computer.**
 
-A Linux desktop catalogue for a personal physical library. Pinax tracks what is
-on the shelf, what has been read and how often, ratings out of ten, and series
-membership — including the volumes a series is known to contain but the shelf
-does not. Synopses, cover art and genre categories are pulled from public
-metadata providers. Everything lives in one local SQLite file and exports to
-SQL, CSV and Excel.
+Pinax is a Linux desktop app for keeping track of the books you own: what
+you've read, what's waiting on the pile, how you rated each one, and, most
+of all, which books your series are still missing. It looks up synopses,
+covers and genres for you, and everything stays in one file on your own
+machine.
 
-Named for the *Pinakes*, Callimachus's catalogue of the Library of Alexandria.
+![The Pinax library window](docs/screenshots/library.png)
+
+*Named for the* Pinakes, *Callimachus's catalogue of the Library of
+Alexandria.*
 
 ---
 
-## Screenshots
+## What it does
 
-Taken from a demo catalogue of 32 well-known books, with synopses, genres
-and covers fetched from Open Library.
-
-![The library: every book, sortable by any column, with the selected book in the panel](docs/screenshots/library.png)
-
-*The library.* The rail on the left narrows the list by read state or series.
-The panel on the right shows the selected book: its cover, rating, place in
-its series and synopsis.
-
-![A series page with the volumes not owned in place](docs/screenshots/series.png)
-
-*A series.* Volumes you don't own sit in their place, marked NOT OWNED.
-
-![The shopping list of missing volumes, fewest needed first](docs/screenshots/shopping-list.png)
-
-*Missing volumes*, under NEEDS ATTENTION: the shopping list, with the series
-closest to complete first.
-
-![Fetch metadata offering candidates, each with its cover](docs/screenshots/fetch-metadata.png)
-
-*Fetch metadata.* A search by title and author offers several editions, each
-with its cover, and nothing is written until you choose one.
-
-![The list grouped by series](docs/screenshots/grouped.png)
-
-*Group by series*, one of the filter bar's groupings (series, author or
-genre).
-
-![The library in the dark theme](docs/screenshots/library-dark.png)
-
-*The dark theme*, after the mock-up. View ▸ Theme switches between System,
-Light and Dark at once, and Pinax remembers the choice.
+- **Keeps your library in one place.** Every book you own, with what you
+  thought of it: read or unread, how many times, and a rating out of ten.
+- **Knows your series.** Each series shows the volumes you have and the ones
+  you don't, in order. A **shopping list** gathers every missing volume, with
+  the series closest to complete first.
+- **Fills in the details.** Synopses, cover art and genres come from Open
+  Library and the British Library, and from Google Books if you have an API
+  key. You choose the right edition, and nothing you typed yourself is ever
+  overwritten.
+- **Names the books you're missing.** **Find titles** looks a series up and
+  tells you what its missing volumes are called, so you know what to look
+  for in the shop.
+- **Adds books by ISBN.** Type the number from the back cover and check the
+  card before it goes in.
+- **Finds anything fast.** Sort, filter, group and search: unread Pratchett,
+  or space opera rated eight or more.
+- **Keeps it safe.** Back up in a click, and export to Excel, CSV or plain
+  SQL whenever you like.
+- **Light or dark.** Your desktop's look, or Pinax's own light and dark
+  themes.
 
 ---
 
-## Quick start
+## A look around
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/series.png" alt="A series page with the volumes not owned in place"></td>
+    <td width="50%"><img src="docs/screenshots/shopping-list.png" alt="The shopping list of missing volumes"></td>
+  </tr>
+  <tr>
+    <td><b>A series</b>: the volumes you don't own sit in their place.</td>
+    <td><b>The shopping list</b>: every missing volume, nearest to complete first.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/fetch-metadata.png" alt="Choosing among editions, each with its cover"></td>
+    <td><img src="docs/screenshots/library-dark.png" alt="The library in the dark theme"></td>
+  </tr>
+  <tr>
+    <td><b>Fetch metadata</b>: pick your edition by its cover.</td>
+    <td><b>The dark theme</b>, after the original design.</td>
+  </tr>
+</table>
+
+The screenshots show a demo catalogue of well-known books.
+
+---
+
+## Getting started
+
+Pinax builds on Linux with Qt 6. On Linux Mint or Ubuntu:
 
 ```sh
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+sudo apt install g++ cmake ninja-build qt6-base-dev libsqlite3-dev libxlsxwriter-dev pkg-config
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 build/src/pinax
 ```
 
-The application creates `~/.local/share/pinax/pinax.db` on first run (or opens
-the file given as its argument, or the catalogue you last had open), upgrades an older file in place, and lists
-every book, sortable by any column. `--import file.csv` loads a catalogue in
-the format of SPEC.md §1 first, and `--import-series series.csv` the volumes
-each series is known to contain (§1.6); both are safe to repeat. The rail on
-the left narrows the list to a read state or a series, with counts and each
-series' held/known. Choosing a series lists its entries in order with the
-volumes you don't own in place, and the panel describes the series. Volumes
-can be added, edited and removed there, and a missing one marked as owned —
-as a new book, or one already in the catalogue. Find titles, on a series'
-page, looks the series up on Wikidata (or Open Library) and offers names
-for the volumes you know are missing but haven't named, and the volumes the
-series doesn't list yet. You tick the right ones before anything changes
-(F-030). NEEDS ATTENTION in the rail is the shopping list: every volume
-your series lack, those one volume short first. Selecting a book shows
-it in the detail panel; F2 or Edit opens its fields for editing in place. In
-the list, R toggles read, 1–9 or 0 rate and Delete deletes (after asking in
-the panel) the selected books; the panel's rating squares are clickable.
-Above the list, filters for read state, rating, genre, author and series
-combine — unread Pratchett, say, or space opera rated eight or more — and
-Clear filters shows everything again. The search field above them (Ctrl+F)
-finds books by any words of their title, authors or series as you type. Group by puts the list under headings
-for each series, author or genre, with a count of books under each.
-Ctrl+N adds a book by hand. Fetch metadata, in the panel, looks the book up
-on Open Library — by ISBN, or by title and author — and, for an ISBN, in the
-British Library's catalogue too, which fills in UK editions' page counts and
-original years; it shows what it found for you to choose from; the choice brings a synopsis, genres and a cover,
-and fills only what you left empty (AV-001). Fetch all metadata, in the
-toolbar, does the same for every book not yet looked up, taking only an
-ISBN's agreeing answer by itself; what it found by title waits under Review
-matches for you to confirm one book at a time. Add by ISBN (Ctrl+I) looks a
-book up by the number on its back cover and shows a card to check before
-anything is added — and if you already have that book without an ISBN, it
-gives yours the number instead of adding it twice, which is how the
-imported backlog gains its ISBNs. Google Books is asked as well if
-you have an API key: put it in `google-books.key` beside the catalogue, or in
-the folder Pinax is started from, or in `PINAX_GOOGLE_BOOKS_KEY` (D-021).
-Never commit it; `.gitignore` covers `*.key`.
-
-View ▸ Theme switches between your desktop's look and Pinax's own light
-and dark themes, at once, and remembers the choice (F-029).
-
-The File menu opens, creates and closes catalogues — Open Recent lists the
-last few — restores one from a backup or an SQL dump, and imports books
-from a CSV, backing the catalogue up before anything replaces or merges into
-it. Back up (Ctrl+B) writes a checked copy of the catalogue wherever you
-choose, without closing it; from a script or a cron
-job, `build/src/pinax --backup ~/backups/pinax.db` does the same and exits.
-Export (Ctrl+E) writes an Excel workbook — books, series status, authors —
-a CSV of the books the list shows, in the format `--import` reads, or the
-catalogue as plain SQL, readable and fit for
-version control, that rebuilds it with nothing but `sqlite3`;
-`build/src/pinax --dump catalogue.sql` does the same from a script. Never
-back up by copying `pinax.db` while Pinax is open: the newest changes
-live in `pinax.db-wal` beside it (AV-003). The database is also usable on
-its own:
-
-```sh
-# create the catalogue
-sqlite3 pinax.db < db/schema.sql
-
-# confirm it applied
-sqlite3 pinax.db "SELECT version, applied_at, note FROM schema_version;"
-
-# series completeness, once populated
-sqlite3 -header -column pinax.db "SELECT name, held, known, status FROM v_series_status ORDER BY name;"
-
-# what is missing, fewest-needed first
-sqlite3 -header -column pinax.db "SELECT series_name, position, title FROM v_missing_entries;"
-```
-
-Any client connecting to the database must issue `PRAGMA foreign_keys = ON;` on
-each connection. SQLite does not persist that setting, and without it the
-foreign keys in the schema are advisory only (AV-004).
+Pinax creates an empty catalogue the first time it runs. Add books one at a
+time (Ctrl+N), by ISBN (Ctrl+I), or bring a whole spreadsheet in with
+**File ▸ Import ▸ Books from CSV**.
 
 ---
 
-## Build requirements
+## Learn more
 
-- **C++20** and **Qt6** (Widgets, Network) — fixed by D-001
-- **SQLite 3.31** or later, used directly rather than through Qt SQL (D-015) —
-  `VACUUM INTO`, partial indexes
-- **libxlsxwriter** 1.0 or later for the Excel export (F-022, D-025)
-- CMake 3.21 or later
-
-Packages, verified versions and troubleshooting are in [`BUILD.md`](BUILD.md).
+- **[User guide](docs/USER_GUIDE.md)**: every feature, keyboard shortcuts,
+  backups and the command line.
+- **[Developer notes](docs/DEVELOPER.md)**: how it's built, the project's
+  layout, the data model and the documentation map.
+- **[Build details](BUILD.md)**: verified versions and troubleshooting.
 
 ---
 
-## Project structure
+## Project status
 
-```
-pinax/
-├── db/
-│   ├── schema.sql        schema version 6, always the latest in full
-│   └── migrations/       NNN_*.sql, one step per version, for older files
-├── CMakeLists.txt
-├── src/                  one directory per module, per ARCHITECTURE.md §2
-│   ├── main.cpp
-│   ├── app/              composition root, settings, main window shell
-│   ├── domain/           plain value types, no Qt or SQL
-│   ├── db/               connection, migrations, repositories
-│   ├── metadata/         Open Library, Google Books, British Library, Wikidata, cover cache
-│   ├── io/               CSV import, export, backup
-│   └── ui/               rail, list, detail panel
-├── tests/                Qt Test, run by ctest
-│   └── fixtures/         frozen schema_v1.sql for the migration test
-├── docs/
-│   └── screenshots/      the README's screenshots, from a demo catalogue
-├── design/
-│   ├── Pinax UI.html     interactive mock-up, four screens
-│   └── screens/          the same four screens as PNG
-├── seed/                 the real catalogue; git-ignored, never committed
-├── README.md
-├── BUILD.md              requirements, build, test, troubleshooting
-├── FEATURES.md           F-001 … F-030, MoSCoW priorities, acceptance criteria
-├── ROADMAP.md            Phases 0–4 complete; Phase 5 planned
-├── ARCHITECTURE.md       modules, data flow, invariants
-├── DECISIONS.md          D-001 … D-031, append-only
-├── SPEC.md               CSV format, ISBN validation, provider contracts, exports
-├── ATTACK_VECTORS.md     AV-001 … AV-014, failure modes with detection
-├── BUGS.md               BUG-001 … BUG-006, all fixed
-├── IMPROVEMENTS.md       IMP-001 … IMP-011
-├── CLAUDE.md             handoff: current state, invariants, pitfalls
-└── CHANGELOG.md
-```
+> **Status:** Active
+> **Provenance:** Shane Hartley (author); Claude (primary auditor)
+> **Last reviewed:** 2026-10-10
+> **Why this status:** Phases 1 to 4 are complete, so everything above works
+> today. Phase 5, adding books by scanning their barcode with a webcam,
+> waits on a camera. Toolchain fixed by D-001.
 
----
-
-## Data model in one paragraph
-
-A **book** is one physical copy, carrying its own edition and condition notes
-so that printing, jacket state and provenance survive any metadata fetch.
-**Authors** are normalised, so a joint credit is two links rather than a
-combined name, and counting books per author gives the same answer either way.
-A **series entry** joins a series to a book — or to nothing, which is how a
-volume known to exist but absent from the shelf is recorded. Series
-completeness is therefore computed from held against known at query time and
-cannot go stale; there is no stored status column, and the missing-volume list
-is a view. Positions are stored as printed, since real ones include
-`Broadcast 6.5`, `1-4` and `3a`, with a separate numeric key used only for
-ordering.
-
----
-
-## Documentation map
-
-| Document | Contents |
-|---|---|
-| [`FEATURES.md`](FEATURES.md) | What it does, what it will not do, and what is merely a candidate |
-| [`ROADMAP.md`](ROADMAP.md) | Phases, deliverables and acceptance criteria |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Modules, data flow, invariants — descriptive only |
-| [`DECISIONS.md`](DECISIONS.md) | Why it ended up this way, with reversal conditions |
-| [`SPEC.md`](SPEC.md) | Formats and protocols: CSV, ISBN, providers, exports |
-| [`ATTACK_VECTORS.md`](ATTACK_VECTORS.md) | How it can go wrong, and how that is detected |
-| [`BUGS.md`](BUGS.md) · [`IMPROVEMENTS.md`](IMPROVEMENTS.md) | Realised defects, and candidate refactors |
-| [`CLAUDE.md`](CLAUDE.md) | Handoff for AI development sessions |
-| [`CHANGELOG.md`](CHANGELOG.md) | Version history with ID traceability |
-| [`BUILD.md`](BUILD.md) | Requirements, build and test commands, troubleshooting |
-
----
+What's done and what's next is in the [roadmap](ROADMAP.md), and the
+[changelog](CHANGELOG.md) lists every change.
 
 ## Licence
 
