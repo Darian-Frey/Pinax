@@ -337,8 +337,8 @@ void BookView::showBook(const BookDetail& detail)
     readState_->setText(readStateName(book.readStatus));
     const bool read = book.readStatus == ReadStatus::Read;
     readState_->setStyleSheet(read
-            ? QStringLiteral("QLabel { background: %1; color: #1A1714; border-radius: 9px; padding: 2px 12px; font-weight: bold; }")
-                  .arg(accent().name())
+            ? QStringLiteral("QLabel { background: %1; color: %2; border-radius: 9px; padding: 2px 12px; font-weight: bold; }")
+                  .arg(accent().name(), onAccent().name())
             : QStringLiteral("QLabel { border: 1px solid %1; border-radius: 9px; padding: 1px 11px; }")
                   .arg(muted(this).name(QColor::HexArgb)));
     readCount_->setText(readCountText(book.readStatus, book.timesRead));
@@ -413,7 +413,7 @@ void BookView::showSeries(const std::vector<SeriesMembership>& series)
         auto* name = new QLabel(text(membership.name), block);
         name->setObjectName(QStringLiteral("series.name"));
         QPalette namePalette = name->palette();
-        namePalette.setColor(QPalette::WindowText, accent()); // the same in either theme
+        namePalette.setColor(QPalette::WindowText, accent()); // drawn again on a change of theme
         name->setPalette(namePalette);
         QFont nameFont = name->font();
         nameFont.setBold(true);

@@ -1,5 +1,7 @@
 #include "ui/style.h"
 
+#include "ui/theme.h"
+
 #include <QLabel>
 #include <QPalette>
 
@@ -7,7 +9,12 @@ namespace pinax::ui {
 
 QColor accent()
 {
-    return QColor(0xD9, 0xA4, 0x41);
+    return themeAccent(currentTheme());
+}
+
+QColor onAccent()
+{
+    return QColor(0x1A, 0x17, 0x14); // dark enough on every theme's accent
 }
 
 QColor muted(const QWidget* widget)

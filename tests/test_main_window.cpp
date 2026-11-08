@@ -1,9 +1,12 @@
 #include "app/main_window.h"
+#include "ui/backup_view.h"
+#include "ui/style.h"
 #include "ui/series_view.h"
 #include "ui/theme.h"
 
 #include <QAction>
 #include <QApplication>
+#include <QFontInfo>
 #include <QLabel>
 #include <QProgressBar>
 #include <QSettings>
@@ -23,6 +26,7 @@ private slots:
     void choosingAThemeAppliesAndRemembersIt();
     void mutedTextFollowsTheTheme();
     void systemPutsTheDesktopBack();
+    void eachThemeHasItsAccentAndTerminalItsFont();
 };
 
 void TestMainWindow::opensWithThreePanels()
@@ -43,8 +47,10 @@ void TestMainWindow::opensWithThreePanels()
 
 void TestMainWindow::themeKeysRoundTrip()
 {
-    for (Theme theme : {Theme::System, Theme::Light, Theme::Dark})
+    QCOMPARE(pinax::ui::allThemes().size(), std::size_t(5));
+    for (Theme theme : pinax::ui::allThemes())
         QVERIFY(pinax::ui::themeFromKey(pinax::ui::themeKey(theme)) == theme);
+    QCOMPARE(pinax::ui::themeKey(Theme::Cassette), QStringLiteral("cassette"));
     QVERIFY(!pinax::ui::themeFromKey(QStringLiteral("sepia")));
     QVERIFY(!pinax::ui::themeFromKey(QString()));
 }
@@ -115,6 +121,39 @@ void TestMainWindow::systemPutsTheDesktopBack()
     QCOMPARE(QApplication::palette().color(QPalette::Window), desktop.color(QPalette::Window));
     QCOMPARE(QApplication::palette().color(QPalette::Text), desktop.color(QPalette::Text));
     QCOMPARE(QApplication::style()->name(), desktopStyle);
+}
+
+void TestMainWindow::eachThemeHasItsAccentAndTerminalItsFont()
+{
+    pinax::ui::applyTheme(Theme::System);
+    const QFont desktop = QApplication::font();
+    const QColor amber = pinax::ui::accent();
+    pinax::app::MainWindow window; // its menu offers every theme
+    for (Theme theme : pinax::ui::allThemes())
+        QVERIFY(window.themeAction(theme));
+
+    pinax::ui::BackupView backup;
+    auto* warning = backup.findChild<QLabel*>(QStringLiteral("backup.warning"));
+    QVERIFY(warning);
+
+    pinax::ui::applyTheme(Theme::Terminal);
+    QCOMPARE(pinax::ui::currentTheme(), Theme::Terminal);
+    QCOMPARE(pinax::ui::accent(), pinax::ui::themeAccent(Theme::Terminal));
+    QVERIFY(pinax::ui::accent() != amber);
+    QVERIFY(QFontInfo(QApplication::font()).fixedPitch());
+    // Widgets already built take the font, and the accent where it is baked.
+    QVERIFY(QFontInfo(warning->font()).fixedPitch());
+    QVERIFY(warning->styleSheet().contains(pinax::ui::themeAccent(Theme::Terminal).name()));
+
+    pinax::ui::applyTheme(Theme::Cassette);
+    QCOMPARE(pinax::ui::accent(), pinax::ui::themeAccent(Theme::Cassette));
+    QCOMPARE(QApplication::font().family(), desktop.family()); // only Terminal changes the font
+    QCOMPARE(QApplication::palette().color(QPalette::Window),
+        pinax::ui::themePalette(Theme::Cassette).color(QPalette::Window));
+
+    pinax::ui::applyTheme(Theme::System);
+    QCOMPARE(pinax::ui::accent(), amber);
+    QCOMPARE(QApplication::font(), desktop);
 }
 
 QTEST_MAIN(TestMainWindow)

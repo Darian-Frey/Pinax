@@ -33,6 +33,10 @@ signals:
     // Choose… pressed: the caller offers the save dialogue.
     void chooseRequested();
 
+protected:
+    // The warning is in the accent, which a change of theme changes.
+    void changeEvent(QEvent* event) override;
+
 private:
     void updateWarning();
 

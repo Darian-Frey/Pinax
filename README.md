@@ -36,8 +36,8 @@ Alexandria.*
   or space opera rated eight or more.
 - **Keeps it safe.** Back up in a click, and export to Excel, CSV or plain
   SQL whenever you like.
-- **Light or dark.** Your desktop's look, or Pinax's own light and dark
-  themes.
+- **Five looks.** Your desktop's own, light, dark, a green-phosphor
+  terminal, or the beige and rust of cassette futurism.
 
 ---
 

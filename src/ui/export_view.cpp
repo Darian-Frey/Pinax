@@ -3,6 +3,7 @@
 #include "ui/style.h"
 
 #include <QComboBox>
+#include <QEvent>
 #include <QCompleter>
 #include <QFileInfo>
 #include <QFileSystemModel>
@@ -175,6 +176,13 @@ void ExportView::updateWarning()
     else
         warning_->clear();
     export_->setEnabled(!path().isEmpty() && !target.isDir());
+}
+
+void ExportView::changeEvent(QEvent* event)
+{
+    if (event->type() == QEvent::PaletteChange)
+        warning_->setStyleSheet(QStringLiteral("color: %1;").arg(accent().name()));
+    QWidget::changeEvent(event);
 }
 
 } // namespace pinax::ui

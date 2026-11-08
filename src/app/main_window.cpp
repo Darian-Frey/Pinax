@@ -431,9 +431,8 @@ void MainWindow::buildMenus()
     QMenu* theme = view->addMenu(tr("&Theme"));
     theme->setObjectName(QStringLiteral("themeMenu"));
     auto* themes = new QActionGroup(this);
-    for (const auto& [choice, name] : {std::pair {ui::Theme::System, tr("&System")},
-             std::pair {ui::Theme::Light, tr("&Light")}, std::pair {ui::Theme::Dark, tr("&Dark")}}) {
-        QAction* action = theme->addAction(name, this, [this, choice = choice] { chooseTheme(choice); });
+    for (const ui::Theme choice : ui::allThemes()) {
+        QAction* action = theme->addAction(ui::themeName(choice), this, [this, choice] { chooseTheme(choice); });
         action->setObjectName(QStringLiteral("theme.") + ui::themeKey(choice));
         action->setCheckable(true);
         themes->addAction(action);

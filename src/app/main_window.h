@@ -272,7 +272,7 @@ private:
     QAction* quit_ = nullptr;
     QAction* find_ = nullptr;
     QAction* about_ = nullptr;
-    QList<QAction*> themeActions_; // System, Light, Dark, in Theme's order
+    QList<QAction*> themeActions_; // one per theme, in Theme's order
     QString backupFolder_;
     Enricher* enricher_ = nullptr;
     // What the last lookup offered, for the candidate chosen.

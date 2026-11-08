@@ -3,6 +3,7 @@
 #include "ui/style.h"
 
 #include <QCompleter>
+#include <QEvent>
 #include <QFileInfo>
 #include <QFileSystemModel>
 #include <QHBoxLayout>
@@ -143,6 +144,13 @@ void BackupView::updateWarning()
     else
         warning_->clear();
     backUp_->setEnabled(!path().isEmpty() && !target.isDir());
+}
+
+void BackupView::changeEvent(QEvent* event)
+{
+    if (event->type() == QEvent::PaletteChange)
+        warning_->setStyleSheet(QStringLiteral("color: %1;").arg(accent().name()));
+    QWidget::changeEvent(event);
 }
 
 } // namespace pinax::ui

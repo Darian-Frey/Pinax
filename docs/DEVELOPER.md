@@ -57,7 +57,7 @@ pinax/
 ├── FEATURES.md           F-001 … F-030, MoSCoW priorities, acceptance criteria
 ├── ROADMAP.md            Phases 0–4 complete; Phase 5 planned
 ├── ARCHITECTURE.md       modules, data flow, invariants
-├── DECISIONS.md          D-001 … D-032, append-only
+├── DECISIONS.md          D-001 … D-034, append-only
 ├── SPEC.md               CSV format, ISBN validation, provider contracts, exports
 ├── ATTACK_VECTORS.md     AV-001 … AV-014, failure modes with detection
 ├── BUGS.md               BUG-001 … BUG-006, all fixed

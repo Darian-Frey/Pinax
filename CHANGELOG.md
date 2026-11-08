@@ -28,6 +28,10 @@ owner's catalogue. Phase 5 (barcode scanning) waits on a webcam.
   bar counts the books left for Google.
 
 ### Added
+- Two more themes (F-029, D-034), asked for by the owner: Terminal, green
+  phosphor on black in a monospace font, and Cassette Futurism, beige
+  plastic, brown lettering and rust. Each theme now carries its own accent;
+  System, Light and Dark keep the amber.
 - Barcode scanning (F-025, Phase 5; D-014, D-033), when built with Qt
   Multimedia and ZXing-C++: Add by ISBN has a camera choice and a live
   preview, and a book's barcode read under SPEC.md §6 is looked up as if

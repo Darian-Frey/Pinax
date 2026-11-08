@@ -160,8 +160,15 @@ barcodes were common have none; type those, or add them by hand.
 
 ## Appearance
 
-**View ▸ Theme** switches between your desktop's look and Pinax's own light
-and dark themes, at once, and remembers your choice.
+**View ▸ Theme** switches at once, and remembers your choice:
+
+| Theme | Looks like |
+|---|---|
+| System | Your desktop's own style and colours |
+| Light | Warm paper, with amber accents |
+| Dark | The original design: near-black browns and parchment text |
+| Terminal | Green phosphor on a black screen, in a monospace font |
+| Cassette Futurism | Late-1970s machines: beige plastic, brown lettering and rust |
 
 ---
 

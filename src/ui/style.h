@@ -10,8 +10,12 @@ class QWidget;
 
 namespace pinax::ui {
 
-// The mock-up's amber (design/): read marks, the rating, series progress.
+// The theme's accent (themeAccent): read marks, the rating, series
+// progress. The mock-up's amber in System, Light and Dark. Read it when
+// painting, not once: a change of theme changes it.
 QColor accent();
+// Text on the accent, as on the "Read" pill.
+QColor onAccent();
 
 // A muted colour for "not recorded" and placeholder text, taken from the
 // current palette so it works in light and dark themes. For painting and

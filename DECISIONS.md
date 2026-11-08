@@ -1313,3 +1313,47 @@ frame.
 would move it, not the module boundary; or if Qt Multimedia drops the
 GStreamer backend that Qt 6.4 uses on Linux.
 
+---
+
+### D-034 A theme carries its own accent, and may carry a font
+**Decided:** 2026-11-08
+**Recorded:** 2026-11-08
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-11-08)
+**Related:** D-030, F-029
+
+**Context.** The owner asked for more themes than Light and Dark: a
+terminal style and cassette futurism. D-030's themes differ only in palette,
+and every one keeps the mock-up's amber accent, fixed in `ui::accent()`.
+Green phosphor with amber read marks is not a terminal, and a terminal is
+monospaced.
+
+**Options.**
+- **A. Each theme names its accent, and Terminal its font.** `accent()`
+  answers for the theme applied; `applyTheme` sets the font too, and every
+  other theme puts the desktop's back. Chosen.
+- **B. Take the accent from a palette role (`Link`).** Rejected: System's
+  palette is the desktop's, whose `Link` is usually blue, so System would
+  lose the amber the mock-up gives it.
+- **C. Palettes only, amber everywhere.** Rejected: it does not give the
+  owner the styles asked for.
+
+**Decision.** Option A. `Theme` gains Terminal (green phosphor on black,
+the system's fixed-pitch font at the desktop's size, a phosphor-green
+accent) and Cassette (beige plastic, brown text, a mustard selection, a rust
+accent). `themeAccent` gives each theme's accent, amber for System, Light
+and Dark. `accent()` returns the current theme's, and `onAccent()` the text
+drawn on it. `applyTheme` sets the theme before the palette, so widgets
+redrawing on the change read the new accent. Like the palette, the font is
+sent to existing widgets, since the saved theme is applied before the event
+loop runs.
+
+**Consequences.**
+- `accent()` must be read when painting or when a view is filled, never
+  kept. The two warnings that bake it into a stylesheet, in Back up and
+  Export, redo it on `QEvent::PaletteChange`.
+- A theme is now palette, accent and font; adding one is a case in each of
+  `themeKey`, `themeName`, `themeAccent` and `themePalette`.
+
+**Reversal conditions.** As D-030's.
+
