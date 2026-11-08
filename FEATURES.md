@@ -327,7 +327,16 @@ existing backlog. Needs no schema change — attaching a book to a waiting
   stack can be scanned without touching the keyboard.
 - With no camera attached the application behaves exactly as without this
   feature; typing an ISBN is always available.
-**Status:** Not started — waiting on hardware
+**Status:** In progress — built 2026-11-08 (D-033). Add by ISBN has a
+scanning box when Pinax is built with Qt Multimedia and ZXing-C++: a
+camera choice, remembered, and a live preview. A read fills the ISBN field
+and looks it up as typing would; nothing is written until the card is
+confirmed. While scanning, an added book leaves the panel ready for the
+next. **Books ▸ Scan ISBN onto Selected Book** offers the scanned ISBN to
+the chosen book, whatever its title, to fill the backlog's ISBNs. The
+capture rules (SPEC.md §6) and the misread tests (AV-012) are in place. A
+real barcode has yet to be read through a camera: the phone check of the
+Phase 5 acceptance is still to run.
 **Notes:** D-014 for the libraries, SPEC.md §6 for the capture rules, AV-012
 for misreads. Books printed before barcodes were common — roughly pre-1975,
 *Playing with Infinity* among them — have none and are entered by hand.

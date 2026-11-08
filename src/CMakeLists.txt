@@ -10,6 +10,8 @@ add_library(pinax_domain STATIC
     domain/candidate.h
     domain/book_edit.h
     domain/book_filter.h
+    domain/barcode_reads.cpp
+    domain/barcode_reads.h
     domain/book_query.h
     domain/credit.h
     domain/credit_text.cpp
@@ -198,6 +200,18 @@ add_library(pinax_ui STATIC
 target_include_directories(pinax_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(pinax_ui PUBLIC pinax_domain Qt6::Widgets)
 
+# capture: barcode scanning by camera (F-025, D-014, D-033). Optional: built
+# only when Qt Multimedia and ZXing-C++ are found (the root CMakeLists).
+if(PINAX_HAVE_SCANNING)
+    add_library(pinax_capture STATIC
+        capture/barcode_decoder.cpp
+        capture/barcode_decoder.h
+        capture/barcode_scanner.cpp
+        capture/barcode_scanner.h)
+    target_include_directories(pinax_capture PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(pinax_capture PUBLIC pinax_domain Qt6::Multimedia PRIVATE PkgConfig::ZXING)
+endif()
+
 # app: composition root and window shell.
 add_library(pinax_app STATIC
     app/batch_enricher.cpp
@@ -214,6 +228,10 @@ add_library(pinax_app STATIC
     app/recent_catalogues.h)
 target_include_directories(pinax_app PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(pinax_app PUBLIC pinax_ui pinax_db pinax_io pinax_metadata Qt6::Widgets)
+if(PINAX_HAVE_SCANNING)
+    target_link_libraries(pinax_app PUBLIC pinax_capture)
+    target_compile_definitions(pinax_app PUBLIC PINAX_HAVE_SCANNING)
+endif()
 
 qt_add_executable(pinax main.cpp)
 target_link_libraries(pinax PRIVATE pinax_app pinax_db pinax_io)

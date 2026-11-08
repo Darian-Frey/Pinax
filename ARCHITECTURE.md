@@ -58,7 +58,10 @@ never touch the database file directly. One module owns the store.
 Plain C++ types with no Qt or SQL dependency: `Book`, `Author`, `Series`,
 `SeriesEntry`, `Genre`, and the enumerations for read state, binding, metadata
 status and provenance source. Value types, copyable, no behaviour beyond
-validation that is intrinsic to the type (ISBN check digits).
+validation that is intrinsic to the type (ISBN check digits), and the
+pure rules other modules share: what a fetch may write
+(`planEnrichment`), and when a camera has read an ISBN (`BarcodeReads`,
+SPEC.md §6).
 
 ### `db`
 Owns the SQLite connection and is the only module that writes SQL.
@@ -116,8 +119,20 @@ No Qt; reaches the database only through `db`'s repositories and
 - **Series import** — `SeriesImporter` applies SPEC.md §1.6: known volumes
   and ongoing flags, matched within a series on position or title, never
   touching a volume already on the shelf (D-018).
-- **Barcode capture** — webcam frames decoded to a validated ISBN (F-025,
-  D-014). Optional at build time; emits an ISBN and touches nothing else.
+
+### `capture` (optional)
+Barcode scanning by camera (F-025, D-014, D-033), built only with Qt
+Multimedia and ZXing-C++. Links `domain` and those two, nothing else.
+
+- **Decoder** — `decodeEan13` turns a frame grey, scales it to 1280 pixels
+  on its long edge and has ZXing-C++ find EAN-13 barcodes, price add-ons
+  ignored.
+- **Scanner** — `BarcodeScanner` runs the chosen camera through a
+  `QMediaCaptureSession` into a `QVideoSink`, asking for the format nearest
+  1280 pixels wide. It hands every frame on for the preview, decodes at most
+  every 100 ms, and passes what it decodes to `domain::BarcodeReads`, which
+  applies SPEC.md §6. It emits an ISBN read, and nothing more: it neither
+  looks a book up nor writes one (AV-012).
 
 ### `ui`
 Qt Widgets. Three panels inside a `QSplitter`, a toolbar and a status bar.

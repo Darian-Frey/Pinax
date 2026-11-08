@@ -12,6 +12,7 @@
 #include <vector>
 
 class QButtonGroup;
+class QImage;
 class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
@@ -81,7 +82,28 @@ public:
 
     void focusIsbn();
 
+    // Scanning by camera (F-025), offered only when Pinax is built with it:
+    // the cameras to choose from, and which is chosen. An empty list says no
+    // camera is connected.
+    void setCameras(const QStringList& names, int current);
+    void setScanning(bool on);
+    bool scanning() const;
+    // Waiting for an ISBN, typed or scanned: the first stage.
+    bool atEntry() const;
+    void showScanFrame(const QImage& frame);
+    void showScanStatus(const QString& text);
+    // A barcode read: put in the field and looked up, exactly as if typed.
+    // Taken only while the panel waits for an ISBN (or has just reported one
+    // already held); false otherwise, and nothing happens.
+    bool takeScan(const QString& isbn13);
+    // After a book is added while scanning: ready for the next, saying what
+    // was done.
+    void readyForNext(const QString& done);
+
 signals:
+    // Scan with camera pressed, or Stop: `camera` is the index chosen.
+    void scanToggled(bool on, int camera);
+    void cameraChosen(int camera);
     void lookupRequested(const QString& isbn13);
     void candidateShown(int index);
     void addRequested(const pinax::ui::AddByIsbnView::Choice& choice);
@@ -97,6 +119,8 @@ private:
     QWidget* makeDuplicate();
     QWidget* makeCard();
     QWidget* makeSearch();
+    QWidget* makeScan();
+    void updateScanBox();
     void lookUp();
     void showCandidate(int index);
     void add();
@@ -136,6 +160,13 @@ private:
     QRadioButton* read_;
     QLabel* cardError_;
     QPushButton* add_;
+
+    QWidget* scanBox_ = nullptr;
+    QComboBox* camera_ = nullptr;
+    QPushButton* scan_ = nullptr;
+    QLabel* preview_ = nullptr;
+    QLabel* scanStatus_ = nullptr;
+    bool scanOffered_ = false;
 
     QLabel* searchMessage_;
     QLineEdit* searchTitle_;

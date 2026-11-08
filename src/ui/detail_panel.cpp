@@ -17,17 +17,39 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QShortcut>
 #include <QStackedWidget>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace pinax::ui {
 
 namespace {
 
+// Scrolls up and down, never sideways: so it asks for its content's width
+// as its own minimum, and the splitter cannot squeeze the panel until a form
+// is cut off at the edge (BUG-007).
+class VerticalScrollArea : public QScrollArea {
+public:
+    using QScrollArea::QScrollArea;
+
+    QSize minimumSizeHint() const override
+    {
+        QSize hint = QScrollArea::minimumSizeHint();
+        if (const QWidget* content = widget()) {
+            const int width = content->minimumSizeHint().width() + 2 * frameWidth()
+                + verticalScrollBar()->sizeHint().width();
+            hint.setWidth(std::max(hint.width(), width));
+        }
+        return hint;
+    }
+};
+
 QScrollArea* scrolling(QWidget* content, QWidget* parent)
 {
-    auto* area = new QScrollArea(parent);
+    auto* area = new VerticalScrollArea(parent);
     area->setWidget(content);
     area->setWidgetResizable(true);
     area->setFrameShape(QFrame::NoFrame);

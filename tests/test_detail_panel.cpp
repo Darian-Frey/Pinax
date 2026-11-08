@@ -1,6 +1,7 @@
 #include "ui/book_editor.h"
 #include "ui/book_view.h"
 #include "ui/candidate_view.h"
+#include "ui/add_by_isbn_view.h"
 #include "ui/detail_panel.h"
 #include "ui/rating_bar.h"
 
@@ -75,6 +76,7 @@ class TestDetailPanel : public QObject {
     Q_OBJECT
 
 private slots:
+    void cannotBeSqueezedNarrowerThanItsForms();
     void startsEmptyAndShowsSeveral();
     void viewShowsTheBookAsTheMockUpDoes();
     void viewSaysWhatIsNotRecorded();
@@ -580,6 +582,17 @@ void TestDetailPanel::aSearchedCandidateCanBeSaidToBeMyEdition()
     QVERIFY(!mine->isChecked());
     QTest::mouseClick(use, Qt::LeftButton);
     QCOMPARE(chosen.at(2).at(2).toBool(), true);
+}
+
+void TestDetailPanel::cannotBeSqueezedNarrowerThanItsForms()
+{
+    // BUG-007: the splitter let the panel go narrower than Add by ISBN, and
+    // the ISBN field and the Scan box were cut off at the edge.
+    DetailPanel panel;
+    const int needed = std::max({panel.addView()->minimumSizeHint().width(),
+        panel.editor()->minimumSizeHint().width(), panel.view()->minimumSizeHint().width()});
+    QVERIFY(needed > 0);
+    QVERIFY(panel.minimumSizeHint().width() >= needed);
 }
 
 QTEST_MAIN(TestDetailPanel)

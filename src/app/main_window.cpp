@@ -41,6 +41,7 @@
 #include <QPointer>
 #include <QProgressBar>
 #include <QSettings>
+#include <QSignalBlocker>
 #include <QShortcut>
 #include <QSplitter>
 #include <QStackedWidget>
@@ -188,6 +189,20 @@ MainWindow::MainWindow(QWidget* parent)
     connect(adding, &ui::AddByIsbnView::addRequested, this, &MainWindow::addConfirmed);
     connect(adding, &ui::AddByIsbnView::manualRequested, this, &MainWindow::addByHand);
     connect(adding, &ui::AddByIsbnView::cancelled, this, &MainWindow::stopAdding);
+    connect(adding, &ui::AddByIsbnView::scanToggled, this, &MainWindow::toggleScan);
+    connect(adding, &ui::AddByIsbnView::cameraChosen, this, &MainWindow::chooseCamera);
+#ifdef PINAX_HAVE_SCANNING
+    scanner_ = std::make_unique<capture::BarcodeScanner>();
+    connect(scanner_.get(), &capture::BarcodeScanner::frameReady, this, [this](const QImage& frame) {
+        if (detail_->state() == ui::DetailPanel::State::Adding)
+            detail_->addView()->showScanFrame(frame);
+    });
+    connect(scanner_.get(), &capture::BarcodeScanner::isbnRead, this, &MainWindow::scanned);
+    connect(scanner_.get(), &capture::BarcodeScanner::problem, this, [this](const QString& message) {
+        stopScanning();
+        detail_->addView()->showScanStatus(message);
+    });
+#endif
     connect(adding, &ui::AddByIsbnView::notThisBook, this, [this](int index) {
         QString title;
         QString author;
@@ -267,6 +282,13 @@ MainWindow::MainWindow(QWidget* parent)
     review_->setToolTip(tr("Go through what Fetch all found, one book at a time"));
     review_->setEnabled(false);
     connect(detail_, &ui::DetailPanel::stateChanged, this, &MainWindow::lockWhileBusy);
+    // The camera is on only while Add by ISBN is open (F-025).
+    connect(detail_, &ui::DetailPanel::stateChanged, this, [this](ui::DetailPanel::State state) {
+        if (state != ui::DetailPanel::State::Adding) {
+            stopScanning();
+            scanFor_.reset();
+        }
+    });
 
     splitter_->setChildrenCollapsible(false);
     splitter_->setStretchFactor(0, 0);
@@ -386,6 +408,11 @@ void MainWindow::buildMenus()
     QMenu* books = menuBar()->addMenu(tr("&Books"));
     books->addAction(addBook_);
     books->addAction(addByIsbn_);
+#ifdef PINAX_HAVE_SCANNING
+    scanOntoBook_ = books->addAction(tr("&Scan ISBN onto Selected Book"), this, &MainWindow::scanOntoBook);
+    scanOntoBook_->setObjectName(QStringLiteral("scanOntoBook"));
+    scanOntoBook_->setToolTip(tr("Give the selected book its ISBN by scanning its barcode (F-025)"));
+#endif
     find_ = books->addAction(tr("&Find…"), this, [this] {
         // To the search, from anywhere in the window (F-019).
         if (!catalogue_ || detail_->isBusy())
@@ -437,6 +464,8 @@ void MainWindow::updateActions()
             action->setEnabled(!busy && open);
     if (addByIsbn_)
         addByIsbn_->setEnabled(!busy && open && enricher_);
+    if (scanOntoBook_)
+        scanOntoBook_->setEnabled(!busy && open && enricher_ && list_->selectedBooks().size() == 1);
     if (fetchAll_)
         showBatchProgress();
 }
@@ -983,6 +1012,7 @@ void MainWindow::addByIsbn()
     addOffer_.reset();
     addCover_.reset();
     detail_->beginAddByIsbn();
+    offerScanning(false);
 }
 
 void MainWindow::lookUpForAdding(const QString& isbn13)
@@ -1024,7 +1054,19 @@ void MainWindow::showAddCandidate(int index)
     const auto& candidate = addOffer_->candidates[static_cast<std::size_t>(index)];
     const auto credits = catalogue_->creditsFor(candidate.authors);
     std::vector<ui::AddByIsbnView::HeldBook> held;
+    // Scanning onto a chosen book: that book is the one to give the ISBN,
+    // offered first whatever its title says (F-025).
+    if (scanFor_) {
+        if (const auto target = catalogue_->detail(*scanFor_)) {
+            QString description = QString::fromStdString(target->book.title);
+            if (target->authors)
+                description += QStringLiteral(" — ") + QString::fromStdString(*target->authors);
+            held.push_back({*scanFor_, description});
+        }
+    }
     for (const auto& book : catalogue_->booksLike(candidate.title, credits)) {
+        if (scanFor_ && book.id == *scanFor_)
+            continue;
         QString description = QString::fromStdString(book.title);
         if (book.authors)
             description += QStringLiteral(" — ") + QString::fromStdString(*book.authors);
@@ -1101,6 +1143,14 @@ void MainWindow::addConfirmed(const ui::AddByIsbnView::Choice& choice)
         keepCover(id, given.coverUrl, candidate.source, choice.candidate);
         addOffer_.reset();
         addCover_.reset();
+        const QString given13 = QString::fromStdString(view->isbn13());
+        if (view->scanning() && !scanFor_) {
+            // Scanning the backlog: on to the next held book (F-025).
+            refreshBooks({id});
+            view->readyForNext(tr("“%1” now has ISBN %2.").arg(titleOf(id), given13));
+            statusBar()->showMessage(tr("“%1” now has ISBN %2").arg(titleOf(id), given13), 6000);
+            return;
+        }
         detail_->showNothing();
         rail_->chooseFilter({});
         refreshBooks({id});
@@ -1130,13 +1180,6 @@ void MainWindow::addConfirmed(const ui::AddByIsbnView::Choice& choice)
     keepCover(id, result.coverUrl, candidate.source, choice.candidate);
     addOffer_.reset();
     addCover_.reset();
-    detail_->showNothing();
-
-    rail_->chooseFilter({});
-    list_->setBooks(catalogue_->summaries());
-    refreshRail();
-    list_->selectBook(id);
-    list_->setFocus();
     QString message = tr("Added “%1”").arg(QString::fromStdString(choice.title));
     if (choice.series) {
         message += tr(" to %1").arg(QString::fromStdString(choice.series->seriesName));
@@ -1145,6 +1188,26 @@ void MainWindow::addConfirmed(const ui::AddByIsbnView::Choice& choice)
     }
     if (result.problem)
         message += QStringLiteral(" — ") + QString::fromStdString(*result.problem);
+    if (view->scanning()) {
+        // Scanning a stack: straight on to the next book (F-025). The list
+        // takes the new book quietly: its emptied selection must not close
+        // the panel.
+        {
+            const QSignalBlocker quiet(list_);
+            list_->setBooks(catalogue_->summaries());
+        }
+        refreshRail();
+        view->readyForNext(message + QStringLiteral("."));
+        statusBar()->showMessage(message, 6000);
+        return;
+    }
+    detail_->showNothing();
+
+    rail_->chooseFilter({});
+    list_->setBooks(catalogue_->summaries());
+    refreshRail();
+    list_->selectBook(id);
+    list_->setFocus();
     statusBar()->showMessage(message, 6000);
 }
 
@@ -1195,8 +1258,108 @@ void MainWindow::stopAdding()
     }
     addOffer_.reset();
     addCover_.reset();
+    // Scanning a stack: Cancel on a lookup, a card or a search leaves that
+    // book and goes back to the camera; only Cancel there closes (BUG-008).
+    auto* view = detail_->addView();
+    if (view->scanning() && !view->atEntry()) {
+        view->readyForNext(tr("Skipped that book."));
+        return;
+    }
     detail_->showNothing();
     refreshPanel();
+}
+
+// ---------------------------------------------------------------------------
+// Scanning (F-025, D-014, D-033)
+
+namespace {
+const QString cameraSetting = QStringLiteral("scanning/camera");
+}
+
+void MainWindow::offerScanning([[maybe_unused]] bool startNow)
+{
+#ifdef PINAX_HAVE_SCANNING
+    cameras_ = camerasForTest_ ? *camerasForTest_ : capture::BarcodeScanner::cameras();
+    QStringList names;
+    int current = 0;
+    const QByteArray remembered = settings().value(cameraSetting).toByteArray();
+    for (std::size_t i = 0; i < cameras_.size(); ++i) {
+        names << cameras_[i].description;
+        if (cameras_[i].id == remembered)
+            current = static_cast<int>(i);
+    }
+    detail_->addView()->setCameras(names, current);
+    if (startNow && !cameras_.empty())
+        toggleScan(true, current);
+#endif
+}
+
+void MainWindow::toggleScan([[maybe_unused]] bool on, [[maybe_unused]] int camera)
+{
+#ifdef PINAX_HAVE_SCANNING
+    auto* view = detail_->addView();
+    if (!on || camera < 0 || camera >= static_cast<int>(cameras_.size())) {
+        stopScanning();
+        return;
+    }
+    const auto& chosen = cameras_[static_cast<std::size_t>(camera)];
+    settings().setValue(cameraSetting, chosen.id);
+    if (!scanner_->start(chosen.id)) {
+        view->setScanning(false);
+        return; // the scanner said why
+    }
+    view->setScanning(true);
+#endif
+}
+
+void MainWindow::chooseCamera([[maybe_unused]] int camera)
+{
+#ifdef PINAX_HAVE_SCANNING
+    if (camera < 0 || camera >= static_cast<int>(cameras_.size()))
+        return;
+    settings().setValue(cameraSetting, cameras_[static_cast<std::size_t>(camera)].id);
+    if (scanner_->running())
+        toggleScan(true, camera);
+#endif
+}
+
+void MainWindow::scanned([[maybe_unused]] const QString& isbn13)
+{
+#ifdef PINAX_HAVE_SCANNING
+    if (detail_->state() != ui::DetailPanel::State::Adding)
+        return;
+    if (detail_->addView()->takeScan(isbn13))
+        statusBar()->showMessage(tr("Scanned ISBN %1").arg(isbn13), 4000);
+#endif
+}
+
+void MainWindow::stopScanning()
+{
+#ifdef PINAX_HAVE_SCANNING
+    if (scanner_)
+        scanner_->stop();
+    detail_->addView()->setScanning(false);
+#endif
+}
+
+void MainWindow::scanOntoBook()
+{
+    const auto selected = list_->selectedBooks();
+    if (!catalogue_ || !enricher_ || detail_->isBusy() || selected.size() != 1)
+        return;
+    const qint64 id = selected.front();
+    if (const auto book = catalogue_->detail(id); book && book->book.isbn13) {
+        statusBar()->showMessage(tr("“%1” already has ISBN %2")
+                                     .arg(titleOf(id), QString::fromStdString(*book->book.isbn13)), 6000);
+        return;
+    }
+    addOffer_.reset();
+    addCover_.reset();
+    detail_->beginAddByIsbn();
+    scanFor_ = id; // after the panel has changed state, which clears it
+    offerScanning(true);
+    detail_->addView()->showScanStatus(
+        tr("Scan the barcode of “%1” to give it its ISBN. Nothing changes until you confirm.").arg(titleOf(id)));
 }
 
 void MainWindow::beginBackup()
@@ -1770,6 +1933,8 @@ void MainWindow::afterSeriesChange(std::optional<qint64> selectBook)
 
 void MainWindow::showSelection(const QList<qint64>& ids)
 {
+    if (scanOntoBook_) // one book chosen, or not
+        scanOntoBook_->setEnabled(!detail_->isBusy() && catalogue_ && enricher_ && ids.size() == 1);
     if (!catalogue_ || ids.isEmpty()) {
         detail_->showNothing();
         return;

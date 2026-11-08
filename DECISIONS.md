@@ -1264,3 +1264,52 @@ public domain (D-015); libxlsxwriter, under the BSD 2-clause licence
 copies already taken. A different licence for later versions would need a
 new entry.
 
+---
+
+### D-033 Barcode capture is an optional module of its own, with its rules in domain
+**Decided:** 2026-11-08
+**Recorded:** 2026-11-08
+**Status:** Accepted
+**Authors:** Shane Hartley (with Claude, 2026-11-08)
+**Related:** D-014, F-025, AV-012, SPEC.md §6, ARCHITECTURE.md §2
+
+**Context.** D-014 and ARCHITECTURE.md placed barcode capture in `io`. But
+`io` is Qt-free and reaches the database through `db`, while capture needs
+Qt Multimedia for the camera. `ui`, which shows the preview, links `domain`
+and never `db`, so it could not link `io` to get a scanner either. And the
+rules that decide what counts as a read deserve tests that need neither a
+camera nor a decoder.
+
+**Options.**
+- **A. Three layers.** The SPEC.md §6 rules in `domain` (`BarcodeReads`,
+  pure, no Qt). A new optional module `capture` (`pinax_capture`) holding
+  the ZXing decoder and the camera, linking `domain`, Qt Multimedia and
+  ZXing-C++ and nothing else. `ui` showing frames it is handed, as images,
+  linking no camera library. `app` owning the scanner and wiring it to Add
+  by ISBN. Chosen.
+- **B. Capture in `io` as planned.** Rejected: `io` would take Qt
+  Multimedia, and with it `ui` would need `io` and so `db`.
+- **C. Capture in `ui`.** Rejected: `ui` would link Qt Multimedia and ZXing,
+  and the decoder could not be tested apart from widgets.
+
+**Decision.** Option A. `pinax_capture` is built only when CMake finds Qt
+Multimedia and ZXing-C++ (`PINAX_SCANNING`, on by default); `pinax_app`
+then defines `PINAX_HAVE_SCANNING`. Without them, nothing of it is
+compiled and Add by ISBN shows no scanning box. Decoding stays on the UI
+thread, at most every 100 ms (D-014's consequence); the preview takes every
+frame.
+
+**Consequences.**
+- A seventh module, optional; the six others are unchanged and still build
+  alone.
+- `test_capture` draws EAN-13 barcodes with ZXing's own writer, so the
+  decoder is tested without a camera; window tests supply a camera list
+  that names no real device, so no test opens one.
+- The camera is on only while Add by ISBN is open, and is chosen by its
+  description and remembered by id in the settings of D-028, never by
+  `/dev/videoN`.
+
+**Reversal conditions.** Revisit if decoding needs a worker thread, which
+would move it, not the module boundary; or if Qt Multimedia drops the
+GStreamer backend that Qt 6.4 uses on Linux.
+

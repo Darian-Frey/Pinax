@@ -31,3 +31,8 @@ pinax_add_test(test_enricher pinax_app)
 target_compile_definitions(test_enricher PRIVATE
     PINAX_TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 pinax_add_test(test_catalogue_files pinax_app pinax_io)
+# Barcode scanning (F-025): only when it is built. Barcodes are drawn by
+# ZXing-C++'s own writer; no camera is needed or opened.
+if(PINAX_HAVE_SCANNING)
+    pinax_add_test(test_capture pinax_capture PkgConfig::ZXING)
+endif()

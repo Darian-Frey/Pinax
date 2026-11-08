@@ -5,6 +5,9 @@
 #include "domain/book_edit.h"
 #include "ui/add_by_isbn_view.h"
 #include "ui/theme.h"
+#ifdef PINAX_HAVE_SCANNING
+#include "capture/barcode_scanner.h"
+#endif
 #include "domain/candidate.h"
 #include "domain/book_filter.h"
 #include "domain/book_query.h"
@@ -109,6 +112,14 @@ public:
     QAction* fetchAllAction() const { return fetchAll_; }
     QAction* reviewAction() const { return review_; }
     QAction* addByIsbnAction() const { return addByIsbn_; }
+    // Scan a barcode onto the selected book, to give it its ISBN (F-025).
+    // Present only when Pinax is built with scanning.
+    QAction* scanOntoBookAction() const { return scanOntoBook_; }
+#ifdef PINAX_HAVE_SCANNING
+    capture::BarcodeScanner* scanner() const { return scanner_.get(); }
+    // For tests: these cameras instead of the machine's, so none is opened.
+    void setCameras(std::vector<capture::CameraChoice> cameras) { camerasForTest_ = std::move(cameras); }
+#endif
     QAction* backUpAction() const { return backUp_; }
     QAction* exportAction() const { return export_; }
     QAction* newCatalogueAction() const { return newCatalogue_; }
@@ -218,6 +229,13 @@ private:
     // showed for this candidate, else fetched.
     void keepCover(qint64 bookId, const std::optional<std::string>& url, domain::Source source, int candidate);
     void stopAdding();
+    // Scanning in Add by ISBN (F-025); bodies only when built with it.
+    void offerScanning(bool startNow);
+    void toggleScan(bool on, int camera);
+    void chooseCamera(int camera);
+    void scanned(const QString& isbn13);
+    void stopScanning();
+    void scanOntoBook();
 
     // Back up (F-020): the form in the panel, then the checked copy.
     void beginBackup();
@@ -279,6 +297,13 @@ private:
         bool byIsbn = true;
     };
     std::optional<AddOffer> addOffer_;
+    QAction* scanOntoBook_ = nullptr;
+    std::optional<qint64> scanFor_; // the book a scan is to give its ISBN
+#ifdef PINAX_HAVE_SCANNING
+    std::unique_ptr<capture::BarcodeScanner> scanner_;
+    std::vector<capture::CameraChoice> cameras_;
+    std::optional<std::vector<capture::CameraChoice>> camerasForTest_;
+#endif
     std::optional<std::pair<int, QByteArray>> addCover_;
     QAction* review_ = nullptr;
     QProgressBar* batchBar_ = nullptr;

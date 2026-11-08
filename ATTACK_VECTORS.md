@@ -282,11 +282,15 @@ second-hand shop's price sticker, the 5-digit price add-on appended to the
 main code, or a partial read of a blurred barcode — and the result is looked
 up or, worse, assigned to an existing book during backfill. The wrong ISBN
 then drives every later metadata fetch for that record.
-**Detection.** Not implemented for the decoder (would require tests feeding
-it a non-978/979 EAN-13, an EAN-13 with add-on, and a sequence of frames
-that disagree, and asserting that none yields an accepted ISBN). The typed
-path checks the check digit before any lookup (`aBadIsbnIsCaughtAtTheDoor`),
-which the scanner will feed.
+**Detection.** Implemented (2026-11-08). `domain::BarcodeReads` applies
+SPEC.md §6, and `test_domain` asserts that a non-978/979 EAN-13, a price
+add-on, a misread check digit, disagreeing frames and two books in view
+yield no ISBN (`onlyABooksBarcodeIsAnIsbn`, `aReadNeedsThreeAgreeingFrames`),
+and that a barcode left in view is read once (`aBarcodeLeftInViewIsReadOnce`).
+`test_capture` decodes generated barcodes, a shop's EAN-13 sticker among
+them, through the real decoder. A read only fills the ISBN field: the card
+of D-012 still stands between it and the catalogue
+(`scanningAStackThroughAddByIsbn`).
 **Related decisions.** D-014, D-012.
 **History.** Identified while planning F-025, 2026-10-05. The capture rules in
 SPEC.md §6 exist for this reason; the confirmation step of D-012 is the last

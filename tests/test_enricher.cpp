@@ -162,6 +162,10 @@ private slots:
     void cancellingAFetchReturnsToTheBook();
     void nothingFoundMarksTheBookAndSaysSo();
 
+    // Scanning (F-025)
+    void scanningAStackThroughAddByIsbn();
+    void scanningOntoABookGivesItsIsbn();
+
     // Find titles (F-030, D-031)
     void aSeriesIsAskedOfWikidataThenOpenLibrary();
     void findingTitlesThroughTheWindow();
@@ -1061,6 +1065,105 @@ void TestEnricher::aBatchSetsAsideWhatWaitsOnGoogle()
     QCOMPARE(b.asked(google[0]), 2);
     // Nothing else was asked twice for it.
     QCOMPARE(b.asked(OpenLibraryClient::searchUrl("Surface Detail", std::string("Iain M. Banks"))), 1);
+}
+
+void TestEnricher::scanningAStackThroughAddByIsbn()
+{
+#ifndef PINAX_HAVE_SCANNING
+    QSKIP("Built without scanning (F-025)");
+#else
+    Adding a;
+    QTemporaryDir dir;
+    QSettings settings(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+    a.window.setSettings(&settings);
+    // No real camera is opened: this one does not exist, so it cannot start.
+    a.window.setCameras({{"test-camera", QStringLiteral("Phone: Android Webcam"), true}});
+    a.window.addByIsbnAction()->trigger();
+    auto* view = a.view();
+    QVERIFY(a.find<QWidget>("add.scanBox")->isVisible());
+    QCOMPARE(a.find<QComboBox>("add.camera")->currentText(), QStringLiteral("Phone: Android Webcam"));
+    QVERIFY(!view->scanning());
+
+    // A read is taken as if typed, and looked up.
+    emit a.window.scanner()->isbnRead(QString::fromStdString(phlebasIsbn));
+    QTRY_COMPARE(a.find<QLineEdit>("add.title")->text(), QStringLiteral("Consider Phlebas"));
+    QCOMPARE(a.catalogue.count(), 2); // nothing written by a scan (AV-012)
+    // While the card is open, a read is not taken.
+    const auto asked = a.fetcher.requested.size();
+    emit a.window.scanner()->isbnRead(QStringLiteral("9791090636071"));
+    QCOMPARE(a.fetcher.requested.size(), asked);
+
+    // Scanning a stack: once added, straight on to the next.
+    view->setScanning(true); // as if the camera were running
+    QTest::mouseClick(a.find<QPushButton>("add.add"), Qt::LeftButton);
+    QCOMPARE(a.catalogue.count(), 3);
+    QCOMPARE(a.window.detailPanel()->state(), DetailPanel::State::Adding);
+    QVERIFY(a.find<QLineEdit>("add.isbn")->text().isEmpty());
+    QVERIFY(a.find<QLabel>("add.scanStatus")->text().contains(QStringLiteral("Ready for the next")));
+
+    // The same book scanned again is reported, not added twice.
+    emit a.window.scanner()->isbnRead(QString::fromStdString(phlebasIsbn));
+    QTRY_VERIFY(a.find<QLabel>("add.duplicate")->isVisible());
+    QCOMPARE(a.catalogue.count(), 3);
+
+    // A book nobody knows: the search by title comes up. Cancelling it while
+    // scanning goes back to the camera, not out of Add by ISBN (BUG-008).
+    emit a.window.scanner()->isbnRead(QStringLiteral("9791090636071"));
+    QTRY_VERIFY(a.find<QLineEdit>("add.searchTitle")->isVisible());
+    QTest::mouseClick(a.find<QPushButton>("add.cancelSearch"), Qt::LeftButton);
+    QCOMPARE(a.window.detailPanel()->state(), DetailPanel::State::Adding);
+    QVERIFY(view->atEntry());
+    QVERIFY(view->scanning());
+    QVERIFY(a.find<QLabel>("add.scanStatus")->text().contains(QStringLiteral("Skipped")));
+    QCOMPARE(a.catalogue.count(), 3);
+    // Likewise a card declined with Cancel.
+    QVERIFY(!a.catalogue.remove({a.catalogue.bookWithIsbn(phlebasIsbn)->id}));
+    emit a.window.scanner()->isbnRead(QString::fromStdString(phlebasIsbn));
+    QTRY_VERIFY(a.find<QPushButton>("add.cancelCard")->isVisible());
+    QTest::mouseClick(a.find<QPushButton>("add.cancelCard"), Qt::LeftButton);
+    QVERIFY(view->atEntry());
+    QCOMPARE(a.window.detailPanel()->state(), DetailPanel::State::Adding);
+
+    // Leaving Add by ISBN turns scanning off.
+    QTest::keyClick(view, Qt::Key_Escape);
+    QVERIFY(a.window.detailPanel()->state() != DetailPanel::State::Adding);
+    QVERIFY(!view->scanning());
+    QVERIFY(!a.window.scanner()->running());
+#endif
+}
+
+void TestEnricher::scanningOntoABookGivesItsIsbn()
+{
+#ifndef PINAX_HAVE_SCANNING
+    QSKIP("Built without scanning (F-025)");
+#else
+    Adding a;
+    QTemporaryDir dir;
+    QSettings settings(dir.filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+    a.window.setSettings(&settings);
+    a.window.setCameras({{"test-camera", QStringLiteral("Phone: Android Webcam"), true}});
+    const auto excession = a.catalogue.booksLike("Excession", {{"Iain M. Banks", pinax::domain::CreditRole::Author}});
+    QCOMPARE(excession.size(), std::size_t(1));
+    const qint64 id = excession.front().id;
+    a.window.bookList()->selectBook(id);
+    QVERIFY(a.window.scanOntoBookAction()->isEnabled());
+
+    a.window.scanOntoBookAction()->trigger();
+    QCOMPARE(a.window.detailPanel()->state(), DetailPanel::State::Adding);
+    // The camera was asked for; it does not exist, so it says so.
+    QVERIFY(!a.window.scanner()->running());
+    QVERIFY(!a.find<QLabel>("add.scanStatus")->text().isEmpty());
+
+    // Its barcode — Consider Phlebas's answer stands in — is offered as this
+    // book's ISBN, whatever the title says, and nothing is added.
+    emit a.window.scanner()->isbnRead(QString::fromStdString(phlebasIsbn));
+    QTRY_VERIFY(a.find<QRadioButton>("add.held.0") && a.find<QRadioButton>("add.held.0")->isChecked());
+    QVERIFY(a.find<QRadioButton>("add.held.0")->text().contains(QStringLiteral("Excession")));
+    QTest::mouseClick(a.find<QPushButton>("add.add"), Qt::LeftButton);
+    QCOMPARE(a.catalogue.count(), 2);
+    QVERIFY(a.catalogue.detail(id)->book.isbn13 == phlebasIsbn);
+    QVERIFY(a.window.detailPanel()->state() != DetailPanel::State::Adding);
+#endif
 }
 
 QTEST_MAIN(TestEnricher)

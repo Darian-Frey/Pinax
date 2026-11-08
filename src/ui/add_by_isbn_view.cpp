@@ -8,6 +8,7 @@
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QImage>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPixmap>
@@ -16,6 +17,8 @@
 #include <QShortcut>
 #include <QStackedWidget>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace pinax::ui {
 
@@ -97,6 +100,8 @@ AddByIsbnView::AddByIsbnView(QWidget* parent)
     stages_->addWidget(makeCard());
     stages_->addWidget(makeSearch());
     layout->addWidget(stages_, 1);
+    layout->addWidget(makeScan());
+    connect(stages_, &QStackedWidget::currentChanged, this, &AddByIsbnView::updateScanBox);
 
     auto* escape = new QShortcut(QKeySequence(Qt::Key_Escape), this);
     escape->setContext(Qt::WidgetWithChildrenShortcut);
@@ -632,6 +637,121 @@ void AddByIsbnView::add()
         choice.series = proposal;
     }
     emit addRequested(choice);
+}
+
+QWidget* AddByIsbnView::makeScan()
+{
+    // Below the stages, so the preview stays while a lookup runs and a book
+    // already held is reported; hidden behind the card, which needs the room.
+    scanBox_ = new QWidget(this);
+    scanBox_->setObjectName(QStringLiteral("add.scanBox"));
+    auto* layout = new QVBoxLayout(scanBox_);
+    layout->setContentsMargins(0, 8, 0, 0);
+    layout->addWidget(makeSectionHeading(tr("Scan"), scanBox_));
+    auto* row = new QHBoxLayout;
+    camera_ = new QComboBox(scanBox_);
+    camera_->setObjectName(QStringLiteral("add.camera"));
+    camera_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    camera_->setMinimumContentsLength(12);
+    camera_->setToolTip(tr("The camera to scan with: a phone in USB Webcam mode, say"));
+    scan_ = new QPushButton(tr("Scan with camera"), scanBox_);
+    scan_->setObjectName(QStringLiteral("add.scan"));
+    scan_->setCheckable(true);
+    scan_->setAutoDefault(false);
+    row->addWidget(camera_, 1);
+    row->addWidget(scan_);
+    layout->addLayout(row);
+    preview_ = new QLabel(scanBox_);
+    preview_->setObjectName(QStringLiteral("add.preview"));
+    preview_->setFixedSize(288, 162);
+    preview_->setAlignment(Qt::AlignCenter);
+    preview_->setBackgroundRole(QPalette::Dark);
+    preview_->setAutoFillBackground(true);
+    preview_->hide();
+    layout->addWidget(preview_, 0, Qt::AlignLeft);
+    scanStatus_ = makeNote(scanBox_, QStringLiteral("add.scanStatus"));
+    setMuted(scanStatus_);
+    layout->addWidget(scanStatus_);
+    scanBox_->hide();
+
+    connect(scan_, &QPushButton::clicked, this, [this](bool on) {
+        // The button shows what was asked; setScanning confirms it.
+        emit scanToggled(on, camera_->currentIndex());
+    });
+    connect(camera_, &QComboBox::activated, this, [this](int index) { emit cameraChosen(index); });
+    return scanBox_;
+}
+
+void AddByIsbnView::updateScanBox()
+{
+    const int stage = stages_->currentIndex();
+    scanBox_->setVisible(scanOffered_ && (stage == Entry || stage == Waiting || stage == Duplicate));
+}
+
+void AddByIsbnView::setCameras(const QStringList& names, int current)
+{
+    scanOffered_ = true;
+    camera_->clear();
+    camera_->addItems(names);
+    camera_->setCurrentIndex(names.isEmpty() ? -1 : std::clamp(current, 0, static_cast<int>(names.size()) - 1));
+    camera_->setEnabled(!names.isEmpty());
+    scan_->setEnabled(!names.isEmpty());
+    if (names.isEmpty())
+        scanStatus_->setText(tr("No camera is connected. A phone in USB Webcam mode will do."));
+    else if (!scanning())
+        scanStatus_->setText(tr("Scan the barcode on the back cover instead of typing the ISBN."));
+    updateScanBox();
+}
+
+void AddByIsbnView::setScanning(bool on)
+{
+    scan_->setChecked(on);
+    scan_->setText(on ? tr("Stop scanning") : tr("Scan with camera"));
+    preview_->setVisible(on);
+    if (!on)
+        preview_->clear();
+    else
+        scanStatus_->setText(tr("Hold the barcode 10–20 cm from the camera."));
+}
+
+bool AddByIsbnView::scanning() const
+{
+    return scan_ && scan_->isChecked();
+}
+
+bool AddByIsbnView::atEntry() const
+{
+    return stages_->currentIndex() == Entry;
+}
+
+void AddByIsbnView::showScanFrame(const QImage& frame)
+{
+    if (!scanning())
+        return;
+    preview_->setPixmap(QPixmap::fromImage(
+        frame.scaled(preview_->size(), Qt::KeepAspectRatio, Qt::FastTransformation)));
+}
+
+void AddByIsbnView::showScanStatus(const QString& text)
+{
+    scanStatus_->setText(text);
+}
+
+bool AddByIsbnView::takeScan(const QString& isbn13)
+{
+    const int stage = stages_->currentIndex();
+    if (stage != Entry && stage != Duplicate)
+        return false; // a lookup or a card in hand: finish that first
+    stages_->setCurrentIndex(Entry);
+    isbn_->setText(isbn13);
+    lookUp();
+    return true;
+}
+
+void AddByIsbnView::readyForNext(const QString& done)
+{
+    start();
+    scanStatus_->setText(done + QStringLiteral(" ") + tr("Ready for the next book."));
 }
 
 } // namespace pinax::ui

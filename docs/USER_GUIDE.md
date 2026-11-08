@@ -29,6 +29,11 @@ rather than change someone else's database.
   back cover and shows a card to check before anything is added. If you
   already have that book without an ISBN, Pinax gives yours the number
   rather than adding it twice.
+- **By scanning:** in Add by ISBN, choose a camera and press **Scan with
+  camera**, then hold the book's barcode 10–20 cm away. The ISBN is read and
+  looked up as if typed, and you still check the card before anything is
+  added. After each book the panel is ready for the next, so a stack goes
+  in without the keyboard. See [Scanning barcodes](#scanning-barcodes).
 - **From a spreadsheet:** **File ▸ Import ▸ Books from CSV** merges a CSV file
   into the open catalogue, after backing it up. The format is in
   [SPEC.md §1](../SPEC.md). Importing the same file twice changes nothing.
@@ -125,6 +130,31 @@ Google Books is asked as well if you have an API key. Put it in a file called
 `google-books.key`, beside the catalogue or in the folder Pinax is started
 from, or in the `PINAX_GOOGLE_BOOKS_KEY` environment variable. Never commit
 it: `.gitignore` already covers `*.key`.
+
+---
+
+## Scanning barcodes
+
+If Pinax was built with scanning (see [BUILD.md](../BUILD.md)), Add by ISBN
+has a **Scan** box below the ISBN field.
+
+- **Any webcam with autofocus will do, and so will an Android phone.**
+  Plug the phone in with a data cable, tap the USB notification, choose
+  **Webcam**, and switch the phone's preview to the rear camera
+  ([details](PHONE_WEBCAM.md)). Pinax remembers which camera you chose.
+- **Only a book's barcode is read.** A shop's price sticker, the small price
+  add-on beside the main barcode, and a QR code are ignored. A read needs the
+  same ISBN in several frames running, so a blurred glimpse is not enough.
+- **A barcode left in front of the camera is read once.** Take the book away
+  and bring it back to read it again.
+- **Giving a book you already have its ISBN:** select it in the list, then
+  **Books ▸ Scan ISBN onto Selected Book**. The card offers the scanned ISBN
+  to that book, and nothing changes until you confirm. Scanning in Add by
+  ISBN also recognises a copy you already hold without an ISBN, and offers
+  to give it the number rather than add it twice.
+
+The camera is on only while Add by ISBN is open. Books printed before
+barcodes were common have none; type those, or add them by hand.
 
 ---
 

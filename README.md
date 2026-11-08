@@ -29,8 +29,9 @@ Alexandria.*
 - **Names the books you're missing.** **Find titles** looks a series up and
   tells you what its missing volumes are called, so you know what to look
   for in the shop.
-- **Adds books by ISBN.** Type the number from the back cover and check the
-  card before it goes in.
+- **Adds books by ISBN, or by scanning.** Type the number from the back
+  cover, or hold the barcode up to a webcam or an Android phone, and check
+  the card before it goes in.
 - **Finds anything fast.** Sort, filter, group and search: unread Pratchett,
   or space opera rated eight or more.
 - **Keeps it safe.** Back up in a click, and export to Excel, CSV or plain
@@ -98,8 +99,9 @@ time (Ctrl+N), by ISBN (Ctrl+I), or bring a whole spreadsheet in with
 > **Provenance:** Shane Hartley (author); Claude (primary auditor)
 > **Last reviewed:** 2026-10-10
 > **Why this status:** Phases 1 to 4 are complete, so everything above works
-> today. Phase 5, adding books by scanning their barcode, is next, with an
-> Android phone as the webcam. Toolchain fixed by D-001.
+> today. Phase 5, adding books by scanning their barcode with a webcam or
+> an Android phone, is built and awaiting its real-camera check. Toolchain
+> fixed by D-001.
 
 What's done and what's next is in the [roadmap](ROADMAP.md), and the
 [changelog](CHANGELOG.md) lists every change.

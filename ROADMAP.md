@@ -176,21 +176,27 @@ empty database and reproduces those same counts.
 
 ## Phase 5 — Barcode scanning
 **Goal:** Scan ISBNs with a USB webcam, for new books and the seeded backlog.
-**Status:** Not started. The hardware question is answered: an Android
-phone in its built-in USB Webcam mode serves as the camera, with no webcam
-to buy. It was measured on the development machine and is set out in
-[docs/PHONE_WEBCAM.md](docs/PHONE_WEBCAM.md). A real barcode has yet to be
-read through it.
+**Status:** In progress — every deliverable built (2026-11-08); the
+acceptance check with a camera is still to run. An Android phone in its
+built-in USB Webcam mode serves as the camera, with no webcam to buy
+([docs/PHONE_WEBCAM.md](docs/PHONE_WEBCAM.md)). A real barcode has yet to
+be read through it.
 **Features delivered:** F-025
 **Deliverables:**
-- [ ] Qt6 Multimedia and ZXing-C++ found by CMake as optional dependencies;
-      the feature compiles out cleanly without them
-- [ ] Capture component in `io`: camera frames → EAN-13 decode → ISBN,
-      applying the rules in SPEC.md §6
-- [ ] Live preview in the add-by-ISBN panel, feeding the F-024 lookup
-- [ ] Scan-to-existing-book from the detail panel, for backfilling ISBNs
-- [ ] Tests for AV-012: non-ISBN EAN-13, price add-on, disagreeing frames
-- [ ] `BUILD.md` updated with the optional dependencies
+- [x] Qt6 Multimedia and ZXing-C++ found by CMake as optional dependencies;
+      the feature compiles out cleanly without them — 2026-11-08,
+      `PINAX_SCANNING`; built and tested both ways
+- [x] Capture component: camera frames → EAN-13 decode → ISBN, applying the
+      rules in SPEC.md §6 — 2026-11-08, in a `capture` module of its own and
+      `domain::BarcodeReads` rather than `io` (D-033)
+- [x] Live preview in the add-by-ISBN panel, feeding the F-024 lookup —
+      2026-11-08, with a remembered camera choice and the panel ready for
+      the next book after each add
+- [x] Scan-to-existing-book, for backfilling ISBNs — 2026-11-08, Books ▸
+      Scan ISBN onto Selected Book
+- [x] Tests for AV-012: non-ISBN EAN-13, price add-on, disagreeing frames —
+      2026-11-08, `test_domain` and `test_capture`
+- [x] `BUILD.md` updated with the optional dependencies — 2026-11-08
 **Acceptance:** A paperback held 10–20 cm from the camera produces its
 ISBN-13 within two seconds; a shop price sticker and a price add-on never
 produce one; a stack of ten new books can be added without the keyboard; and

@@ -28,6 +28,14 @@ owner's catalogue. Phase 5 (barcode scanning) waits on a webcam.
   bar counts the books left for Google.
 
 ### Added
+- Barcode scanning (F-025, Phase 5; D-014, D-033), when built with Qt
+  Multimedia and ZXing-C++: Add by ISBN has a camera choice and a live
+  preview, and a book's barcode read under SPEC.md §6 is looked up as if
+  typed. While scanning, the panel is ready for the next book after each
+  add. Books ▸ Scan ISBN onto Selected Book gives a held book its ISBN. A
+  shop's price sticker, a price add-on, disagreeing frames and two books in
+  view are never read (AV-012). Optional at build time: without the two
+  libraries the feature compiles out.
 - `docs/PHONE_WEBCAM.md`: an Android phone in its USB Webcam mode as Phase
   5's barcode camera, as measured on the development machine: setup, the
   formats to use, the build dependencies, and what is still to verify.
@@ -321,6 +329,11 @@ owner's catalogue. Phase 5 (barcode scanning) waits on a webcam.
   share an author. Title searches through Google work again.
 
 ### Fixed
+- BUG-007: the detail panel could be dragged narrower than its forms, which
+  were then cut off at the window's edge. It now stops at the width its
+  widest form needs.
+- BUG-008: cancelling a search while scanning closed Add by ISBN. While
+  scanning, Cancel now leaves that book and goes back to the camera.
 - BUG-005: a book's series are edited with the book. The edit form has a
   Series section — one row per series, chosen from yours or typed to start a
   new one, with the position as printed and a sort number worked out if left

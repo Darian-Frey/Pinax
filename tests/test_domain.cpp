@@ -1,3 +1,4 @@
+#include "domain/barcode_reads.h"
 #include "domain/credit_text.h"
 #include "domain/dates.h"
 #include "domain/enrichment.h"
@@ -18,6 +19,9 @@ class TestDomain : public QObject {
     Q_OBJECT
 
 private slots:
+    void onlyABooksBarcodeIsAnIsbn();
+    void aReadNeedsThreeAgreeingFrames();
+    void aBarcodeLeftInViewIsReadOnce();
     void unidentifiedVolumesAreUnownedAndUnnamed();
     void titlesFoundNameTheRightVolumes();
     void numberedTitlesFillUnnumberedSlotsInOrder();
@@ -472,6 +476,95 @@ void TestDomain::numberedTitlesFillUnnumberedSlotsInOrder()
     QVERIFY(!proposals[2].chosen);
     QCOMPARE(proposals[3].volume.title, std::string("The Art of Discworld"));
     QVERIFY(!proposals[3].entryId);
+}
+
+void TestDomain::onlyABooksBarcodeIsAnIsbn()
+{
+    // AV-012: what a camera sees on a second-hand book is not always its ISBN.
+    QVERIFY(isbnFromBarcode("9780316005388") == std::string("9780316005388"));
+    QVERIFY(isbnFromBarcode("9791090636071") == std::string("9791090636071")); // the 979 prefix
+    // A price add-on beside it is dropped, however the decoder gives it.
+    QVERIFY(isbnFromBarcode("9780316005388 52499") == std::string("9780316005388"));
+    QVERIFY(isbnFromBarcode("978031600538852499") == std::string("9780316005388"));
+    QVERIFY(isbnFromBarcode("9780316005388 12") == std::string("9780316005388"));
+    QVERIFY(!isbnFromBarcode("9780316005388 123")); // not an add-on
+    // A shop's own EAN-13 price sticker: valid, but not a book's.
+    QVERIFY(!isbnFromBarcode("5012345678900"));
+    // A misread digit fails the check.
+    QVERIFY(!isbnFromBarcode("9780316005389"));
+    QVERIFY(!isbnFromBarcode("978031600538"));
+    QVERIFY(!isbnFromBarcode("978-0-316-00538-8"));
+    QVERIFY(!isbnFromBarcode(""));
+}
+
+void TestDomain::aReadNeedsThreeAgreeingFrames()
+{
+    using namespace std::chrono_literals;
+    const std::string phlebas = "9780316005388";
+    const std::string other = "9791090636071";
+    BarcodeReads reads;
+    auto t = BarcodeReads::Clock::time_point {};
+
+    QVERIFY(!reads.frame({phlebas}, t));
+    QVERIFY(!reads.frame({phlebas}, t += 33ms));
+    QVERIFY(reads.frame({phlebas}, t += 33ms) == phlebas); // the third agreeing frame
+
+    // A frame without it starts the count again.
+    reads.reset();
+    QVERIFY(!reads.frame({phlebas}, t += 33ms));
+    QVERIFY(!reads.frame({}, t += 33ms));
+    QVERIFY(!reads.frame({phlebas}, t += 33ms));
+    QVERIFY(!reads.frame({phlebas}, t += 33ms));
+    QVERIFY(reads.frame({phlebas}, t += 33ms) == phlebas);
+
+    // Disagreeing frames — a misread digit in one — never add up to a read.
+    reads.reset();
+    QVERIFY(!reads.frame({phlebas}, t += 33ms));
+    QVERIFY(!reads.frame({other}, t += 33ms));
+    QVERIFY(!reads.frame({phlebas}, t += 33ms));
+    QVERIFY(!reads.frame({other}, t += 33ms));
+
+    // Two books in view: neither is read, however long they stay.
+    reads.reset();
+    for (int i = 0; i < 6; ++i)
+        QVERIFY(!reads.frame({phlebas, other}, t += 33ms));
+
+    // A price sticker beside the ISBN, and the add-on, are not in the way.
+    reads.reset();
+    QVERIFY(!reads.frame({phlebas, "5012345678900"}, t += 33ms));
+    QVERIFY(!reads.frame({"9780316005388 52499"}, t += 33ms));
+    QVERIFY(reads.frame({phlebas}, t += 33ms) == phlebas);
+
+    // A sticker alone is never read.
+    reads.reset();
+    for (int i = 0; i < 6; ++i)
+        QVERIFY(!reads.frame({"5012345678900"}, t += 33ms));
+}
+
+void TestDomain::aBarcodeLeftInViewIsReadOnce()
+{
+    using namespace std::chrono_literals;
+    const std::string phlebas = "9780316005388";
+    const std::string other = "9791090636071";
+    BarcodeReads reads;
+    auto t = BarcodeReads::Clock::time_point {};
+    auto show = [&](const std::string& isbn, int frames) {
+        int read = 0;
+        for (int i = 0; i < frames; ++i)
+            read += reads.frame({isbn}, t += 33ms).has_value();
+        return read;
+    };
+
+    // Ten seconds in front of the camera: one read.
+    QCOMPARE(show(phlebas, 300), 1);
+    // Taken away briefly and shown again: still the same lookup.
+    t += 500ms;
+    QCOMPARE(show(phlebas, 30), 0);
+    // Away for longer than the quiet: read again.
+    t += 2500ms;
+    QCOMPARE(show(phlebas, 30), 1);
+    // The next book in the stack is read at once.
+    QCOMPARE(show(other, 3), 1);
 }
 
 QTEST_APPLESS_MAIN(TestDomain)

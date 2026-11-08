@@ -613,7 +613,11 @@ A decoded value is accepted as an ISBN when all of the following hold:
 A 5-digit supplement (the price add-on printed beside the main barcode on many
 UK and US paperbacks) is discarded; only the 13-digit main code is kept.
 
-After an accepted read, the same value is ignored for 2 seconds, so a barcode
-left in front of the camera does not trigger a second lookup.
+After an accepted read, the same value is ignored until 2 seconds pass
+without it being read again, so a barcode left in front of the camera
+triggers one lookup, however long it stays, and a second only after it has
+been taken away and shown again. A frame showing two different ISBNs reads
+neither. The rules are `domain::BarcodeReads` (`isbnFromBarcode` for a
+single value).
 
 Frames are scaled to at most 1280 pixels on the long edge before decoding.

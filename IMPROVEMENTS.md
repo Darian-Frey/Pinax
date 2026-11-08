@@ -23,6 +23,24 @@ feature request, not an improvement candidate, and should be rejected at review.
 
 ## Suggested
 
+### IMP-012 List cameras as they come and go
+
+**Status:** suggested
+**Found:** 2026-11-08 (Phase 5, connecting the owner's phone as a webcam)
+**Location:** `src/app/main_window.cpp`, `offerScanning`
+**Effort:** small
+**Description.** Add by ISBN reads the list of cameras when it opens. A
+phone switched to Webcam mode after that is not offered until Add by ISBN
+is closed and opened again, and a camera unplugged stays in the list.
+Connecting a phone often takes a few tries (a cable, a port, the USB
+notification), so the owner meets this at once.
+**Proposal.** Refresh the camera choice on `QMediaDevices::videoInputsChanged`
+while Add by ISBN is open, keeping the camera chosen if it is still there.
+If the camera in use goes, stop scanning and say so.
+**Trade-offs.** One more signal to follow, and tests need to simulate a
+camera arriving. Leaving it means reopening Add by ISBN after connecting a
+camera.
+
 ## Applied
 
 ### IMP-011 Let Fetch all move on while Google Books is backing off

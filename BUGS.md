@@ -24,6 +24,41 @@ detection becomes an entry here.
 
 ## Fixed
 
+### BUG-008 Cancelling a search while scanning closed Add by ISBN
+
+**Status:** fixed (2026-11-08)
+**Found:** 2026-11-08 (by the owner, scanning books with a phone, F-025)
+**Location:** `src/app/main_window.cpp`, `stopAdding`
+**Severity:** medium
+**Description.** A scanned ISBN that no provider knew brought up the search
+by title. The owner tried a title, found nothing, and pressed Cancel. That
+closed Add by ISBN altogether, camera and all, and scanning the next book
+meant opening it again with Ctrl+I.
+**Reproduction (was).** Add by ISBN, Scan with camera, scan a book no
+provider knows, then Cancel on the search.
+**Fix.** While scanning, Cancel (or Esc) on a lookup, a card, a search or a
+book already held leaves that book and goes back to the camera, saying
+"Skipped that book. Ready for the next book." Cancel while the panel is
+waiting for a scan still closes Add by ISBN. Not scanning, Cancel closes as
+before. `tests/test_enricher.cpp`, `scanningAStackThroughAddByIsbn`.
+
+### BUG-007 The detail panel could be dragged narrower than its forms
+
+**Status:** fixed (2026-11-08)
+**Found:** 2026-11-08 (by the owner, widening the book list)
+**Location:** `src/ui/detail_panel.cpp`, `scrolling`
+**Severity:** low
+**Description.** The panel's forms sit in scroll areas that never scroll
+sideways, and a scroll area asks for almost no width. So the splitter let
+the panel be dragged narrower than a form could lay out, and Add by ISBN's
+ISBN field and Scan box ran off the window's edge.
+**Reproduction (was).** Open Add by ISBN and drag the splitter between the
+list and the panel to the right.
+**Fix.** The panel's scroll areas ask for their content's minimum width as
+their own, so the splitter stops the panel at the width its widest form
+needs (327 pixels, Add by ISBN's). `tests/test_detail_panel.cpp`,
+`cannotBeSqueezedNarrowerThanItsForms`, fails without the fix.
+
 ### BUG-006 Restore from Backup was offered only with a catalogue open
 
 **Status:** fixed (2026-10-08)

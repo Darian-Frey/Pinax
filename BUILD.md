@@ -14,6 +14,8 @@ Verified on Linux Mint 22.3 (Ubuntu 24.04 base), 2026-10-05.
 | Qt6 Widgets, Network, Test | 6.4 | 6.4.2 | `qt6-base-dev` |
 | SQLite headers | 3.31 | 3.45.1 | `libsqlite3-dev` |
 | libxlsxwriter | 1.0 | 1.1.5 | `libxlsxwriter-dev` (D-025), found through pkg-config |
+| Qt6 Multimedia *(optional)* | 6.4 | 6.4.2 | `qt6-multimedia-dev`, for barcode scanning (F-025) |
+| ZXing-C++ *(optional)* | 2.0 | 2.2.1 | `libzxing-dev`, for barcode scanning, found through pkg-config |
 
 Ninja is optional; without `-G Ninja` CMake falls back to Make.
 
@@ -24,9 +26,21 @@ sudo apt install g++ cmake ninja-build qt6-base-dev libsqlite3-dev libxlsxwriter
 libxlsxwriter arrived in Phase 4 for the Excel export (F-022, D-025); without
 it CMake stops at `pkg_check_modules(XLSXWRITER …)`. LibreOffice, if
 installed, lets `test_catalogue` read an exported workbook back; without it
-that part of the test is skipped. Later phases add dependencies, each
-recorded here when it is first needed: optionally Qt6 Multimedia and
-ZXing-C++ in Phase 5 (D-014). Qt SQL is not used (D-015).
+that part of the test is skipped. Qt SQL is not used (D-015).
+
+Barcode scanning (Phase 5, F-025, D-014) is optional. With Qt6 Multimedia
+and ZXing-C++ installed it is built, and `test_capture` with it:
+
+```sh
+sudo apt install qt6-multimedia-dev libzxing-dev
+```
+
+CMake says which at configure time, `-- Pinax barcode scanning: ON` or
+`OFF`. Without the two packages, or with `-DPINAX_SCANNING=OFF`, the feature
+compiles out, Add by ISBN has no scanning box and typing an ISBN is the only
+way in (D-033). On Linux, Qt 6.4's camera runs through GStreamer, whose
+`v4l2src` and `jpegdec` come in `gstreamer1.0-plugins-good`. An Android
+phone serves as the camera (`docs/PHONE_WEBCAM.md`).
 
 ---
 
