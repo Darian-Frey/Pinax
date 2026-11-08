@@ -46,6 +46,7 @@ pinax/
 ├── docs/
 │   ├── USER_GUIDE.md     using Pinax
 │   ├── DEVELOPER.md      this page
+│   ├── PHONE_WEBCAM.md   an Android phone as Phase 5's barcode camera
 │   └── screenshots/      the README's and the guide's, from a demo catalogue
 ├── design/
 │   ├── Pinax UI.html     interactive mock-up, four screens

@@ -98,8 +98,8 @@ time (Ctrl+N), by ISBN (Ctrl+I), or bring a whole spreadsheet in with
 > **Provenance:** Shane Hartley (author); Claude (primary auditor)
 > **Last reviewed:** 2026-10-10
 > **Why this status:** Phases 1 to 4 are complete, so everything above works
-> today. Phase 5, adding books by scanning their barcode with a webcam,
-> waits on a camera. Toolchain fixed by D-001.
+> today. Phase 5, adding books by scanning their barcode, is next, with an
+> Android phone as the webcam. Toolchain fixed by D-001.
 
 What's done and what's next is in the [roadmap](ROADMAP.md), and the
 [changelog](CHANGELOG.md) lists every change.

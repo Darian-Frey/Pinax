@@ -176,8 +176,11 @@ empty database and reproduces those same counts.
 
 ## Phase 5 — Barcode scanning
 **Goal:** Scan ISBNs with a USB webcam, for new books and the seeded backlog.
-**Status:** Not started — blocked on hardware (no webcam owned yet; buy one
-with autofocus, per D-014)
+**Status:** Not started. The hardware question is answered: an Android
+phone in its built-in USB Webcam mode serves as the camera, with no webcam
+to buy. It was measured on the development machine and is set out in
+[docs/PHONE_WEBCAM.md](docs/PHONE_WEBCAM.md). A real barcode has yet to be
+read through it.
 **Features delivered:** F-025
 **Deliverables:**
 - [ ] Qt6 Multimedia and ZXing-C++ found by CMake as optional dependencies;

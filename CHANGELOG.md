@@ -28,6 +28,9 @@ owner's catalogue. Phase 5 (barcode scanning) waits on a webcam.
   bar counts the books left for Google.
 
 ### Added
+- `docs/PHONE_WEBCAM.md`: an Android phone in its USB Webcam mode as Phase
+  5's barcode camera, as measured on the development machine: setup, the
+  formats to use, the build dependencies, and what is still to verify.
 - `LICENSE`: Pinax is released under the MIT licence (D-032, superseding
   D-013), now that the repository is public.
 - Find titles (F-030, D-031), asked for by the owner: a series' page looks

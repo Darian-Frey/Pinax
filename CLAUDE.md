@@ -51,7 +51,8 @@ published.
 `src/` holds one directory per module (ARCHITECTURE.md §2); all have code. Each module becomes its own static library as it gains
 code.
 `design/` holds the UI mock-up with PNG captures of its four screens.
-`docs/` holds the user guide, the developer notes and `screenshots/`, used
+`docs/` holds the user guide, the developer notes, the phone-as-webcam
+notes for Phase 5 and `screenshots/`, used
 by the README and the guide. The screenshots were taken offscreen
 (`MainWindow::grab`) from a demo catalogue of 32 well-known books. Never take
 them from the owner's catalogue: a screenshot publishes the library as surely
@@ -68,8 +69,11 @@ field changed. Phase 4 closed when a workbook and a restored dump matched
 the application's counts. The owner's own catalogue has still not had a
 full Fetch all; that is theirs to run, from the toolbar.
 
-**Next: Phase 5 — barcode scanning** (F-025, D-014), blocked until the
-owner buys a webcam with autofocus. Its deliverables are in ROADMAP.md. In
+**Next: Phase 5 — barcode scanning** (F-025, D-014). No longer blocked on
+hardware: an Android phone in its USB Webcam mode is the camera, measured
+and written up in `docs/PHONE_WEBCAM.md` (rear camera, MJPEG 1280x720,
+pick the camera by description, never by `/dev/videoN`). Keep the phone's
+model and serial out of the repository. Its deliverables are in ROADMAP.md. In
 short: Qt6 Multimedia and ZXing-C++ as optional dependencies that compile
 out cleanly, an EAN-13 capture component in `io` under SPEC.md §6, and a
 live preview feeding Add by ISBN (D-024). Scanning onto an existing book
